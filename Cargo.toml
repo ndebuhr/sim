@@ -11,6 +11,8 @@ readme = "README.md"
 keywords = ["simulation", "discrete", "event", "stochastic", "modeling"]
 categories = ["simulation"]
 
+exclude = ["images/", "MODELS.md"]
+
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-Oz", "--enable-mutable-globals"]
 
