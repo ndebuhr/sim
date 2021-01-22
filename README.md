@@ -1,6 +1,7 @@
 # Sim
 
 ![stability-experimental](https://img.shields.io/badge/stability-experimental-bd0058.svg?style=flat-square)
+[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ndebuhr/sim/CI?style=flat-square)](https://github.com/ndebuhr/sim/actions)
 [![Crates.io](https://img.shields.io/crates/v/sim?style=flat-square)](https://crates.io/crates/sim)
 [![npm](https://img.shields.io/npm/v/sim-rs?style=flat-square)](https://www.npmjs.com/package/sim-rs)
 [![docs.rs](https://img.shields.io/badge/docs.rs-sim-purple?style=flat-square)](https://docs.rs/sim/)
