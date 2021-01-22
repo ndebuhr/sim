@@ -5,27 +5,36 @@ on:
     branches: [ main ]
   schedule: [cron: "42 1 * * *"]
 
-stages:
-  - build
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [stable, beta, nightly]
+    steps:
+    - uses: actions/checkout@master
+    - name: Install Rust (rustup)
+      run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
+    - run: cargo test
 
-rust-latest:
-  stage: build
-  image: rust:latest
-  script:
-    - cargo build --verbose
-    - cargo test --verbose
+  wasm-pack:
+    name: WASM
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install Rust
+      run: rustup update stable && rustup default stable
+    - name: Build sim with wasm-pack
+      run: |
+        cargo install --git https://github.com/rustwasm/wasm-pack.git
+        wasm-pack build
 
-rust-nightly:
-  stage: build
-  image: rustlang/rust:nightly
-  script:
-    - cargo build --verbose
-    - cargo test --verbose
-  allow_failure: true
-
-wasm-pack-master:
-  stage: build
-  image: rust:latest
-  script:
-    - cargo install --git https://github.com/rustwasm/wasm-pack.git
-    - wasm-pack --verbose build
+  rustfmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: Install Rust
+      run: rustup update stable && rustup default stable && rustup component add rustfmt
+    - run: cargo fmt -- --check
