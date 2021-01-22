@@ -1,0 +1,24 @@
+name: Codecov
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  codecov:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build sim with wasm-pack
+      run: |
+        curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        wasm-pack build
+    - name: Push code coverage data to codecov
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      run: |
+        cargo install cargo-tarpaulin &&
+        cargo tarpaulin --out Xml &&
+        bash <(curl -s https://codecov.io/bash)
