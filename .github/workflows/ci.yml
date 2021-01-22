@@ -48,5 +48,4 @@ jobs:
       - uses: actions/checkout@v2
       - uses: dtolnay/rust-toolchain@clippy
       - run: |
-          cargo clippy --all-features -- -Dclippy::all -Dclippy::pedantic
-          echo "exit $?"
+          cargo clippy --all-features -- -Dclippy::all -Dclippy::pedantic || "exit $?"
