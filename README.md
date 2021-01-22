@@ -1,8 +1,9 @@
 # Sim
 
-![stability-experimental](https://img.shields.io/badge/stability-experimental-orange.svg?style=flat-square)
-![npm](https://img.shields.io/npm/v/sim-rs?style=flat-square)
+![stability-experimental](https://img.shields.io/badge/stability-experimental-bd0058.svg?style=flat-square)
 [![Crates.io](https://img.shields.io/crates/v/sim?style=flat-square)](https://crates.io/crates/sim)
+[![npm](https://img.shields.io/npm/v/sim-rs?style=flat-square)](https://www.npmjs.com/package/sim-rs)
+[![docs.rs](https://img.shields.io/badge/docs.rs-sim-purple?style=flat-square)](https://docs.rs/sim/)
 [![Codecov](https://img.shields.io/codecov/c/github/ndebuhr/sim?style=flat-square)](https://codecov.io/gh/ndebuhr/sim)
 [![Crates.io](https://img.shields.io/crates/l/sim?style=flat-square)](#license)
 [![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
