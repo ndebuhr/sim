@@ -3,8 +3,9 @@
 ![stability-experimental](https://img.shields.io/badge/stability-experimental-orange.svg?style=flat-square)
 ![npm](https://img.shields.io/npm/v/sim-rs?style=flat-square)
 ![Crates.io](https://img.shields.io/crates/v/sim?style=flat-square)
-[![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
+[![Codecov](https://img.shields.io/codecov/c/github/ndebuhr/sim?style=flat-square)](https://codecov.io/gh/ndebuhr/sim)
 ![Crates.io](https://img.shields.io/crates/l/sim?style=flat-square)
+[![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 
 "Sim" or "SimRS" provides a discrete event simulation engine, to facilitate Rust- and npm-based simulation products and projects.
 
