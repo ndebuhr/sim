@@ -47,9 +47,9 @@ npm i sim-rs
 
 ## Usage
 
-_Documentation will be available on docs.rs shortly_
+Please refer to the documentation at [https://docs.rs/sim](https://docs.rs/sim)
 
-The [test simulations](src/simulator/test_simulations.rs) are a good reference for creating, running, and analyzing simulations with Sim.
+Also, the [test simulations](src/simulator/test_simulations.rs) are a good reference for creating, running, and analyzing simulations with Sim.
 
 ### Creating Simulations
 Simulation definitions are defined in a declarative YAML or JSON format, and then ingested through `Simulation`'s `post_yaml` or `post_json` constructors.
