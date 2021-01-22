@@ -18,7 +18,7 @@ This repository contains:
 3. [Output analysis framework](src/output_analysis), for analyzing simulation outputs statistically.
 4. [Simulator engine](src/simulator), for managing and executing discrete event simulations.
 
-Sim is compatible with a wide variety of compilation targets, including WebAssembly.  Sim is built on stable Rust - it does not require nightly.
+Sim is compatible with a wide variety of compilation targets, including WebAssembly.  Sim does not require nightly Rust.
 
 ## Table of Contents
 
