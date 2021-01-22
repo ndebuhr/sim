@@ -6,6 +6,7 @@ use wasm_bindgen::prelude::*;
 use crate::input_modeling::uniform_rng::UniformRNG;
 use crate::models::model::Model;
 use crate::models::ModelMessage;
+use crate::utils;
 
 mod test_simulations;
 
@@ -47,6 +48,7 @@ struct Message {
 #[wasm_bindgen]
 impl Simulation {
     pub fn post_json(models: String, connectors: String) -> Simulation {
+        utils::set_panic_hook();
         Simulation {
             models: serde_json::from_str(&models).unwrap(),
             connectors: serde_json::from_str(&connectors).unwrap(),
@@ -64,6 +66,7 @@ impl Simulation {
     }
 
     pub fn post_yaml(models: String, connectors: String) -> Simulation {
+        utils::set_panic_hook();
         Simulation {
             models: serde_yaml::from_str(&models).unwrap(),
             connectors: serde_yaml::from_str(&connectors).unwrap(),
