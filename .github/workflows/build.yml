@@ -1,0 +1,31 @@
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule: [cron: "42 1 * * *"]
+
+stages:
+  - build
+
+rust-latest:
+  stage: build
+  image: rust:latest
+  script:
+    - cargo build --verbose
+    - cargo test --verbose
+
+rust-nightly:
+  stage: build
+  image: rustlang/rust:nightly
+  script:
+    - cargo build --verbose
+    - cargo test --verbose
+  allow_failure: true
+
+wasm-pack-master:
+  stage: build
+  image: rust:latest
+  script:
+    - cargo install --git https://github.com/rustwasm/wasm-pack.git
+    - wasm-pack --verbose build
