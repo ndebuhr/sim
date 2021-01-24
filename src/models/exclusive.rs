@@ -8,6 +8,11 @@ use super::ModelMessage;
 use crate::input_modeling::random_variable::RandomVariable;
 use crate::input_modeling::uniform_rng::UniformRNG;
 
+/// The exclusive gateway splits a process flow into a set of possible paths.
+/// The process will only follow one of the possible paths. Path selection is
+/// determined by Weighted Index distribution random variates, so this atomic
+/// model exhibits stochastic behavior. The exclusive gateway is a BPMN
+/// concept.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExclusiveGateway {
@@ -127,7 +132,6 @@ impl Model for ExclusiveGateway {
             self.history.push(self.snapshot.clone());
         }
         // State changes
-
         outgoing_messages.push(ModelMessage {
             port_name: self.ports_out.flow_paths[port_number].clone(),
             message: incoming_message.message,

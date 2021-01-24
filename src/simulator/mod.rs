@@ -1,5 +1,27 @@
+//! The simulator module provides the mechanics to orchestrate the models and
+//! connectors via discrete event simulation.  The specific formalism for
+//! simulation execution is the Discrete Event System Specification.  User
+//! interaction is also captured in this module - simulation stepping and
+//! input injection.
+//!
+//! Two constructors are provided for creating a `Simulation`, `post_json`
+//! and `post_yaml`.  If the default `Simulation::default()` is used to
+//! create the simulation, models and connectors should be added with the
+//! `put_json` or `put_yaml` method.
+//!
+//! Most simulation analysis will involve the collection, transformation,
+//! and analysis of messages.  Messages can be retrieved after each
+//! simulation step with the `get_messages_yaml` and `get_messages_json`
+//! methods.  The Step N and Step Until methods enable the execution of many
+//! simulation steps with a single method call.  Since message history isn't
+//! stored in the simulation struct, `step_n` and `step_until` collect the
+//! messages during the simulation steps, and provide them as a returned
+//! value.  The returned value format depends on the method call:
+//! `step_n_json`, `step_n_yaml`, `step_until_json`, or `step_until_yaml`.
+
 use std::f64::INFINITY;
 
+use js_sys::Array;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
@@ -10,6 +32,10 @@ use crate::utils;
 
 mod test_simulations;
 
+/// The `Simulation` struct is the core of sim, and includes everything
+/// needed to run a simulation - models, connectors, and a random number
+/// generator.  State information, specifically global time and active
+/// messages are additionally retained in the struct.
 #[wasm_bindgen]
 #[derive(Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -22,6 +48,9 @@ pub struct Simulation {
     uniform_rng: UniformRNG,
 }
 
+/// Connectors are configured to connect models through their ports.  During
+/// simulation, models exchange messages (as per the Discrete Event System
+/// Specification) via these connectors.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Connector {
@@ -34,9 +63,14 @@ struct Connector {
     target_port: String,
 }
 
+/// Messages are the mechanism of information exchange for models in a
+/// a simulation.  The message must contain origin information (source model
+/// ID and source model port), destination information (target model ID and
+/// target model port), and the text/content of the message.
+#[wasm_bindgen]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Message {
+pub struct Message {
     source_id: String,
     source_port: String,
     target_id: String,
@@ -47,6 +81,8 @@ struct Message {
 
 #[wasm_bindgen]
 impl Simulation {
+    /// Like `post_yaml`, this constructor method creates a simulation from
+    /// a supplied configuration (models and connectors).
     pub fn post_json(models: String, connectors: String) -> Simulation {
         utils::set_panic_hook();
         Simulation {
@@ -56,15 +92,25 @@ impl Simulation {
         }
     }
 
+    /// Like `put_yaml`, this method sets the models and connectors of an
+    /// existing simulation.
     pub fn put_json(&mut self, models: String, connectors: String) {
         self.models = serde_json::from_str(&models).unwrap();
         self.connectors = serde_json::from_str(&connectors).unwrap();
     }
 
+    /// This method provides the simulation state in a "pretty" serialized
+    /// JSON format - with line breaks and indentations.  The simulation
+    /// details not included in this serialization are internal
+    /// implementation details.  If it is not included in the serialization,
+    /// the data is not required to specify the simulation state, and it has
+    /// been excluded deliberately.
     pub fn get_json(&self) -> String {
         serde_json::to_string_pretty(self).unwrap()
     }
 
+    /// Like `post_json`, this constructor method creates a simulation from
+    /// a supplied configuration (models and connectors).
     pub fn post_yaml(models: String, connectors: String) -> Simulation {
         utils::set_panic_hook();
         Simulation {
@@ -74,49 +120,97 @@ impl Simulation {
         }
     }
 
+    /// Like `put_json`, this method sets the models and connectors of an
+    /// existing simulation.
     pub fn put_yaml(&mut self, models: String, connectors: String) {
         self.models = serde_yaml::from_str(&models).unwrap();
         self.connectors = serde_yaml::from_str(&connectors).unwrap();
     }
 
+    /// This method provides the simulation state in a yaml serialized JSON
+    /// format - with line breaks and indentations.  The simulation details
+    /// not included in this serialization are internal implementation
+    /// details.  If it is not included in the serialization, the data is not
+    /// required to specify the simulation state, and it has been excluded
+    /// deliberately.
     pub fn get_yaml(&self) -> String {
         serde_yaml::to_string(self).unwrap()
     }
 
-    pub fn reset(&mut self) {
-        // Resets to enable simulation replications without uniform RNG reset
-        self.reset_messages();
-        self.reset_global_time();
+    /// The get_messages implementation underpinning `get_messages_js`,
+    /// `get_messages_json`, and `get_messages_yaml`.  This cannot be made
+    /// public due to
+    /// https://github.com/rustwasm/wasm-bindgen/issues/111
+    fn get_messages(&self) -> Vec<Message> {
+        self.messages.clone()
     }
 
-    pub fn reset_messages(&mut self) {
-        self.messages = Vec::new();
+    /// Simulation steps generate messages, which are then consumed on
+    /// subsequent simulation steps.  These messages between models in a
+    /// simulation drive much of the discovery, analysis, and design.  This
+    /// accessor method provides the list of active messages, at the current
+    /// point of time in the simulation.  Message history is not retained, so
+    /// simulation products and projects should collect messages as needed
+    /// throughout the simulation execution.
+    pub fn get_messages_js(&self) -> Array {
+        // Workaround for https://github.com/rustwasm/wasm-bindgen/issues/111
+        self.get_messages().into_iter().map(JsValue::from).collect()
     }
 
-    pub fn reset_global_time(&mut self) {
-        self.global_time = 0.0;
+    /// This method is like `get_messages_js`, but returns the messages as JSON.
+    pub fn get_messages_json(&self) -> String {
+        serde_json::to_string(&self.get_messages()).unwrap()
     }
 
-    fn models(&mut self) -> Vec<&mut Box<dyn Model>> {
-        self.models.iter_mut().collect()
+    /// This method is like `get_messages_js`, but returns the messages as YAML.
+    pub fn get_messages_yaml(&self) -> String {
+        serde_yaml::to_string(&self.get_messages()).unwrap()
     }
 
-    pub fn messages(&self) -> String {
-        serde_json::to_string(&self.messages).unwrap()
-    }
-
-    pub fn global_time(&self) -> f64 {
+    /// An accessor method for the simulation global time.
+    pub fn get_global_time(&self) -> f64 {
         self.global_time
     }
 
-    pub fn status(&self, id: String) -> String {
+    /// This method provides a mechanism for getting the status of any model
+    /// in a simulation.  The method takes the model ID as an argument, and
+    /// returns the current status string for that model.
+    pub fn status(&self, model_id: String) -> String {
         self.models
             .iter()
-            .find(|model| model.id() == id)
+            .find(|model| model.id() == model_id)
             .unwrap()
             .status()
     }
 
+    /// To enable simulation replications, the reset method resets the state
+    /// of the simulation, except for the random number generator.
+    /// Recreating a simulation from scratch for additional replications
+    /// does not work, due to the random number generator seeding.
+    pub fn reset(&mut self) {
+        self.reset_messages();
+        self.reset_global_time();
+    }
+
+    /// Clear the active messages in a simulation.
+    pub fn reset_messages(&mut self) {
+        self.messages = Vec::new();
+    }
+
+    /// Reset the simulation global time to 0.0.
+    pub fn reset_global_time(&mut self) {
+        self.global_time = 0.0;
+    }
+
+    /// This method provides a convenient foundation for operating on the
+    /// full set of models in the simulation.
+    fn models(&mut self) -> Vec<&mut Box<dyn Model>> {
+        self.models.iter_mut().collect()
+    }
+
+    /// This method constructs a list of target IDs for a given source model
+    /// ID and port.  This message target information is derived from the
+    /// connectors configuration.
     fn get_message_target_ids(&self, source_id: String, source_port: String) -> Vec<String> {
         self.connectors
             .iter()
@@ -127,6 +221,9 @@ impl Simulation {
             .collect()
     }
 
+    /// This method constructs a list of target ports for a given source model
+    /// ID and port.  This message target information is derived from the
+    /// connectors configuration.
     fn get_message_target_ports(&self, source_id: String, source_port: String) -> Vec<String> {
         self.connectors
             .iter()
@@ -137,10 +234,31 @@ impl Simulation {
             .collect()
     }
 
-    pub fn inject_input(&mut self, message: String) {
-        self.messages.push(serde_json::from_str(&message).unwrap());
+    /// Input injection creates a message during simulation execution,
+    /// without needing to create that message through the standard
+    /// simulation constructs.  This enables live simulation interaction,
+    /// disruption, and manipulation - all through the standard simulation
+    /// message system.
+    pub fn inject_input(&mut self, message: Message) {
+        self.messages.push(message);
     }
 
+    /// This method is like `inject_input`, but the message is provided in
+    /// JSON format.
+    pub fn inject_input_json(&mut self, message: String) {
+        self.inject_input(serde_json::from_str(&message).unwrap());
+    }
+
+    /// This method is like `inject_input`, but the message is provided in
+    /// YAML format.
+    pub fn inject_input_yaml(&mut self, message: String) {
+        self.inject_input(serde_yaml::from_str(&message).unwrap());
+    }
+
+    /// The simulation step is foundational for a discrete event simulation.
+    /// This method executes a single discrete event simulation step,
+    /// including internal state transitions, external state transitions,
+    /// message orchestration, and global time accounting.
     pub fn step(&mut self) {
         let messages = self.messages.clone();
         let mut next_messages: Vec<Message> = Vec::new();
@@ -227,27 +345,71 @@ impl Simulation {
         self.messages = next_messages;
     }
 
-    pub fn step_until(&mut self, until: f64) -> String {
+    /// The step_until implementation underpinning `step_until_js`,
+    /// `step_until_json`, and `step_until_yaml`.  This cannot be made public
+    /// due to
+    /// https://github.com/rustwasm/wasm-bindgen/issues/111
+    fn step_until(&mut self, until: f64) -> Vec<Message> {
         let mut message_records: Vec<Message> = Vec::new();
         loop {
             self.step();
             if self.global_time < until {
-                let messages_set: Vec<Message> = serde_json::from_str(&self.messages()).unwrap();
-                message_records.extend(messages_set);
+                message_records.extend(self.get_messages());
             } else {
                 break;
             }
         }
-        serde_json::to_string(&message_records).unwrap()
+        message_records
     }
 
-    pub fn step_n(&mut self, n: usize) -> String {
+    /// This method executes simulation `step` calls, until a global time
+    /// has been exceeded.  At which point, the messages from all the
+    /// simulation steps are returned.
+    pub fn step_until_js(&mut self, until: f64) -> Array {
+        self.step_until(until)
+            .into_iter()
+            .map(JsValue::from)
+            .collect()
+    }
+
+    /// This method is like `step_until_js`, but returns the messages as
+    /// JSON.
+    pub fn step_until_json(&mut self, until: f64) -> String {
+        serde_json::to_string(&self.step_until(until)).unwrap()
+    }
+
+    /// This method is like `step_until_js`, but returns the messages as
+    /// YAML.
+    pub fn step_until_yaml(&mut self, until: f64) -> String {
+        serde_yaml::to_string(&self.step_until(until)).unwrap()
+    }
+
+    /// The step_n implementation underpinning `step_n_js`, `step_n_json`,
+    /// and `step_n_yaml`.  This cannot be made public due to
+    /// https://github.com/rustwasm/wasm-bindgen/issues/111
+    fn step_n(&mut self, n: usize) -> Vec<Message> {
         let mut message_records: Vec<Message> = Vec::new();
         (0..n).for_each(|_| {
             self.step();
-            let messages_set: Vec<Message> = serde_json::from_str(&self.messages()).unwrap();
-            message_records.extend(messages_set);
+            message_records.extend(self.messages.clone());
         });
-        serde_json::to_string(&message_records).unwrap()
+        message_records
+    }
+
+    /// This method executes the specified number of simulation steps, `n`.
+    /// Upon execution of the n steps, the messages from all the steps are
+    /// returned.
+    pub fn step_n_js(&mut self, n: usize) -> Array {
+        self.step_n(n).into_iter().map(JsValue::from).collect()
+    }
+
+    /// This method is like `step_n_js`, but returns the messages as JSON.
+    pub fn step_n_json(&mut self, n: usize) -> String {
+        serde_json::to_string(&self.step_n(n)).unwrap()
+    }
+
+    /// This method is like `step_n_js`, but returns the messages as YAML.
+    pub fn step_n_yaml(&mut self, n: usize) -> String {
+        serde_yaml::to_string(&self.step_n(n)).unwrap()
     }
 }

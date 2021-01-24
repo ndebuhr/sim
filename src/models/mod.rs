@@ -1,3 +1,8 @@
+//! The models module provides a set of prebuilt atomic models, for easy
+//! reuse in simulation products and projects.  Additionally, this module
+//! specifies the requirements of any additional custom models, via the
+//! `Model` trait.
+
 pub mod exclusive;
 pub mod gate;
 pub mod generator;

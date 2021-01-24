@@ -7,6 +7,8 @@ use super::model::Model;
 use super::ModelMessage;
 use crate::input_modeling::uniform_rng::UniformRNG;
 
+/// The storage model stores a value, and responds with it upon request.
+/// Values are stored and value requests are handled instantantaneously.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Storage {

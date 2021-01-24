@@ -9,6 +9,14 @@ use crate::input_modeling::random_variable::RandomVariable;
 use crate::input_modeling::thinning::Thinning;
 use crate::input_modeling::uniform_rng::UniformRNG;
 
+/// The generator produces jobs based on a configured interarrival
+/// distribution. A normalized thinning function is used to enable
+/// non-stationary job generation. For non-stochastic generation of jobs, a
+/// random variable distribution with a single point can be used - in which
+/// case, the time between job generation is constant. This model will
+/// produce jobs through perpetuity, and the generator does not receive
+/// messages or otherwise change behavior throughout a simulation (except
+/// through the thinning function).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Generator {

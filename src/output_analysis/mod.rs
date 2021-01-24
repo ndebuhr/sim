@@ -1,3 +1,9 @@
+//! The output analysis module provides standard statistical analysis tools
+//! for analyzing simulation outputs.  Independent, identically-distributed
+//! (IID) samples are analyzed with the `IndependentSample`.  Time series
+//! (including those with initialization bias and autocorrelation) can be
+//! analyzed with `TerminatingSimulationOutput` or `SteadyStateOutput`.
+
 use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
@@ -6,6 +12,9 @@ use wasm_bindgen::prelude::*;
 pub mod t_scores;
 use super::utils;
 
+/// The confidence interval provides an upper and lower estimate on a given
+/// output, whether that output is an independent, identically-distributed
+/// sample or time series data.
 #[wasm_bindgen]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfidenceInterval {
@@ -28,10 +37,16 @@ impl ConfidenceInterval {
     }
 }
 
+/// The independent sample is for independent, identically-distributed (IID)
+/// samples, or where treating the data as an IID sample is determined to be
+/// reasonable.  Typically, this will be non-time series data - no
+/// autocorrelation.  There are no additional requirements on the data beyond
+/// being IID.  For example, there are no normality assumptions.  The
+/// `TerminatingSimulationOutput` or `SteadyStateOutput` structs are
+/// available for non-IID output analysis.
 #[wasm_bindgen]
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct IndependentSample {
-    // Independent observations only - use time series for auto-correlated data
     points: Vec<f64>,
     mean: f64,
     variance: f64,
@@ -39,6 +54,8 @@ pub struct IndependentSample {
 
 #[wasm_bindgen]
 impl IndependentSample {
+    /// This constructor method creates an `IndependentSample` from a set of
+    /// f64 points.
     pub fn post(points: Vec<f64>) -> IndependentSample {
         let mean = utils::sample_mean(&points);
         let variance = utils::sample_variance(&points, &mean);
@@ -49,6 +66,8 @@ impl IndependentSample {
         }
     }
 
+    /// Calculate the confidence interval of the mean, base on the provided
+    /// value of alpha.
     pub fn confidence_interval_mean(&self, alpha: f64) -> ConfidenceInterval {
         if self.points.len() == 1 {
             return ConfidenceInterval {
@@ -66,15 +85,23 @@ impl IndependentSample {
         }
     }
 
+    /// Return the sample mean.
     pub fn point_estimate_mean(&self) -> f64 {
         self.mean
     }
 
+    /// Return the sample variance.
     pub fn variance(&self) -> f64 {
         self.variance
     }
 }
 
+/// Terminating simulations are useful when the initial and final conditions
+/// of a simulation are known, and set deliberately to match real world
+/// conditions.  For example, a simulation spanning a 9:00 to 17:00 work day
+/// might use the terminating simulation approach to simulation experiments
+/// and analysis.  These initial and final conditions are known and of
+/// interest.
 #[wasm_bindgen]
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct TerminatingSimulationOutput {
@@ -86,24 +113,43 @@ pub struct TerminatingSimulationOutput {
 
 #[wasm_bindgen]
 impl TerminatingSimulationOutput {
+    /// This `TerminatingSimulationOutput` constructor method creates a new
+    /// terminating simulation output, with no data.  The `put_time_series`
+    /// method is then used to load each simulation replication output (time
+    /// series).
     pub fn new() -> TerminatingSimulationOutput {
         TerminatingSimulationOutput {
             ..Default::default()
         }
     }
 
-    pub fn post_time_series(&mut self, time_series: Vec<f64>) {
+    /// This method loads a single simulation replication output into the
+    /// `TerminatingSimulationOutput` object.  Typically, simulation analysis
+    /// will require many replications, and thus many `put_time_series`
+    /// calls.
+    pub fn put_time_series(&mut self, time_series: Vec<f64>) {
         self.time_series_replications.push(time_series);
     }
 }
 
+/// Steady-state simulations are useful when the initial conditions and/or
+/// final conditions of a simulation are not well-known or not of interest.
+/// Steady-state simulation is interested in the long-run behavior of the
+/// system, where initial condition effects are negligible.  Steady-state
+/// simulation analysis is primarily concerned with initialization bias (bias
+/// caused by setting initial conditions of the simulation) and
+/// auto-correlation (the tendency of a data point in a time series to show
+/// correlation with the latest, previous values in that time series).  When
+/// the interest is a steady-state simulation output, standard simulation
+/// design suggests the use of only a single simulation replication.
 #[wasm_bindgen]
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct SteadyStateSimulationOutput {
+pub struct SteadyStateOutput {
     time_series: Vec<f64>,
-    // Delete points at the beginning of the sample for initialization bias reduction
+    /// Points are removed from the beginning of the sample for initialization
+    /// bias reduction.
     deletion_point: Option<usize>,
-    // Divide remining points into independent-ish batches
+    /// Batching is used to combat autocorrelation in the time series.
     batch_size: Option<usize>,
     batch_count: Option<usize>,
     batch_means: Vec<f64>,
@@ -112,25 +158,24 @@ pub struct SteadyStateSimulationOutput {
 }
 
 #[wasm_bindgen]
-impl SteadyStateSimulationOutput {
-    pub fn new() -> SteadyStateSimulationOutput {
-        SteadyStateSimulationOutput {
-            ..Default::default()
-        }
-    }
-
-    pub fn post(time_series: Vec<f64>) -> SteadyStateSimulationOutput {
-        SteadyStateSimulationOutput {
+impl SteadyStateOutput {
+    /// This `SteadyStateOutput` constructor method takes the simulation
+    /// output time series, as a f64 vector.
+    pub fn post(time_series: Vec<f64>) -> SteadyStateOutput {
+        SteadyStateOutput {
             time_series,
             ..Default::default()
         }
     }
 
-    pub fn put(&mut self, time_series: Vec<f64>) {
-        self.time_series = time_series;
-    }
-
-    pub fn set_to_fixed_budget(&mut self) {
+    /// The steady-state output analysis in `set_to_fixed_budget` analyzes
+    /// the time series to determine the appropriate initialization data
+    /// deletion and batching strategies.  Initialization data deletion and
+    /// batching reduce concerns around initialization bias and
+    /// autocorrelation, respectively.  After this method determines the
+    /// strategy/configuration, the `calculate_batch_statistics` then
+    /// executes the processing.
+    fn set_to_fixed_budget(&mut self) {
         let mut s = 0.0;
         let mut q = 0.0;
         let mut d = self.time_series.len() - 2;
@@ -155,8 +200,10 @@ impl SteadyStateSimulationOutput {
                 d -= 1;
             }
         }
-        // Schmeiser [1982] found that, for a fixed total sample size, there is little benefit from dividing it into
-        // more than k = 30 batches, even if we could do so and still retain independence between the batch means.
+        // Schmeiser [1982] found that, for a fixed total sample size, there
+        // is little benefit from dividing it into more than k = 30 batches,
+        // even if we could do so and still retain independence between the
+        // batch means.
         self.batch_count = Some(f64::min(
             ((self.time_series.len() - self.deletion_point.unwrap()) as f64).sqrt(),
             30.0,
@@ -169,7 +216,13 @@ impl SteadyStateSimulationOutput {
             Some(self.time_series.len() - self.batch_count.unwrap() * self.batch_size.unwrap());
     }
 
-    pub fn calculate_batch_statistics(&mut self) {
+    /// After the `set_to_fixed_budget` method analyzes the time series to
+    /// determine the appropriate initialization data deletion and batching
+    /// configuration, this method uses that configuration for calculation
+    /// and processing.  This method stores the batch statistics in the
+    /// `SteadyStateOutput` struct, for later use in retrieving point and
+    /// confidence interval estimates.
+    fn calculate_batch_statistics(&mut self) {
         if self.batch_count.is_none() {
             self.set_to_fixed_budget();
         }
@@ -192,6 +245,10 @@ impl SteadyStateSimulationOutput {
         ));
     }
 
+    /// The method provides a confidence interval on the mean, for the
+    /// simuation output.  If not already processed, the raw data will first
+    /// use standard approaches for initialization bias reduction and
+    /// autocorrelation management.
     pub fn confidence_interval_mean(&mut self, alpha: f64) -> ConfidenceInterval {
         if self.batches_mean.is_none() {
             self.calculate_batch_statistics();
@@ -214,6 +271,10 @@ impl SteadyStateSimulationOutput {
         }
     }
 
+    /// The method provides a point estimate on the mean, for the simulation
+    /// output.  If not already processed, the raw data will first use
+    /// standard approaches for initialization bias reduction and
+    /// autocorrelation management.
     pub fn point_estimate_mean(&mut self) -> f64 {
         if self.batches_mean.is_none() {
             self.calculate_batch_statistics();

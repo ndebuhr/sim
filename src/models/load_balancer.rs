@@ -7,6 +7,8 @@ use super::model::Model;
 use super::ModelMessage;
 use crate::input_modeling::uniform_rng::UniformRNG;
 
+/// The load balancer routes jobs to a set of possible process paths, using a
+/// round robin strategy. There is no stochastic behavior in this model.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LoadBalancer {

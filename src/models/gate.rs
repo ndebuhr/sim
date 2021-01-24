@@ -7,6 +7,12 @@ use super::model::Model;
 use super::ModelMessage;
 use crate::input_modeling::uniform_rng::UniformRNG;
 
+/// The gate model passes or blocks jobs, when it is in the open or closed
+/// state, respectively. The gate can be opened and closed throughout the
+/// course of a simulation. This model contains no stochastic behavior - job
+/// passing/blocking is based purely on the state of the model at that time
+/// in the simulation. A blocked job is a dropped job - it is not stored,
+/// queued, or redirected.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Gate {

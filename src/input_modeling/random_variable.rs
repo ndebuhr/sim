@@ -7,6 +7,10 @@ use rand_distr::{Bernoulli, Geometric, Poisson, WeightedIndex};
 
 use super::uniform_rng::UniformRNG;
 
+/// Random variables underpin both stochastic and deterministic model
+/// behaviors, in that deterministic operation is simply a random variable
+/// with a single value of probability 1.  Common distributions, with their
+/// common parameterizations, is provided in this `RandomVariable` enum.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum RandomVariable {
@@ -27,6 +31,9 @@ pub enum RandomVariable {
 }
 
 impl RandomVariable {
+    /// The generation of random variates drives stochastic behaviors during
+    /// simulation execution.  This function requires the random number
+    /// generator of the simulation.
     pub fn random_variate(&mut self, uniform_rng: &mut UniformRNG) -> f64 {
         match self {
             RandomVariable::Beta { alpha, beta } => {

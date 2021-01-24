@@ -8,6 +8,10 @@ use super::model::Model;
 use super::ModelMessage;
 use crate::input_modeling::uniform_rng::UniformRNG;
 
+/// The parallel gateway splits a job across multiple processing paths. The
+/// job is duplicated across every one of the processing paths. In addition
+/// to splitting the process, a second parallel gateway can be used to join
+/// the split paths. The parallel gateway is a BPMN concept.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ParallelGateway {

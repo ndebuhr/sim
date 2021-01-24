@@ -1,5 +1,11 @@
 use super::utils;
 
+/// The analysis of simulation outputs is often an analysis of means.  In
+/// these cases, the central limit theorem can be used for (among other
+/// things), the construction of confidence intervals.  A T score (Student T
+/// distribution) is used when the degrees of freedom for the data is less
+/// than 100, and a Z core (Normal distribution) is used when the degrees of
+/// freedom is greater than 100.
 pub fn t_score(alpha: f64, df: usize) -> f64 {
     let alpha_index = ALPHAS
         .iter()
@@ -19,8 +25,7 @@ const Z_SCORES: [f64; 7] = [1.2816, 1.6449, 1.96, 2.3263, 2.5758, 3.0902, 3.2905
 
 // http://www.socr.ucla.edu/Applets.dir/T-table.html
 // https://stattrek.com/online-calculator/t-distribution.aspx
-// DOFs from 1 to 50
-// 2.718 value is a coincidence - not related to f{32, 64}::consts::E
+// Clippy Allow: 2.718 is a coincidence - unrelated to f{32, 64}::consts::E
 #[allow(clippy::approx_constant)]
 const T_SCORES: [[f64; 7]; 100] = [
     [3.078, 6.314, 12.706, 31.821, 63.656, 318.289, 636.578],

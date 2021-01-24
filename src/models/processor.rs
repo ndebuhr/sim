@@ -8,6 +8,15 @@ use super::ModelMessage;
 use crate::input_modeling::random_variable::RandomVariable;
 use crate::input_modeling::uniform_rng::UniformRNG;
 
+/// The processor accepts jobs, processes them for a period of time, and then
+/// outputs a processed job. The processor can have a configurable queue, of
+/// size 0 to infinity, inclusive. The default queue size is infinite. The
+/// queue allows collection of jobs as other jobs are processed. A FIFO
+/// strategy is employed for the processing of incoming jobs. A random
+/// variable distribution dictates the amount of time required to process a
+/// job. For non-stochastic behavior, a random variable distribution with a
+/// single point can be used - in which case, every job takes exactly the
+/// specified amount of time to process.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Processor {

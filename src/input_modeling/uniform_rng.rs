@@ -2,6 +2,12 @@ use rand::distributions::{Distribution, Uniform};
 use rand_pcg::Pcg64Mcg;
 use serde::{Deserialize, Serialize};
 
+/// The random number generator used in simulations is a permuted
+/// congruential generator with 128-bit state, internal multiplicative
+/// congruential generator, and 64-bit output via "xorshift low (bits),
+/// random rotation" output function.  This random number generator is
+/// seeded and portable across platforms (e.g., WebAssembly compilation
+/// targets).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UniformRNG {
     rng: Pcg64Mcg,

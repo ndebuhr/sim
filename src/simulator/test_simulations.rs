@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::output_analysis::{IndependentSample, SteadyStateSimulationOutput};
+    use crate::output_analysis::{IndependentSample, SteadyStateOutput};
     use crate::simulator::*;
 
     #[derive(Clone, Default, Serialize, Deserialize)]
@@ -71,7 +71,7 @@ mod tests {
         // A stage for processed job collection
         let mut simulation = Simulation::post_yaml(models, connectors);
         // Sample size will be reduced during output analysis - initialization bias reduction through deletion
-        let message_records: Vec<Message> = serde_json::from_str(&simulation.step_n(3000)).unwrap();
+        let message_records: Vec<Message> = simulation.step_n(3000);
         let departures: Vec<(f64, String)> = message_records
             .iter()
             .filter(|message_record| message_record.target_id == "storage-01")
@@ -99,7 +99,7 @@ mod tests {
         // Response times are not independent
         // Varying queue size leads to auto-correlation
         // To combat this, use steady state output analysis with deletion+batching
-        let mut response_times_sample = SteadyStateSimulationOutput::post(response_times);
+        let mut response_times_sample = SteadyStateOutput::post(response_times);
         let response_times_confidence_interval =
             response_times_sample.confidence_interval_mean(0.001);
         // average number of jobs in the processor divided by the effective arrival rate (Little's Formula)
@@ -212,8 +212,7 @@ mod tests {
                 // Run simulation and capture output messages
                 // Assert based on None vs. Some(String) message expectations
                 simulation.step();
-                let messages_set: Vec<Message> =
-                    serde_json::from_str(&simulation.messages()).unwrap();
+                let messages_set: Vec<Message> = simulation.get_messages();
                 match expected_output {
                     None => {
                         assert![messages_set.is_empty()];
@@ -455,7 +454,7 @@ mod tests {
         // Needs to be around 360+ steps (10 jobs, 3 network paths, across 6 processors, and 2 events per processing cycle)
         for _x in 0..720 {
             simulation.step();
-            let messages_set: Vec<Message> = serde_json::from_str(&simulation.messages()).unwrap();
+            let messages_set: Vec<Message> = simulation.get_messages();
             message_records.extend(messages_set);
         }
         let storage_arrivals_count = message_records
@@ -554,8 +553,7 @@ mod tests {
             // Refresh the models, but maintain the Uniform RNG for replication independence
             simulation.reset();
             simulation.put_yaml(models.clone(), connectors.clone());
-            let messages: Vec<Message> =
-                serde_json::from_str(&simulation.step_until(100.0)).unwrap();
+            let messages = simulation.step_until(100.0);
             generations_count.push(messages.len() as f64);
         }
         let generations_per_replication = IndependentSample::post(generations_count);
@@ -618,8 +616,7 @@ mod tests {
             // Refresh the models, but maintain the Uniform RNG for replication independence
             simulation.reset();
             simulation.put_yaml(models.clone(), connectors.clone());
-            let messages: Vec<Message> =
-                serde_json::from_str(&simulation.step_until(480.0)).unwrap();
+            let messages = simulation.step_until(480.0);
             let arrivals: Vec<&Message> = messages
                 .iter()
                 .filter(|message| message.target_id == "processor-01")
@@ -715,7 +712,7 @@ mod tests {
         // 1 initialization step
         for _x in 0..601 {
             simulation.step();
-            let messages_set: Vec<Message> = serde_json::from_str(&simulation.messages()).unwrap();
+            let messages_set: Vec<Message> = simulation.get_messages();
             message_records.extend(messages_set);
         }
         let outputs = vec![
@@ -915,18 +912,17 @@ mod tests {
             simulation.step_until(480.0);
             waiting_times = Vec::new();
             for processor_number in ["01", "02", "03"].iter() {
-                let metrics_history_request = serde_json::to_string(&Message {
+                let metrics_history_request = Message {
                     source_id: String::from("manual"),
                     source_port: String::from("manual"),
                     target_id: format!["processor-{}", processor_number],
                     target_port: String::from("history"),
                     time: simulation.global_time,
                     message: String::from(""),
-                })
-                .unwrap();
+                };
                 simulation.inject_input(metrics_history_request);
                 simulation.step();
-                let messages: Vec<Message> = serde_json::from_str(&simulation.messages()).unwrap();
+                let messages: Vec<Message> = simulation.get_messages();
                 let metrics_message = messages
                     .iter()
                     .find(|message| message.source_port == "history")
@@ -1054,8 +1050,7 @@ mod tests {
             let mut message_records: Vec<Message> = Vec::new();
             for _x in 0..1000 {
                 simulation.step();
-                let messages_set: Vec<Message> =
-                    serde_json::from_str(&simulation.messages()).unwrap();
+                let messages_set: Vec<Message> = simulation.get_messages();
                 message_records.extend(messages_set);
             }
             let arrivals = message_records
@@ -1148,15 +1143,10 @@ mod tests {
 "#,
         );
         let mut simulation = Simulation::post_yaml(models, connectors);
-        let mut message_records: Vec<Message> = Vec::new();
         // 28 steps means 9 processed jobs
         // 3 steps per processed job
         // 1 step for initialization
-        for _x in 0..28 {
-            simulation.step();
-            let messages_set: Vec<Message> = serde_json::from_str(&simulation.messages()).unwrap();
-            message_records.extend(messages_set);
-        }
+        let message_records: Vec<Message> = simulation.step_n(28);
         let outputs = vec![
             message_records
                 .iter()
@@ -1225,40 +1215,37 @@ mod tests {
 ]"#,
         );
         let mut simulation = Simulation::post_json(models.clone(), connectors.clone());
-        let stored_value = serde_json::to_string(&Message {
+        let stored_value = Message {
             source_id: String::from("manual"),
             source_port: String::from("manual"),
             target_id: String::from("storage-01"),
             target_port: String::from("store"),
             time: simulation.global_time,
             message: String::from("42"),
-        })
-        .unwrap();
+        };
         simulation.inject_input(stored_value);
         simulation.step();
-        let transfer_request = serde_json::to_string(&Message {
+        let transfer_request = Message {
             source_id: String::from("manual"),
             source_port: String::from("manual"),
             target_id: String::from("storage-01"),
             target_port: String::from("read"),
             time: simulation.global_time,
             message: String::from(""),
-        })
-        .unwrap();
+        };
         simulation.inject_input(transfer_request);
         simulation.step();
-        let read_request = serde_json::to_string(&Message {
+        let read_request = Message {
             source_id: String::from("manual"),
             source_port: String::from("manual"),
             target_id: String::from("storage-02"),
             target_port: String::from("read"),
             time: simulation.global_time,
             message: String::from(""),
-        })
-        .unwrap();
+        };
         simulation.inject_input(read_request);
         simulation.step();
-        let messages: Vec<Message> = serde_json::from_str(&simulation.messages()).unwrap();
+        let messages: Vec<Message> = simulation.get_messages();
         assert![messages[0].message == "42"];
     }
 
@@ -1333,7 +1320,7 @@ mod tests {
 "#,
         );
         let mut simulation = Simulation::post_yaml(models, connectors);
-        let message_records: Vec<Message> = serde_json::from_str(&simulation.step_n(101)).unwrap();
+        let message_records: Vec<Message> = simulation.step_n(101);
         let alpha_passes = message_records
             .iter()
             .filter(|message_record| message_record.target_port == "alpha")
@@ -1442,7 +1429,7 @@ mod tests {
 "#,
         );
         let mut simulation = Simulation::post_yaml(models, connectors);
-        let message_records: Vec<Message> = serde_json::from_str(&simulation.step_n(101)).unwrap();
+        let message_records: Vec<Message> = simulation.step_n(101);
         let mut results: Vec<f64> = Vec::new();
         message_records
             .iter()

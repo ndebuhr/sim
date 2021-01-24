@@ -8,6 +8,10 @@ use super::ModelMessage;
 use crate::input_modeling::random_variable::RandomVariable;
 use crate::input_modeling::uniform_rng::UniformRNG;
 
+/// The stochastic gate blocks (drops) or passes jobs, based on a specified
+/// Bernoulli distribution. If the Bernoulli random variate is a 0, the job
+/// will be dropped. If the Bernoulli random variate is a 1, the job will be
+/// passed.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StochasticGate {

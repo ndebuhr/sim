@@ -16,6 +16,11 @@ use super::storage::Storage;
 use super::ModelMessage;
 use crate::input_modeling::uniform_rng::UniformRNG;
 
+/// The `Model` trait defines everything required for a model to operate
+/// within the discrete event simulation.  These requirements are based
+/// largely on the Discrete Event System Specification (DEVS), but with a
+/// small amount of plumbing (`as_any` and `id`) and a dedicated status
+/// reporting method `status`.
 pub trait Model {
     fn as_any(&self) -> &dyn Any;
     fn id(&self) -> String;
@@ -61,7 +66,6 @@ impl Clone for Box<dyn Model> {
 // https://github.com/dtolnay/typetag/pull/16
 
 impl Serialize for Box<dyn Model> {
-    // Use a strategy inspired by dtolnay/typetag
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -161,7 +165,7 @@ impl<'de> Visitor<'de> for ModelVisitor {
 }
 
 impl<'de> Deserialize<'de> for Box<dyn Model> {
-    // TODO - Assumes the type field is at the beginning - this make order agnostic
+    // TODO - Assumes the type field is at the beginning - make this order agnostic
     fn deserialize<D>(deserializer: D) -> Result<Box<dyn Model>, D::Error>
     where
         D: Deserializer<'de>,
