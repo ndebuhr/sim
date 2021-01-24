@@ -904,7 +904,7 @@ mod tests {
         let mut average_waiting_times: [Vec<f64>; 3] = [Vec::new(), Vec::new(), Vec::new()];
         let mut cis_sufficient_precision = [false, false, false];
         // Replicate as needed for a CI half width of 1.0
-        let mut waiting_times: Vec<IndependentSample>;
+        let mut waiting_times: Vec<IndependentSample<f64>>;
         loop {
             // Refresh the models, but maintain the Uniform RNG for replication independence
             simulation.reset();

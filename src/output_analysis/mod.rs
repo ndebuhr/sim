@@ -6,34 +6,52 @@
 
 use std::f64::INFINITY;
 
+use num_traits::{Float, NumAssign};
 use serde::{Deserialize, Serialize};
-use wasm_bindgen::prelude::*;
 
 pub mod t_scores;
 use super::utils;
 
+fn sum<T: Float>(points: &[T]) -> T {
+    points
+        .iter()
+        .fold(T::from(0.0).unwrap(), |sum, point| sum + *point)
+}
+
+/// This function calculates the sample mean from a set of points - a simple
+/// arithmetic mean.
+fn sample_mean<T: Float>(points: &[T]) -> T {
+    sum(points) / T::from(points.len()).unwrap()
+}
+
+/// This function calculates sample variance, given a set of points and the
+/// sample mean.
+fn sample_variance<T: Float>(points: &[T], mean: &T) -> T {
+    points.iter().fold(T::from(0.0).unwrap(), |acc, point| {
+        acc + (*point - *mean).powi(2)
+    }) / T::from(points.len()).unwrap()
+}
+
 /// The confidence interval provides an upper and lower estimate on a given
 /// output, whether that output is an independent, identically-distributed
 /// sample or time series data.
-#[wasm_bindgen]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConfidenceInterval {
-    lower: f64,
-    upper: f64,
+pub struct ConfidenceInterval<T: Float> {
+    lower: T,
+    upper: T,
 }
 
-#[wasm_bindgen]
-impl ConfidenceInterval {
-    pub fn lower(&self) -> f64 {
+impl<T: Float> ConfidenceInterval<T> {
+    pub fn lower(&self) -> T {
         self.lower
     }
 
-    pub fn upper(&self) -> f64 {
+    pub fn upper(&self) -> T {
         self.upper
     }
 
-    pub fn half_width(&self) -> f64 {
-        (self.upper - self.lower) / 2.0
+    pub fn half_width(&self) -> T {
+        (self.upper - self.lower) / T::from(2.0).unwrap()
     }
 }
 
@@ -44,21 +62,19 @@ impl ConfidenceInterval {
 /// being IID.  For example, there are no normality assumptions.  The
 /// `TerminatingSimulationOutput` or `SteadyStateOutput` structs are
 /// available for non-IID output analysis.
-#[wasm_bindgen]
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct IndependentSample {
-    points: Vec<f64>,
-    mean: f64,
-    variance: f64,
+pub struct IndependentSample<T> {
+    points: Vec<T>,
+    mean: T,
+    variance: T,
 }
 
-#[wasm_bindgen]
-impl IndependentSample {
-    /// This constructor method creates an `IndependentSample` from a set of
-    /// f64 points.
-    pub fn post(points: Vec<f64>) -> IndependentSample {
-        let mean = utils::sample_mean(&points);
-        let variance = utils::sample_variance(&points, &mean);
+impl<T: Float> IndependentSample<T> {
+    /// This constructor method creates an `IndependentSample` from a vector
+    /// of floating point values.
+    pub fn post(points: Vec<T>) -> IndependentSample<T> {
+        let mean = sample_mean(&points);
+        let variance = sample_variance(&points, &mean);
         IndependentSample {
             points,
             mean,
@@ -68,7 +84,7 @@ impl IndependentSample {
 
     /// Calculate the confidence interval of the mean, base on the provided
     /// value of alpha.
-    pub fn confidence_interval_mean(&self, alpha: f64) -> ConfidenceInterval {
+    pub fn confidence_interval_mean(&self, alpha: T) -> ConfidenceInterval<T> {
         if self.points.len() == 1 {
             return ConfidenceInterval {
                 lower: self.mean,
@@ -78,20 +94,20 @@ impl IndependentSample {
         ConfidenceInterval {
             lower: self.mean
                 - t_scores::t_score(alpha, self.points.len() - 1) * self.variance.sqrt()
-                    / (self.points.len() as f64).sqrt(),
+                    / T::from(self.points.len()).unwrap().sqrt(),
             upper: self.mean
                 + t_scores::t_score(alpha, self.points.len() - 1) * self.variance.sqrt()
-                    / (self.points.len() as f64).sqrt(),
+                    / T::from(self.points.len()).unwrap().sqrt(),
         }
     }
 
     /// Return the sample mean.
-    pub fn point_estimate_mean(&self) -> f64 {
+    pub fn point_estimate_mean(&self) -> T {
         self.mean
     }
 
     /// Return the sample variance.
-    pub fn variance(&self) -> f64 {
+    pub fn variance(&self) -> T {
         self.variance
     }
 }
@@ -102,24 +118,25 @@ impl IndependentSample {
 /// might use the terminating simulation approach to simulation experiments
 /// and analysis.  These initial and final conditions are known and of
 /// interest.
-#[wasm_bindgen]
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct TerminatingSimulationOutput {
-    time_series_replications: Vec<Vec<f64>>,
-    replication_means: Vec<f64>,
-    replications_mean: Option<f64>,
-    replications_variance: Option<f64>,
+pub struct TerminatingSimulationOutput<T> {
+    time_series_replications: Vec<Vec<T>>,
+    replication_means: Vec<T>,
+    replications_mean: Option<T>,
+    replications_variance: Option<T>,
 }
 
-#[wasm_bindgen]
-impl TerminatingSimulationOutput {
+impl<T: Float> TerminatingSimulationOutput<T> {
     /// This `TerminatingSimulationOutput` constructor method creates a new
-    /// terminating simulation output, with no data.  The `put_time_series`
-    /// method is then used to load each simulation replication output (time
-    /// series).
-    pub fn new() -> TerminatingSimulationOutput {
+    /// terminating simulation output, with a single replication.  The
+    /// `put_time_series` method is then used to load additional simulation
+    /// replications (time series).
+    pub fn post(time_series: Vec<T>) -> TerminatingSimulationOutput<T> {
         TerminatingSimulationOutput {
-            ..Default::default()
+            time_series_replications: vec![time_series],
+            replication_means: Vec::new(),
+            replications_mean: None,
+            replications_variance: None,
         }
     }
 
@@ -127,7 +144,7 @@ impl TerminatingSimulationOutput {
     /// `TerminatingSimulationOutput` object.  Typically, simulation analysis
     /// will require many replications, and thus many `put_time_series`
     /// calls.
-    pub fn put_time_series(&mut self, time_series: Vec<f64>) {
+    pub fn put_time_series(&mut self, time_series: Vec<T>) {
         self.time_series_replications.push(time_series);
     }
 }
@@ -142,29 +159,32 @@ impl TerminatingSimulationOutput {
 /// correlation with the latest, previous values in that time series).  When
 /// the interest is a steady-state simulation output, standard simulation
 /// design suggests the use of only a single simulation replication.
-#[wasm_bindgen]
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct SteadyStateOutput {
-    time_series: Vec<f64>,
+pub struct SteadyStateOutput<T> {
+    time_series: Vec<T>,
     /// Points are removed from the beginning of the sample for initialization
     /// bias reduction.
     deletion_point: Option<usize>,
     /// Batching is used to combat autocorrelation in the time series.
     batch_size: Option<usize>,
     batch_count: Option<usize>,
-    batch_means: Vec<f64>,
-    batches_mean: Option<f64>,
-    batches_variance: Option<f64>,
+    batch_means: Vec<T>,
+    batches_mean: Option<T>,
+    batches_variance: Option<T>,
 }
 
-#[wasm_bindgen]
-impl SteadyStateOutput {
+impl<T: Float + NumAssign> SteadyStateOutput<T> {
     /// This `SteadyStateOutput` constructor method takes the simulation
-    /// output time series, as a f64 vector.
-    pub fn post(time_series: Vec<f64>) -> SteadyStateOutput {
+    /// output time series, as a vector of floating point values.
+    pub fn post(time_series: Vec<T>) -> SteadyStateOutput<T> {
         SteadyStateOutput {
             time_series,
-            ..Default::default()
+            deletion_point: None,
+            batch_size: None,
+            batch_count: None,
+            batch_means: Vec::new(),
+            batches_mean: None,
+            batches_variance: None,
         }
     }
 
@@ -176,25 +196,24 @@ impl SteadyStateOutput {
     /// strategy/configuration, the `calculate_batch_statistics` then
     /// executes the processing.
     fn set_to_fixed_budget(&mut self) {
-        let mut s = 0.0;
-        let mut q = 0.0;
+        let mut s = T::from(0.0).unwrap();
+        let mut q = T::from(0.0).unwrap();
         let mut d = self.time_series.len() - 2;
-        let mut mser = vec![0.0; self.time_series.len() - 1];
+        let mut mser = vec![T::from(0.0).unwrap(); self.time_series.len() - 1];
         loop {
             s += self.time_series[d + 1];
             q += self.time_series[d + 1].powi(2);
-            mser[d] = (q - s.powi(2) / ((self.time_series.len() - d) as f64))
-                / ((self.time_series.len() - d).pow(2) as f64);
+            mser[d] = q - s.powi(2)
+                / T::from(self.time_series.len() - d).unwrap()
+                / T::from(self.time_series.len() - d).unwrap().powi(2);
             if d == 0 {
                 // Find the minimum MSER in the first half of the time series
                 let min_mser = (0..(self.time_series.len() - 1) / 2)
-                    .fold(INFINITY, |min_mser, mser_index| {
-                        f64::min(min_mser, mser[mser_index])
+                    .fold(T::from(INFINITY).unwrap(), |min_mser, mser_index| {
+                        min_mser.min(mser[mser_index])
                     });
                 // Use that point for deletion determination
-                self.deletion_point = mser
-                    .iter()
-                    .position(|mser_value| utils::equivalent_f64(*mser_value, min_mser));
+                self.deletion_point = mser.iter().position(|mser_value| *mser_value == min_mser);
                 break;
             } else {
                 d -= 1;
@@ -204,10 +223,10 @@ impl SteadyStateOutput {
         // is little benefit from dividing it into more than k = 30 batches,
         // even if we could do so and still retain independence between the
         // batch means.
-        self.batch_count = Some(f64::min(
-            ((self.time_series.len() - self.deletion_point.unwrap()) as f64).sqrt(),
-            30.0,
-        ) as usize);
+        self.batch_count = Some(usize::min(
+            utils::usize_sqrt(self.time_series.len() - self.deletion_point.unwrap()),
+            30,
+        ));
         self.batch_size = Some(
             (self.time_series.len() - self.deletion_point.unwrap()) / self.batch_count.unwrap(),
         );
@@ -232,14 +251,14 @@ impl SteadyStateOutput {
                     self.deletion_point.unwrap() + self.batch_size.unwrap() * batch_index;
                 let batch_end_index =
                     self.deletion_point.unwrap() + self.batch_size.unwrap() * (batch_index + 1);
-                let points: Vec<f64> = (batch_start_index..batch_end_index)
+                let points: Vec<T> = (batch_start_index..batch_end_index)
                     .map(|index| self.time_series[index])
                     .collect();
-                utils::sample_mean(&points)
+                sample_mean(&points)
             })
             .collect();
-        self.batches_mean = Some(utils::sample_mean(&self.batch_means));
-        self.batches_variance = Some(utils::sample_variance(
+        self.batches_mean = Some(sample_mean(&self.batch_means));
+        self.batches_variance = Some(sample_variance(
             &self.batch_means,
             &self.batches_mean.unwrap(),
         ));
@@ -249,7 +268,7 @@ impl SteadyStateOutput {
     /// simuation output.  If not already processed, the raw data will first
     /// use standard approaches for initialization bias reduction and
     /// autocorrelation management.
-    pub fn confidence_interval_mean(&mut self, alpha: f64) -> ConfidenceInterval {
+    pub fn confidence_interval_mean(&mut self, alpha: T) -> ConfidenceInterval<T> {
         if self.batches_mean.is_none() {
             self.calculate_batch_statistics();
         }
@@ -263,11 +282,11 @@ impl SteadyStateOutput {
             lower: self.batches_mean.unwrap()
                 - t_scores::t_score(alpha, self.batch_count.unwrap() - 1)
                     * self.batches_variance.unwrap().sqrt()
-                    / (self.batch_count.unwrap() as f64).sqrt(),
+                    / T::from(self.batch_count.unwrap()).unwrap().sqrt(),
             upper: self.batches_mean.unwrap()
                 + t_scores::t_score(alpha, self.batch_count.unwrap() - 1)
                     * self.batches_variance.unwrap().sqrt()
-                    / (self.batch_count.unwrap() as f64).sqrt(),
+                    / T::from(self.batch_count.unwrap()).unwrap().sqrt(),
         }
     }
 
@@ -275,7 +294,7 @@ impl SteadyStateOutput {
     /// output.  If not already processed, the raw data will first use
     /// standard approaches for initialization bias reduction and
     /// autocorrelation management.
-    pub fn point_estimate_mean(&mut self) -> f64 {
+    pub fn point_estimate_mean(&mut self) -> T {
         if self.batches_mean.is_none() {
             self.calculate_batch_statistics();
         }

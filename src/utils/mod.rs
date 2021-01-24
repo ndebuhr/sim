@@ -3,25 +3,6 @@
 //! utilities are centered around debugging/traceability and common
 //! arithmetic.
 
-/// This function calculates the sample mean from a set of points - a simple
-/// arithmetic mean.
-pub fn sample_mean(points: &[f64]) -> f64 {
-    points.iter().sum::<f64>() / (points.len() as f64)
-}
-
-/// This function calculates sample variance, given a set of points and the
-/// sample mean.
-pub fn sample_variance(points: &[f64], mean: &f64) -> f64 {
-    points
-        .iter()
-        .fold(0.0, |acc, point| acc + (point - mean).powi(2))
-        / (points.len() as f64)
-}
-
-pub fn equivalent_f64(a: f64, b: f64) -> bool {
-    a - b == 0.0
-}
-
 /// The function evaluates a polynomial at a single value, with coefficients
 /// defined as a slice, from the highest polynomial order to the zero order.
 /// Horner's method is used for this polynomial evaluation
@@ -43,4 +24,31 @@ pub fn evaluate_polynomial(coefficients: &[f64], x: f64) -> f64 {
 pub fn set_panic_hook() {
     #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
+}
+
+/// Integer square root calculation, using the Babylonian square-root
+/// algorithm.
+pub fn usize_sqrt(n: usize) -> usize {
+    let mut x = n;
+    let mut y = 1;
+    while x > y {
+        x = (x + y) / 2;
+        y = n / x;
+    }
+    x
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn verify_usize_sqrt() {
+        assert![1 == usize_sqrt(1)];
+        assert![1 == usize_sqrt(3)];
+        assert![2 == usize_sqrt(4)];
+        assert![2 == usize_sqrt(8)];
+        assert![3 == usize_sqrt(9)];
+        assert![3 == usize_sqrt(15)];
+    }
 }

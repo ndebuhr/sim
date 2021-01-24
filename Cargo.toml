@@ -24,6 +24,7 @@ default = ["console_error_panic_hook"]
 [dependencies]
 getrandom = { version = "0.2", features = ["js"] }
 js-sys = "0.3"
+num-traits = "0.2"
 rand = { version = "0.8", features = ["serde1"] }
 rand_distr = { version = "0.4" }
 rand_pcg = { version = "0.3", features = ["serde1"] }
