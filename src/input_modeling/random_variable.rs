@@ -1,3 +1,10 @@
+//! Random variables underpin both stochastic and deterministic model
+//! behaviors, in that deterministic operation is simply a random variable
+//! with a single value of probability 1.  Common distributions, with their
+//! common parameterizations, are wrapped in enums
+//! `ContinuousRandomVariable`, `BooleanRandomVariable`,
+//! `DiscreteRandomVariable`, and `IndexRandomVariable`.
+
 use rand::distributions::Distribution;
 use serde::{Deserialize, Serialize};
 // Continuous distributions
@@ -7,14 +14,9 @@ use rand_distr::{Bernoulli, Geometric, Poisson, WeightedIndex};
 
 use super::uniform_rng::UniformRNG;
 
-/// Random variables underpin both stochastic and deterministic model
-/// behaviors, in that deterministic operation is simply a random variable
-/// with a single value of probability 1.  Common distributions, with their
-/// common parameterizations, is provided in this `RandomVariable` enum.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum RandomVariable {
-    // Continuous distributions
+pub enum ContinuousRandomVariable {
     Beta { alpha: f64, beta: f64 },
     Exp { lambda: f64 },
     Gamma { shape: f64, scale: f64 },
@@ -23,54 +25,123 @@ pub enum RandomVariable {
     Triangular { min: f64, max: f64, mode: f64 },
     Uniform { min: f64, max: f64 },
     Weibull { shape: f64, scale: f64 },
-    // Discrete distributions
-    Bernoulli { p: f64 },
-    Geometric { p: f64 },
-    Poisson { lambda: f64 },
-    WeightedIndex { weights: Vec<u64> },
 }
 
-impl RandomVariable {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum BooleanRandomVariable {
+    Bernoulli { p: f64 },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DiscreteRandomVariable {
+    Geometric {
+        p: f64,
+    },
+    Poisson {
+        lambda: f64,
+    },
+    /// Range is inclusive of min, exclusive of max: [min, max)
+    Uniform {
+        min: u64,
+        max: u64,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum IndexRandomVariable {
+    /// Range is inclusive of min, exclusive of max: [min, max)
+    Uniform {
+        min: usize,
+        max: usize,
+    },
+    WeightedIndex {
+        weights: Vec<u64>,
+    },
+}
+
+impl ContinuousRandomVariable {
     /// The generation of random variates drives stochastic behaviors during
     /// simulation execution.  This function requires the random number
-    /// generator of the simulation.
+    /// generator of the simulation, and produces a f64 random variate.
     pub fn random_variate(&mut self, uniform_rng: &mut UniformRNG) -> f64 {
         match self {
-            RandomVariable::Beta { alpha, beta } => {
+            ContinuousRandomVariable::Beta { alpha, beta } => {
                 Beta::new(*alpha, *beta).unwrap().sample(uniform_rng.rng())
             }
-            RandomVariable::Exp { lambda } => Exp::new(*lambda).unwrap().sample(uniform_rng.rng()),
-            RandomVariable::Gamma { shape, scale } => Gamma::new(*shape, *scale)
+            ContinuousRandomVariable::Exp { lambda } => {
+                Exp::new(*lambda).unwrap().sample(uniform_rng.rng())
+            }
+            ContinuousRandomVariable::Gamma { shape, scale } => Gamma::new(*shape, *scale)
                 .unwrap()
                 .sample(uniform_rng.rng()),
-            RandomVariable::LogNormal { mu, sigma } => LogNormal::new(*mu, *sigma)
+            ContinuousRandomVariable::LogNormal { mu, sigma } => LogNormal::new(*mu, *sigma)
                 .unwrap()
                 .sample(uniform_rng.rng()),
-            RandomVariable::Normal { mean, std_dev } => Normal::new(*mean, *std_dev)
+            ContinuousRandomVariable::Normal { mean, std_dev } => Normal::new(*mean, *std_dev)
                 .unwrap()
                 .sample(uniform_rng.rng()),
-            RandomVariable::Triangular { min, max, mode } => Triangular::new(*min, *max, *mode)
-                .unwrap()
-                .sample(uniform_rng.rng()),
-            RandomVariable::Uniform { min, max } => {
+            ContinuousRandomVariable::Triangular { min, max, mode } => {
+                Triangular::new(*min, *max, *mode)
+                    .unwrap()
+                    .sample(uniform_rng.rng())
+            }
+            ContinuousRandomVariable::Uniform { min, max } => {
                 Uniform::new(*min, *max).sample(uniform_rng.rng())
             }
-            RandomVariable::Weibull { shape, scale } => Weibull::new(*shape, *scale)
+            ContinuousRandomVariable::Weibull { shape, scale } => Weibull::new(*shape, *scale)
                 .unwrap()
                 .sample(uniform_rng.rng()),
-            RandomVariable::Bernoulli { p } => {
-                Bernoulli::new(*p).unwrap().sample(uniform_rng.rng()) as u8 as f64
+        }
+    }
+}
+
+impl BooleanRandomVariable {
+    /// The generation of random variates drives stochastic behaviors during
+    /// simulation execution.  This function requires the random number
+    /// generator of the simulation, and produces a boolean random variate.
+    pub fn random_variate(&mut self, uniform_rng: &mut UniformRNG) -> bool {
+        match self {
+            BooleanRandomVariable::Bernoulli { p } => {
+                Bernoulli::new(*p).unwrap().sample(uniform_rng.rng())
             }
-            RandomVariable::Geometric { p } => {
-                Geometric::new(*p).unwrap().sample(uniform_rng.rng()) as f64
+        }
+    }
+}
+
+impl DiscreteRandomVariable {
+    /// The generation of random variates drives stochastic behaviors during
+    /// simulation execution.  This function requires the random number
+    /// generator of the simulation, and produces a u64 random variate.
+    pub fn random_variate(&mut self, uniform_rng: &mut UniformRNG) -> u64 {
+        match self {
+            DiscreteRandomVariable::Geometric { p } => {
+                Geometric::new(*p).unwrap().sample(uniform_rng.rng())
             }
-            RandomVariable::Poisson { lambda } => {
-                Poisson::new(*lambda).unwrap().sample(uniform_rng.rng())
+            DiscreteRandomVariable::Poisson { lambda } => {
+                Poisson::new(*lambda).unwrap().sample(uniform_rng.rng()) as u64
             }
-            RandomVariable::WeightedIndex { weights } => WeightedIndex::new(weights.clone())
+            DiscreteRandomVariable::Uniform { min, max } => {
+                Uniform::new(*min, *max).sample(uniform_rng.rng())
+            }
+        }
+    }
+}
+
+impl IndexRandomVariable {
+    /// The generation of random variates drives stochastic behaviors during
+    /// simulation execution.  This function requires the random number
+    /// generator of the simulation, and produces a usize random variate.
+    pub fn random_variate(&mut self, uniform_rng: &mut UniformRNG) -> usize {
+        match self {
+            IndexRandomVariable::Uniform { min, max } => {
+                Uniform::new(*min, *max).sample(uniform_rng.rng())
+            }
+            IndexRandomVariable::WeightedIndex { weights } => WeightedIndex::new(weights.clone())
                 .unwrap()
-                .sample(uniform_rng.rng())
-                as f64,
+                .sample(uniform_rng.rng()),
         }
     }
 }
@@ -81,7 +152,7 @@ mod tests {
 
     #[test]
     fn beta_samples_match_expectation() {
-        let mut variable = RandomVariable::Beta {
+        let mut variable = ContinuousRandomVariable::Beta {
             alpha: 7.0,
             beta: 11.0,
         };
@@ -96,7 +167,7 @@ mod tests {
 
     #[test]
     fn exponential_samples_match_expectation() {
-        let mut variable = RandomVariable::Exp { lambda: 7.0 };
+        let mut variable = ContinuousRandomVariable::Exp { lambda: 7.0 };
         let mut uniform_rng = UniformRNG::default();
         let mean = (0..10000)
             .map(|_| variable.random_variate(&mut uniform_rng))
@@ -108,7 +179,7 @@ mod tests {
 
     #[test]
     fn gamma_samples_match_expectation() {
-        let mut variable = RandomVariable::Gamma {
+        let mut variable = ContinuousRandomVariable::Gamma {
             shape: 7.0,
             scale: 11.0,
         };
@@ -123,7 +194,7 @@ mod tests {
 
     #[test]
     fn lognormal_samples_match_expectation() {
-        let mut variable = RandomVariable::LogNormal {
+        let mut variable = ContinuousRandomVariable::LogNormal {
             mu: 11.0,
             sigma: 1.0,
         };
@@ -138,7 +209,7 @@ mod tests {
 
     #[test]
     fn normal_samples_chi_square() {
-        let mut variable = RandomVariable::Normal {
+        let mut variable = ContinuousRandomVariable::Normal {
             mean: 11.0,
             std_dev: 3.0,
         };
@@ -180,8 +251,8 @@ mod tests {
     }
 
     #[test]
-    fn trianglular_samples_chi_square() {
-        let mut variable = RandomVariable::Triangular {
+    fn triangular_samples_chi_square() {
+        let mut variable = ContinuousRandomVariable::Triangular {
             min: 5.0,
             max: 25.0,
             mode: 15.0,
@@ -207,8 +278,8 @@ mod tests {
     }
 
     #[test]
-    fn uniform_samples_chi_square() {
-        let mut variable = RandomVariable::Uniform {
+    fn continuous_uniform_samples_chi_square() {
+        let mut variable = ContinuousRandomVariable::Uniform {
             min: 7.0,
             max: 11.0,
         };
@@ -234,7 +305,7 @@ mod tests {
 
     #[test]
     fn weibull_samples_match_expectation() {
-        let mut variable = RandomVariable::Weibull {
+        let mut variable = ContinuousRandomVariable::Weibull {
             shape: 7.0,
             scale: 0.5,
         };
@@ -249,7 +320,7 @@ mod tests {
 
     #[test]
     fn bernoulli_samples_chi_square() {
-        let mut variable = RandomVariable::Bernoulli { p: 0.3 };
+        let mut variable = BooleanRandomVariable::Bernoulli { p: 0.3 };
         let mut class_counts: [f64; 2] = [0.0; 2];
         let mut uniform_rng = UniformRNG::default();
         (0..10000).for_each(|_| {
@@ -271,10 +342,10 @@ mod tests {
 
     #[test]
     fn geometric_samples_match_expectation() {
-        let mut variable = RandomVariable::Geometric { p: 0.2 };
+        let mut variable = DiscreteRandomVariable::Geometric { p: 0.2 };
         let mut uniform_rng = UniformRNG::default();
         let mean = (0..10000)
-            .map(|_| variable.random_variate(&mut uniform_rng))
+            .map(|_| variable.random_variate(&mut uniform_rng) as f64)
             .sum::<f64>()
             / 10000.0;
         let expected = (1.0 - 0.2) / 0.2;
@@ -283,10 +354,10 @@ mod tests {
 
     #[test]
     fn poisson_samples_match_expectation() {
-        let mut variable = RandomVariable::Poisson { lambda: 7.0 };
+        let mut variable = DiscreteRandomVariable::Poisson { lambda: 7.0 };
         let mut uniform_rng = UniformRNG::default();
         let mean = (0..10000)
-            .map(|_| variable.random_variate(&mut uniform_rng))
+            .map(|_| variable.random_variate(&mut uniform_rng) as f64)
             .sum::<f64>()
             / 10000.0;
         let expected = 7.0;
@@ -294,8 +365,31 @@ mod tests {
     }
 
     #[test]
+    fn discrete_uniform_samples_chi_square() {
+        let mut variable = DiscreteRandomVariable::Uniform { min: 7, max: 11 };
+        let mut class_counts: [f64; 4] = [0.0; 4];
+        let mut uniform_rng = UniformRNG::default();
+        (0..10000).for_each(|_| {
+            let rn = variable.random_variate(&mut uniform_rng);
+            let class_index = rn - 7;
+            class_counts[class_index as usize] += 1.0;
+        });
+        let expected_counts: [f64; 4] = [2500.0; 4];
+        let chi_square = class_counts.iter().zip(expected_counts.iter()).fold(
+            0.0,
+            |acc, (class_count, expected_count)| {
+                acc + (*class_count - expected_count).powi(2) / expected_count
+            },
+        );
+        // At a significance level of 0.01, and with n-1=4 degrees of freedom, the chi square critical
+        // value for this scenario is 13.277
+        let chi_square_critical = 13.277;
+        assert![chi_square < chi_square_critical];
+    }
+
+    #[test]
     fn weighted_index_samples_chi_square() {
-        let mut variable = RandomVariable::WeightedIndex {
+        let mut variable = IndexRandomVariable::WeightedIndex {
             weights: vec![1, 2, 3, 4],
         };
         let mut class_counts: [f64; 4] = [0.0; 4];
@@ -314,6 +408,29 @@ mod tests {
         // At a significance level of 0.01, and with n-1=3 degrees of freedom, the chi square critical
         // value for this scenario is 11.345
         let chi_square_critical = 11.345;
+        assert![chi_square < chi_square_critical];
+    }
+
+    #[test]
+    fn index_uniform_samples_chi_square() {
+        let mut variable = IndexRandomVariable::Uniform { min: 7, max: 11 };
+        let mut class_counts: [f64; 4] = [0.0; 4];
+        let mut uniform_rng = UniformRNG::default();
+        (0..10000).for_each(|_| {
+            let rn = variable.random_variate(&mut uniform_rng);
+            let class_index = rn - 7;
+            class_counts[class_index] += 1.0;
+        });
+        let expected_counts: [f64; 4] = [2500.0; 4];
+        let chi_square = class_counts.iter().zip(expected_counts.iter()).fold(
+            0.0,
+            |acc, (class_count, expected_count)| {
+                acc + (*class_count - expected_count).powi(2) / expected_count
+            },
+        );
+        // At a significance level of 0.01, and with n-1=4 degrees of freedom, the chi square critical
+        // value for this scenario is 13.277
+        let chi_square_critical = 13.277;
         assert![chi_square < chi_square_critical];
     }
 }

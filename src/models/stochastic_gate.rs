@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::model::Model;
 use super::ModelMessage;
-use crate::input_modeling::random_variable::RandomVariable;
+use crate::input_modeling::random_variable::BooleanRandomVariable;
 use crate::input_modeling::uniform_rng::UniformRNG;
 
 /// The stochastic gate blocks (drops) or passes jobs, based on a specified
@@ -16,7 +16,7 @@ use crate::input_modeling::uniform_rng::UniformRNG;
 #[serde(rename_all = "camelCase")]
 pub struct StochasticGate {
     id: String,
-    pass_distribution: RandomVariable,
+    pass_distribution: BooleanRandomVariable,
     ports_in: PortsIn,
     ports_out: PortsOut,
     #[serde(default)]
@@ -138,15 +138,15 @@ impl Model for StochasticGate {
         match &self.ports_in {
             PortsIn { job, .. } if job == incoming_port => {
                 // Execution
-                if self.pass_distribution.random_variate(uniform_rng) == 0.0 {
+                if self.pass_distribution.random_variate(uniform_rng) {
                     self.state.event_list.push(ScheduledEvent {
                         time: 0.0,
-                        event: Event::DropJob,
+                        event: Event::SendJob,
                     })
                 } else {
                     self.state.event_list.push(ScheduledEvent {
                         time: 0.0,
-                        event: Event::SendJob,
+                        event: Event::DropJob,
                     })
                 }
                 self.state.jobs.push(incoming_message.message);

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::model::Model;
 use super::ModelMessage;
-use crate::input_modeling::random_variable::RandomVariable;
+use crate::input_modeling::random_variable::ContinuousRandomVariable;
 use crate::input_modeling::thinning::Thinning;
 use crate::input_modeling::uniform_rng::UniformRNG;
 
@@ -22,7 +22,7 @@ use crate::input_modeling::uniform_rng::UniformRNG;
 pub struct Generator {
     id: String,
     // Time between job generations
-    message_interdeparture_time: RandomVariable,
+    message_interdeparture_time: ContinuousRandomVariable,
     // Thinning for non-stationarity
     #[serde(default)]
     thinning: Option<Thinning>,

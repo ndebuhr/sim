@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::model::Model;
 use super::ModelMessage;
-use crate::input_modeling::random_variable::RandomVariable;
+use crate::input_modeling::random_variable::ContinuousRandomVariable;
 use crate::input_modeling::uniform_rng::UniformRNG;
 
 /// The processor accepts jobs, processes them for a period of time, and then
@@ -21,7 +21,7 @@ use crate::input_modeling::uniform_rng::UniformRNG;
 #[serde(rename_all = "camelCase")]
 pub struct Processor {
     id: String,
-    service_time: RandomVariable,
+    service_time: ContinuousRandomVariable,
     #[serde(default = "max_usize")]
     queue_capacity: usize,
     #[serde(default)]

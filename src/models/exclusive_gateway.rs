@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::model::Model;
 use super::ModelMessage;
-use crate::input_modeling::random_variable::RandomVariable;
+use crate::input_modeling::random_variable::IndexRandomVariable;
 use crate::input_modeling::uniform_rng::UniformRNG;
 
 /// The exclusive gateway splits a process flow into a set of possible paths.
@@ -19,7 +19,7 @@ pub struct ExclusiveGateway {
     id: String,
     ports_in: PortsIn,
     ports_out: PortsOut,
-    port_weights: RandomVariable,
+    port_weights: IndexRandomVariable,
     #[serde(default)]
     state: State,
     #[serde(default)]
@@ -119,7 +119,7 @@ impl Model for ExclusiveGateway {
         incoming_message: ModelMessage,
     ) -> Vec<ModelMessage> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
-        let port_number = self.port_weights.random_variate(uniform_rng) as usize;
+        let port_number = self.port_weights.random_variate(uniform_rng);
         // Possible metrics updates
         if self.need_snapshot_metrics() {
             self.snapshot.last_job = Some((
