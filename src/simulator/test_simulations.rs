@@ -69,7 +69,7 @@ mod tests {
         // A Poisson generator (mean of 0.5) arrival pattern (exponential interarrival with mean 2)
         // A processor with exponential processing time, mean processing time 3.0, and queue capacity 14
         // A stage for processed job collection
-        let mut simulation = Simulation::post_yaml(models, connectors);
+        let mut simulation = Simulation::post_yaml(&models, &connectors);
         // Sample size will be reduced during output analysis - initialization bias reduction through deletion
         let message_records: Vec<Message> = simulation.step_n(3000);
         let departures: Vec<(f64, String)> = message_records
@@ -198,7 +198,7 @@ mod tests {
     }
 ]"#,
         );
-        let mut simulation = Simulation::post_json(models.clone(), connectors.clone());
+        let mut simulation = Simulation::post_json(&models, &connectors);
         let average_batch_completion_time = (0..200) // 100 jobs, and 2 steps per job
             .map(|simulation_step| {
                 // Get expected Option<String> message at each step
@@ -449,7 +449,7 @@ mod tests {
     }
 ]"#,
         );
-        let mut simulation = Simulation::post_json(models, connectors);
+        let mut simulation = Simulation::post_json(&models, &connectors);
         let mut message_records: Vec<Message> = Vec::new();
         // Needs to be around 360+ steps (10 jobs, 3 network paths, across 6 processors, and 2 events per processing cycle)
         for _x in 0..720 {
@@ -513,7 +513,7 @@ mod tests {
   sourceID: "processor-01"
 "#,
         );
-        Simulation::post_yaml(models, connectors);
+        Simulation::post_yaml(&models, &connectors);
     }
 
     #[test]
@@ -552,7 +552,7 @@ mod tests {
         for _ in 0..10 {
             // Refresh the models, but maintain the Uniform RNG for replication independence
             simulation.reset();
-            simulation.put_yaml(models.clone(), connectors.clone());
+            simulation.put_yaml(&models, &connectors);
             let messages = simulation.step_until(100.0);
             generations_count.push(messages.len() as f64);
         }
@@ -615,7 +615,7 @@ mod tests {
         for _ in 0..10 {
             // Refresh the models, but maintain the Uniform RNG for replication independence
             simulation.reset();
-            simulation.put_yaml(models.clone(), connectors.clone());
+            simulation.put_yaml(&models, &connectors);
             let messages = simulation.step_until(480.0);
             let arrivals: Vec<&Message> = messages
                 .iter()
@@ -706,7 +706,7 @@ mod tests {
   targetPort: "store"
 "#,
         );
-        let mut simulation = Simulation::post_yaml(models, connectors);
+        let mut simulation = Simulation::post_yaml(&models, &connectors);
         let mut message_records: Vec<Message> = Vec::new();
         // 601 steps means 200 processed jobs (3 steps per gateway passthrough)
         // 1 initialization step
@@ -908,7 +908,7 @@ mod tests {
         loop {
             // Refresh the models, but maintain the Uniform RNG for replication independence
             simulation.reset();
-            simulation.put_yaml(models.clone(), connectors.clone());
+            simulation.put_yaml(&models, &connectors);
             simulation.step_until(480.0);
             waiting_times = Vec::new();
             for processor_number in ["01", "02", "03"].iter() {
@@ -1046,7 +1046,7 @@ mod tests {
         for _ in 0..10 {
             // Refresh the models, but maintain the Uniform RNG for replication independence
             simulation.reset();
-            simulation.put_yaml(models.clone(), connectors.clone());
+            simulation.put_yaml(&models, &connectors);
             let mut message_records: Vec<Message> = Vec::new();
             for _x in 0..1000 {
                 simulation.step();
@@ -1142,7 +1142,7 @@ mod tests {
   targetPort: "store"
 "#,
         );
-        let mut simulation = Simulation::post_yaml(models, connectors);
+        let mut simulation = Simulation::post_yaml(&models, &connectors);
         // 28 steps means 9 processed jobs
         // 3 steps per processed job
         // 1 step for initialization
@@ -1214,7 +1214,7 @@ mod tests {
     }
 ]"#,
         );
-        let mut simulation = Simulation::post_json(models.clone(), connectors.clone());
+        let mut simulation = Simulation::post_json(&models, &connectors);
         let stored_value = Message {
             source_id: String::from("manual"),
             source_port: String::from("manual"),
@@ -1319,7 +1319,7 @@ mod tests {
   targetPort: "store"
 "#,
         );
-        let mut simulation = Simulation::post_yaml(models, connectors);
+        let mut simulation = Simulation::post_yaml(&models, &connectors);
         let message_records: Vec<Message> = simulation.step_n(101);
         let alpha_passes = message_records
             .iter()
@@ -1379,9 +1379,9 @@ mod tests {
 "#,
         );
         let connectors: String = String::from("[]");
-        let simulation = Simulation::post_json(models, connectors);
-        assert![simulation.status("generator-01".to_string()) == "Generating commits"];
-        assert![simulation.status("load-balancer-01".to_string()) == "Listening for requests"];
+        let simulation = Simulation::post_json(&models, &connectors);
+        assert![simulation.status("generator-01") == "Generating commits"];
+        assert![simulation.status("load-balancer-01") == "Listening for requests"];
     }
 
     #[test]
@@ -1428,7 +1428,7 @@ mod tests {
   targetPort: "store"
 "#,
         );
-        let mut simulation = Simulation::post_yaml(models, connectors);
+        let mut simulation = Simulation::post_yaml(&models, &connectors);
         let message_records: Vec<Message> = simulation.step_n(101);
         let mut results: Vec<f64> = Vec::new();
         message_records

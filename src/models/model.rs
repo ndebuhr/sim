@@ -5,11 +5,11 @@ use serde::de::value::MapAccessDeserializer;
 use serde::de::{self, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use super::exclusive::ExclusiveGateway;
+use super::exclusive_gateway::ExclusiveGateway;
 use super::gate::Gate;
 use super::generator::Generator;
 use super::load_balancer::LoadBalancer;
-use super::parallel::ParallelGateway;
+use super::parallel_gateway::ParallelGateway;
 use super::processor::Processor;
 use super::stochastic_gate::StochasticGate;
 use super::storage::Storage;

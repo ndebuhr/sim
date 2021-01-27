@@ -83,20 +83,20 @@ pub struct Message {
 impl Simulation {
     /// Like `post_yaml`, this constructor method creates a simulation from
     /// a supplied configuration (models and connectors).
-    pub fn post_json(models: String, connectors: String) -> Simulation {
+    pub fn post_json(models: &str, connectors: &str) -> Simulation {
         utils::set_panic_hook();
         Simulation {
-            models: serde_json::from_str(&models).unwrap(),
-            connectors: serde_json::from_str(&connectors).unwrap(),
-            ..Default::default()
+            models: serde_json::from_str(models).unwrap(),
+            connectors: serde_json::from_str(connectors).unwrap(),
+            ..Simulation::default()
         }
     }
 
     /// Like `put_yaml`, this method sets the models and connectors of an
     /// existing simulation.
-    pub fn put_json(&mut self, models: String, connectors: String) {
-        self.models = serde_json::from_str(&models).unwrap();
-        self.connectors = serde_json::from_str(&connectors).unwrap();
+    pub fn put_json(&mut self, models: &str, connectors: &str) {
+        self.models = serde_json::from_str(models).unwrap();
+        self.connectors = serde_json::from_str(connectors).unwrap();
     }
 
     /// This method provides the simulation state in a "pretty" serialized
@@ -111,20 +111,20 @@ impl Simulation {
 
     /// Like `post_json`, this constructor method creates a simulation from
     /// a supplied configuration (models and connectors).
-    pub fn post_yaml(models: String, connectors: String) -> Simulation {
+    pub fn post_yaml(models: &str, connectors: &str) -> Simulation {
         utils::set_panic_hook();
         Simulation {
-            models: serde_yaml::from_str(&models).unwrap(),
-            connectors: serde_yaml::from_str(&connectors).unwrap(),
-            ..Default::default()
+            models: serde_yaml::from_str(models).unwrap(),
+            connectors: serde_yaml::from_str(connectors).unwrap(),
+            ..Simulation::default()
         }
     }
 
     /// Like `put_json`, this method sets the models and connectors of an
     /// existing simulation.
-    pub fn put_yaml(&mut self, models: String, connectors: String) {
-        self.models = serde_yaml::from_str(&models).unwrap();
-        self.connectors = serde_yaml::from_str(&connectors).unwrap();
+    pub fn put_yaml(&mut self, models: &str, connectors: &str) {
+        self.models = serde_yaml::from_str(models).unwrap();
+        self.connectors = serde_yaml::from_str(connectors).unwrap();
     }
 
     /// This method provides the simulation state in a yaml serialized JSON
@@ -175,7 +175,7 @@ impl Simulation {
     /// This method provides a mechanism for getting the status of any model
     /// in a simulation.  The method takes the model ID as an argument, and
     /// returns the current status string for that model.
-    pub fn status(&self, model_id: String) -> String {
+    pub fn status(&self, model_id: &str) -> String {
         self.models
             .iter()
             .find(|model| model.id() == model_id)
@@ -211,26 +211,32 @@ impl Simulation {
     /// This method constructs a list of target IDs for a given source model
     /// ID and port.  This message target information is derived from the
     /// connectors configuration.
-    fn get_message_target_ids(&self, source_id: String, source_port: String) -> Vec<String> {
+    fn get_message_target_ids(&self, source_id: &str, source_port: &str) -> Vec<String> {
         self.connectors
             .iter()
-            .filter(|connector| {
-                connector.source_id == source_id && connector.source_port == source_port
+            .filter_map(|connector| {
+                if connector.source_id == source_id && connector.source_port == source_port {
+                    Some(connector.target_id.to_string())
+                } else {
+                    None
+                }
             })
-            .map(|connector| connector.target_id.clone())
             .collect()
     }
 
     /// This method constructs a list of target ports for a given source model
     /// ID and port.  This message target information is derived from the
     /// connectors configuration.
-    fn get_message_target_ports(&self, source_id: String, source_port: String) -> Vec<String> {
+    fn get_message_target_ports(&self, source_id: &str, source_port: &str) -> Vec<String> {
         self.connectors
             .iter()
-            .filter(|connector| {
-                connector.source_id == source_id && connector.source_port == source_port
+            .filter_map(|connector| {
+                if connector.source_id == source_id && connector.source_port == source_port {
+                    Some(connector.target_port.to_string())
+                } else {
+                    None
+                }
             })
-            .map(|connector| connector.target_port.clone())
             .collect()
     }
 
@@ -245,14 +251,14 @@ impl Simulation {
 
     /// This method is like `inject_input`, but the message is provided in
     /// JSON format.
-    pub fn inject_input_json(&mut self, message: String) {
-        self.inject_input(serde_json::from_str(&message).unwrap());
+    pub fn inject_input_json(&mut self, message: &str) {
+        self.inject_input(serde_json::from_str(message).unwrap());
     }
 
     /// This method is like `inject_input`, but the message is provided in
     /// YAML format.
-    pub fn inject_input_yaml(&mut self, message: String) {
-        self.inject_input(serde_yaml::from_str(&message).unwrap());
+    pub fn inject_input_yaml(&mut self, message: &str) {
+        self.inject_input(serde_yaml::from_str(message).unwrap());
     }
 
     /// The simulation step is foundational for a discrete event simulation.
@@ -267,10 +273,15 @@ impl Simulation {
             (0..self.models.len()).for_each(|model_index| {
                 let model_messages: Vec<ModelMessage> = messages
                     .iter()
-                    .filter(|message| message.target_id == self.models[model_index].id())
-                    .map(|message| ModelMessage {
-                        port_name: message.target_port.clone(),
-                        message: message.message.clone(),
+                    .filter_map(|message| {
+                        if message.target_id == self.models[model_index].id() {
+                            Some(ModelMessage {
+                                port_name: message.target_port.clone(),
+                                message: message.message.clone(),
+                            })
+                        } else {
+                            None
+                        }
                     })
                     .collect();
                 model_messages.iter().for_each(|model_message| {
@@ -279,12 +290,12 @@ impl Simulation {
                         .iter()
                         .for_each(|outgoing_message| {
                             let target_ids = self.get_message_target_ids(
-                                self.models[model_index].id(),      // Outgoing message source model ID
-                                outgoing_message.port_name.clone(), // Outgoing message source model port
+                                &self.models[model_index].id(), // Outgoing message source model ID
+                                &outgoing_message.port_name, // Outgoing message source model port
                             );
                             let target_ports = self.get_message_target_ports(
-                                self.models[model_index].id(),      // Outgoing message source model ID
-                                outgoing_message.port_name.clone(), // Outgoing message source model port
+                                &self.models[model_index].id(), // Outgoing message source model ID
+                                &outgoing_message.port_name, // Outgoing message source model port
                             );
                             target_ids.iter().zip(target_ports.iter()).for_each(
                                 |(target_id, target_port)| {
@@ -321,12 +332,12 @@ impl Simulation {
                 .iter()
                 .for_each(|outgoing_message| {
                     let target_ids = self.get_message_target_ids(
-                        self.models[model_index].id(),      // Outgoing message source model ID
-                        outgoing_message.port_name.clone(), // Outgoing message source model port
+                        &self.models[model_index].id(), // Outgoing message source model ID
+                        &outgoing_message.port_name,    // Outgoing message source model port
                     );
                     let target_ports = self.get_message_target_ports(
-                        self.models[model_index].id(),      // Outgoing message source model ID
-                        outgoing_message.port_name.clone(), // Outgoing message source model port
+                        &self.models[model_index].id(), // Outgoing message source model ID
+                        &outgoing_message.port_name,    // Outgoing message source model port
                     );
                     target_ids.iter().zip(target_ports.iter()).for_each(
                         |(target_id, target_port)| {

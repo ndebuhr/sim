@@ -1,5 +1,5 @@
 //! # Overview
-//! "Sim" or "SimRS" provides a discrete event simulation engine, to
+//! "Sim" or "Sim-RS" provides a discrete event simulation engine, to
 //! facilitate Rust- and npm-based simulation products and projects.
 //!
 //! This repository contains:
@@ -14,7 +14,7 @@
 //! simulations.
 //!
 //! Sim is compatible with a wide variety of compilation targets, including
-//! WebAssembly. Sim does not require nightly Rust.
+//! WASM. Sim does not require nightly Rust.
 pub mod input_modeling;
 pub mod models;
 pub mod output_analysis;

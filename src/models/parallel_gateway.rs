@@ -1,31 +1,21 @@
 use std::any::Any;
+use std::collections::HashMap;
 use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
 use super::model::Model;
 use super::ModelMessage;
-use crate::input_modeling::random_variable::RandomVariable;
-use crate::input_modeling::thinning::Thinning;
 use crate::input_modeling::uniform_rng::UniformRNG;
 
-/// The generator produces jobs based on a configured interarrival
-/// distribution. A normalized thinning function is used to enable
-/// non-stationary job generation. For non-stochastic generation of jobs, a
-/// random variable distribution with a single point can be used - in which
-/// case, the time between job generation is constant. This model will
-/// produce jobs through perpetuity, and the generator does not receive
-/// messages or otherwise change behavior throughout a simulation (except
-/// through the thinning function).
+/// The parallel gateway splits a job across multiple processing paths. The
+/// job is duplicated across every one of the processing paths. In addition
+/// to splitting the process, a second parallel gateway can be used to join
+/// the split paths. The parallel gateway is a BPMN concept.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Generator {
+pub struct ParallelGateway {
     id: String,
-    // Time between job generations
-    message_interdeparture_time: RandomVariable,
-    // Thinning for non-stationarity
-    #[serde(default)]
-    thinning: Option<Thinning>,
     ports_in: PortsIn,
     ports_out: PortsOut,
     #[serde(default)]
@@ -37,14 +27,17 @@ pub struct Generator {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct PortsIn {
+    flow_paths: Vec<String>,
     snapshot: Option<String>,
     history: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct PortsOut {
-    job: String,
+    flow_paths: Vec<String>,
     snapshot: Option<String>,
     history: Option<String>,
 }
@@ -53,8 +46,7 @@ struct PortsOut {
 #[serde(rename_all = "camelCase")]
 struct State {
     event_list: Vec<ScheduledEvent>,
-    until_message_interdeparture: f64,
-    job_counter: usize,
+    collections: HashMap<String, usize>,
     #[serde(default)]
     global_time: f64,
 }
@@ -67,8 +59,7 @@ impl Default for State {
         };
         State {
             event_list: vec![initalization_event],
-            until_message_interdeparture: INFINITY,
-            job_counter: 0,
+            collections: HashMap::new(),
             global_time: 0.0,
         }
     }
@@ -77,7 +68,6 @@ impl Default for State {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 enum Event {
     Run,
-    BeginGeneration,
     SendJob,
 }
 
@@ -90,18 +80,20 @@ struct ScheduledEvent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Metrics {
-    last_generation: Option<(String, f64)>,
+    last_arrival: Option<(String, f64)>,
+    last_departure: Option<(String, f64)>,
 }
 
 impl Default for Metrics {
     fn default() -> Self {
         Metrics {
-            last_generation: None,
+            last_arrival: None,
+            last_departure: None,
         }
     }
 }
 
-impl Generator {
+impl ParallelGateway {
     fn need_snapshot_metrics(&self) -> bool {
         self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
     }
@@ -113,7 +105,7 @@ impl Generator {
     }
 }
 
-impl Model for Generator {
+impl Model for ParallelGateway {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -123,18 +115,39 @@ impl Model for Generator {
     }
 
     fn status(&self) -> String {
-        format!["Generating {}s", self.ports_out.job]
+        String::from("Active")
     }
 
     fn events_ext(
         &mut self,
         _uniform_rng: &mut UniformRNG,
-        _incoming_message: ModelMessage,
+        incoming_message: ModelMessage,
     ) -> Vec<ModelMessage> {
+        // Possible metrics updates
+        if self.need_snapshot_metrics() {
+            self.snapshot.last_arrival =
+                Some((incoming_message.message.clone(), self.state.global_time));
+        }
+        if self.need_historical_metrics() {
+            self.history.push(self.snapshot.clone());
+        }
+        // State changes
+        let matching_collection = self
+            .state
+            .collections
+            .entry(incoming_message.message)
+            .or_insert(0);
+        *matching_collection += 1;
+        if *matching_collection == self.ports_in.flow_paths.len() {
+            self.state.event_list.push(ScheduledEvent {
+                time: 0.0,
+                event: Event::SendJob,
+            })
+        }
         Vec::new()
     }
 
-    fn events_int(&mut self, uniform_rng: &mut UniformRNG) -> Vec<ModelMessage> {
+    fn events_int(&mut self, _uniform_rng: &mut UniformRNG) -> Vec<ModelMessage> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let events = self.state.event_list.clone();
         self.state.event_list = self
@@ -148,49 +161,27 @@ impl Model for Generator {
             .iter()
             .filter(|scheduled_event| scheduled_event.time == 0.0)
             .for_each(|scheduled_event| match scheduled_event.event {
-                Event::Run => {
-                    self.state.event_list.push(ScheduledEvent {
-                        time: 0.0,
-                        event: Event::BeginGeneration,
-                    });
-                }
-                Event::BeginGeneration => {
-                    self.state.until_message_interdeparture =
-                        self.message_interdeparture_time.random_variate(uniform_rng);
-                    self.state.event_list.push(ScheduledEvent {
-                        time: self.state.until_message_interdeparture,
-                        event: Event::BeginGeneration,
-                    });
-                    if let Some(thinning) = self.thinning.clone() {
-                        let thinning_threshold = thinning.evaluate(self.state.global_time);
-                        let uniform_rn = uniform_rng.rn();
-                        if uniform_rn < thinning_threshold {
-                            self.state.event_list.push(ScheduledEvent {
-                                time: self.state.until_message_interdeparture,
-                                event: Event::SendJob,
-                            });
-                        }
-                    } else {
-                        self.state.event_list.push(ScheduledEvent {
-                            time: self.state.until_message_interdeparture,
-                            event: Event::SendJob,
-                        });
-                    }
-                }
+                Event::Run => {}
                 Event::SendJob => {
-                    self.state.job_counter += 1;
-                    let generated = format![
-                        "{job_type} {job_id}",
-                        job_type = self.ports_out.job,
-                        job_id = self.state.job_counter
-                    ];
-                    outgoing_messages.push(ModelMessage {
-                        port_name: self.ports_out.job.clone(),
-                        message: generated.clone(),
+                    let completed_collection = self
+                        .state
+                        .collections
+                        .iter()
+                        .find(|(_, count)| **count == self.ports_in.flow_paths.len())
+                        .unwrap()
+                        .0
+                        .to_string();
+                    self.ports_out.flow_paths.iter().for_each(|port_out| {
+                        outgoing_messages.push(ModelMessage {
+                            port_name: String::from(port_out),
+                            message: completed_collection.clone(),
+                        });
                     });
+                    self.state.collections.remove(&completed_collection);
                     // Possible metrics updates
                     if self.need_snapshot_metrics() {
-                        self.snapshot.last_generation = Some((generated, self.state.global_time));
+                        self.snapshot.last_departure =
+                            Some((completed_collection, self.state.global_time));
                     }
                     if self.need_historical_metrics() {
                         self.history.push(self.snapshot.clone());
@@ -207,7 +198,6 @@ impl Model for Generator {
             .for_each(|scheduled_event| {
                 scheduled_event.time -= time_delta;
             });
-        self.state.global_time += time_delta;
     }
 
     fn until_next_event(&self) -> f64 {

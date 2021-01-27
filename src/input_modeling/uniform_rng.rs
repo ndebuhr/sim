@@ -6,8 +6,7 @@ use serde::{Deserialize, Serialize};
 /// congruential generator with 128-bit state, internal multiplicative
 /// congruential generator, and 64-bit output via "xorshift low (bits),
 /// random rotation" output function.  This random number generator is
-/// seeded and portable across platforms (e.g., WebAssembly compilation
-/// targets).
+/// seeded and portable across platforms (e.g., WASM compilation targets).
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UniformRNG {
     rng: Pcg64Mcg,
@@ -23,8 +22,8 @@ impl Default for UniformRNG {
 
 impl UniformRNG {
     pub fn rn(&mut self) -> f64 {
-        // [0.0, 1.0)
-        Uniform::new(0.0f64, 1.0f64).sample(&mut self.rng)
+        // Random number in [0.0, 1.0)
+        Uniform::new(0.0_f64, 1.0_f64).sample(&mut self.rng)
     }
 
     pub fn rng(&mut self) -> &mut Pcg64Mcg {
