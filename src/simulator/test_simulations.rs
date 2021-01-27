@@ -461,26 +461,26 @@ mod tests {
 - id: "generator-01"
   portsIn: {}
   portsOut:
-  - Job: "job"
+    job: "job"
   messageInterdepartureTime:
     exp:
       lambda: 0.5
   type: "Generator"
 - type: "Processor"
   portsIn:
-  - Job: "job"
+    job: "job"
   portsOut:
-  - ProcessedJob: "processed job"
+    processedJob: "processed job"
   serviceTime:
     exp:
       lambda: 0.333333
   queueCapacity: 14
   id: "processor-01"
 - portsIn:
-  - Store: "store"
-  - Read: "read"
+    store: "store"
+    read: "read"
   portsOut:
-  - Stored: "stored"
+    stored: "stored"
   type: "Storage"
   id: "storage-01"
 "#;
@@ -490,7 +490,6 @@ mod tests {
   id: "connector-01"
   sourceID: "generator-01"
   targetID: "processor-01"
-
 - id: "connector-02"
   targetPort: "store"
   targetID: "storage-01"
@@ -542,6 +541,57 @@ mod tests {
         let expected = 50.0; // 50 interarrivals - 1/0.5 mean and 100 duration
         assert!(generations_per_replication_ci.lower() < expected);
         assert!(generations_per_replication_ci.upper() > expected);
+    }
+
+    #[test]
+    #[ignore]
+    fn simulation_serialization_deserialization_round_trip() {
+        // Confirm a round trip dese
+        let s_models = r#"
+- type: "Generator"
+  id: "generator-01"
+  portsIn: {}
+  portsOut:
+    job: "job"
+  messageInterdepartureTime:
+    exp:
+      lambda: 0.5
+- type: "Processor"
+  id: "processor-01"
+  portsIn:
+    job: "job"
+  portsOut:
+    processedJob: "processed job"
+  serviceTime:
+    exp:
+      lambda: 0.333333
+  queueCapacity: 14
+- type: "Storage"
+  id: "storage-01"
+  portsIn:
+    store: "store"
+    read: "read"
+  portsOut:
+    stored: "stored"
+"#;
+        let s_connectors = r#"
+- id: "connector-01"
+  sourceID: "generator-01"
+  targetID: "processor-01"
+  sourcePort: "job"
+  targetPort: "job"
+- id: "connector-02"
+  sourceID: "processor-01"
+  targetID: "storage-01"
+  sourcePort: "processed job"
+  targetPort: "store"
+"#;
+        let models: Vec<Box<dyn Model>> = serde_yaml::from_str(s_models).unwrap();
+        let connectors: Vec<Connector> = serde_yaml::from_str(s_connectors).unwrap();
+        Simulation::post_yaml(
+            &serde_yaml::to_string(&models).unwrap(),
+            &serde_yaml::to_string(&connectors).unwrap(),
+        );
     }
 
     #[test]
