@@ -23,8 +23,7 @@ mod tests {
 
     #[test]
     fn poisson_generator_processor_with_capacity() {
-        let models = String::from(
-            r#"
+        let models = r#"
 - type: "Generator"
   id: "generator-01"
   portsIn: {}
@@ -50,10 +49,8 @@ mod tests {
     read: "read"
   portsOut:
     stored: "stored"
-"#,
-        );
-        let connectors: String = String::from(
-            r#"
+"#;
+        let connectors = r#"
 - id: "connector-01"
   sourceID: "generator-01"
   targetID: "processor-01"
@@ -64,12 +61,11 @@ mod tests {
   targetID: "storage-01"
   sourcePort: "processed"
   targetPort: "store"
-"#,
-        );
+"#;
         // A Poisson generator (mean of 0.5) arrival pattern (exponential interarrival with mean 2)
         // A processor with exponential processing time, mean processing time 3.0, and queue capacity 14
         // A stage for processed job collection
-        let mut simulation = Simulation::post_yaml(&models, &connectors);
+        let mut simulation = Simulation::post_yaml(models, connectors);
         // Sample size will be reduced during output analysis - initialization bias reduction through deletion
         let message_records: Vec<Message> = simulation.step_n(3000);
         let departures: Vec<(f64, String)> = message_records
@@ -123,8 +119,7 @@ mod tests {
 
     #[test]
     fn processor_from_queue_response_time_is_correct() {
-        let models = String::from(
-            r#"
+        let models = r#"
 [
     {
         "type": "Processor",
@@ -184,10 +179,8 @@ mod tests {
             "stored": "stored"
         }
     }
-]"#,
-        );
-        let connectors: String = String::from(
-            r#"
+]"#;
+        let connectors = r#"
 [
     {
         "id": "connector-01",
@@ -196,9 +189,8 @@ mod tests {
         "sourcePort": "processed job",
         "targetPort": "store"
     }
-]"#,
-        );
-        let mut simulation = Simulation::post_json(&models, &connectors);
+]"#;
+        let mut simulation = Simulation::post_json(models, connectors);
         let average_batch_completion_time = (0..200) // 100 jobs, and 2 steps per job
             .map(|simulation_step| {
                 // Get expected Option<String> message at each step
@@ -260,8 +252,7 @@ mod tests {
 
     #[test]
     fn processor_network_no_job_loss() {
-        let models = String::from(
-            r#"
+        let models = r#"
 [
     {
         "type": "Processor",
@@ -386,10 +377,8 @@ mod tests {
             "stored": "stored"
         }
     }
-]"#,
-        );
-        let connectors: String = String::from(
-            r#"
+]"#;
+        let connectors = r#"
 [
     {
         "id": "connector-01",
@@ -447,9 +436,8 @@ mod tests {
         "sourcePort": "processed job",
         "targetPort": "store"
     }
-]"#,
-        );
-        let mut simulation = Simulation::post_json(&models, &connectors);
+]"#;
+        let mut simulation = Simulation::post_json(models, connectors);
         let mut message_records: Vec<Message> = Vec::new();
         // Needs to be around 360+ steps (10 jobs, 3 network paths, across 6 processors, and 2 events per processing cycle)
         for _x in 0..720 {
@@ -469,8 +457,7 @@ mod tests {
     #[ignore]
     fn simulation_serialization_deserialization_field_ordering() {
         // Confirm field order does not matter for yaml deserialization
-        let models = String::from(
-            r#"
+        let models = r#"
 - id: "generator-01"
   portsIn: {}
   portsOut:
@@ -496,10 +483,8 @@ mod tests {
   - Stored: "stored"
   type: "Storage"
   id: "storage-01"
-"#,
-        );
-        let connectors: String = String::from(
-            r#"
+"#;
+        let connectors = r#"
 - sourcePort: "job"
   targetPort: "job"
   id: "connector-01"
@@ -511,15 +496,13 @@ mod tests {
   targetID: "storage-01"
   sourcePort: "processed job"
   sourceID: "processor-01"
-"#,
-        );
-        Simulation::post_yaml(&models, &connectors);
+"#;
+        Simulation::post_yaml(models, connectors);
     }
 
     #[test]
     fn step_until_activities() {
-        let models = String::from(
-            r#"
+        let models = r#"
 - type: "Generator"
   id: "generator-01"
   portsIn: {}
@@ -535,24 +518,21 @@ mod tests {
     read: "read"
   portsOut:
     stored: "stored"
-"#,
-        );
-        let connectors: String = String::from(
-            r#"
+"#;
+        let connectors = r#"
 - id: "connector-01"
   sourceID: "generator-01"
   targetID: "storage-01"
   sourcePort: "job"
   targetPort: "store"
-"#,
-        );
+"#;
         let mut generations_count: Vec<f64> = Vec::new();
         let mut simulation = Simulation::default();
         // 10 replications
         for _ in 0..10 {
             // Refresh the models, but maintain the Uniform RNG for replication independence
             simulation.reset();
-            simulation.put_yaml(&models, &connectors);
+            simulation.put_yaml(models, connectors);
             let messages = simulation.step_until(100.0);
             generations_count.push(messages.len() as f64);
         }
@@ -566,8 +546,7 @@ mod tests {
 
     #[test]
     fn non_stationary_generation() {
-        let models = String::from(
-            r#"
+        let models = r#"
 - type: "Generator"
   id: "generator-01"
   portsIn: {}
@@ -592,10 +571,8 @@ mod tests {
     read: "read"
   portsOut:
     stored: "stored"
-"#,
-        );
-        let connectors: String = String::from(
-            r#"
+"#;
+        let connectors = r#"
 - id: "connector-01"
   sourceID: "generator-01"
   targetID: "processor-01"
@@ -606,8 +583,7 @@ mod tests {
   targetID: "storage-01"
   sourcePort: "processed"
   targetPort: "store"
-"#,
-        );
+"#;
         let mut simulation = Simulation::default();
         let mut message_records: Vec<Message> = Vec::new();
         let mut arrivals_count: Vec<f64> = Vec::new();
@@ -615,7 +591,7 @@ mod tests {
         for _ in 0..10 {
             // Refresh the models, but maintain the Uniform RNG for replication independence
             simulation.reset();
-            simulation.put_yaml(&models, &connectors);
+            simulation.put_yaml(models, connectors);
             let messages = simulation.step_until(480.0);
             let arrivals: Vec<&Message> = messages
                 .iter()
@@ -636,8 +612,7 @@ mod tests {
 
     #[test]
     fn exclusive_gateway_proportions_chi_square() {
-        let models = String::from(
-            r#"
+        let models = r#"
 - type: "Generator"
   id: "generator-01"
   portsIn: {}
@@ -680,10 +655,8 @@ mod tests {
     read: "read"
   portsOut:
     stored: "stored"
-"#,
-        );
-        let connectors: String = String::from(
-            r#"
+"#;
+        let connectors = r#"
 - id: "connector-01"
   sourceID: "generator-01"
   targetID: "exclusive-01"
@@ -704,9 +677,8 @@ mod tests {
   targetID: "storage-03"
   sourcePort: "s03"
   targetPort: "store"
-"#,
-        );
-        let mut simulation = Simulation::post_yaml(&models, &connectors);
+"#;
+        let mut simulation = Simulation::post_yaml(models, connectors);
         let mut message_records: Vec<Message> = Vec::new();
         // 601 steps means 200 processed jobs (3 steps per gateway passthrough)
         // 1 initialization step
@@ -746,8 +718,7 @@ mod tests {
 
     #[test]
     fn ci_half_width_for_average_waiting_time() {
-        let models = String::from(
-            r#"
+        let models = r#"
 - type: "Generator"
   id: "generator-01"
   portsIn: {}
@@ -843,10 +814,8 @@ mod tests {
     read: "read"
   portsOut:
     stored: "stored"
-"#,
-        );
-        let connectors: String = String::from(
-            r#"
+"#;
+        let connectors = r#"
 - id: "connector-01"
   sourceID: "generator-01"
   targetID: "exclusive-01"
@@ -897,8 +866,7 @@ mod tests {
   targetID: "sys-storage"
   sourcePort: "history"
   targetPort: "store"
-"#,
-        );
+"#;
         let mut simulation = Simulation::default();
         // Average waiting times across processors (first dimension) and replication average (second dimension)
         let mut average_waiting_times: [Vec<f64>; 3] = [Vec::new(), Vec::new(), Vec::new()];
@@ -908,7 +876,7 @@ mod tests {
         loop {
             // Refresh the models, but maintain the Uniform RNG for replication independence
             simulation.reset();
-            simulation.put_yaml(&models, &connectors);
+            simulation.put_yaml(models, connectors);
             simulation.step_until(480.0);
             waiting_times = Vec::new();
             for processor_number in ["01", "02", "03"].iter() {
@@ -973,8 +941,7 @@ mod tests {
     #[test]
     fn gate_blocking_proportions() {
         // Deactivation/activation switch at a much higher frequency than job arrival, to limit autocorrelation and initialization bias
-        let models = String::from(
-            r#"
+        let models = r#"
 - type: "Generator"
   id: "generator-01"
   portsIn: {}
@@ -1014,10 +981,8 @@ mod tests {
     read: "read"
   portsOut:
     stored: "stored"
-"#,
-        );
-        let connectors: String = String::from(
-            r#"
+"#;
+        let connectors = r#"
 - id: "connector-01"
   sourceID: "generator-01"
   targetID: "gate-01"
@@ -1038,15 +1003,14 @@ mod tests {
   targetID: "storage-01"
   sourcePort: "job"
   targetPort: "store"
-"#,
-        );
+"#;
         let mut simulation = Simulation::default();
         let mut passed: Vec<f64> = Vec::new();
         // 10 replications and 10000 steps is more or less arbitrary here
         for _ in 0..10 {
             // Refresh the models, but maintain the Uniform RNG for replication independence
             simulation.reset();
-            simulation.put_yaml(&models, &connectors);
+            simulation.put_yaml(models, connectors);
             let mut message_records: Vec<Message> = Vec::new();
             for _x in 0..1000 {
                 simulation.step();
@@ -1076,8 +1040,7 @@ mod tests {
     #[test]
     fn load_balancer_round_robin_outputs() {
         // Deactivation/activation switch at a much higher frequency than job arrival, to limit autocorrelation and initialization bias
-        let models = String::from(
-            r#"
+        let models = r#"
 - type: "Generator"
   id: "generator-01"
   portsIn: {}
@@ -1116,10 +1079,8 @@ mod tests {
     read: "read"
   portsOut:
     stored: "stored"
-"#,
-        );
-        let connectors: String = String::from(
-            r#"
+"#;
+        let connectors = r#"
 - id: "connector-01"
   sourceID: "generator-01"
   targetID: "load-balancer-01"
@@ -1140,9 +1101,8 @@ mod tests {
   targetID: "storage-03"
   sourcePort: "server-3"
   targetPort: "store"
-"#,
-        );
-        let mut simulation = Simulation::post_yaml(&models, &connectors);
+"#;
+        let mut simulation = Simulation::post_yaml(models, connectors);
         // 28 steps means 9 processed jobs
         // 3 steps per processed job
         // 1 step for initialization
@@ -1168,8 +1128,7 @@ mod tests {
 
     #[test]
     fn injection_initiated_stored_value_exchange() {
-        let models = String::from(
-            r#"
+        let models = r#"
 [
     {
         "type": "Storage",
@@ -1193,10 +1152,8 @@ mod tests {
             "stored": "stored"
         }
     }
-]"#,
-        );
-        let connectors: String = String::from(
-            r#"
+]"#;
+        let connectors = r#"
 [
     {
         "id": "connector-01",
@@ -1212,9 +1169,8 @@ mod tests {
         "sourcePort": "stored",
         "targetPort": "store"
     }
-]"#,
-        );
-        let mut simulation = Simulation::post_json(&models, &connectors);
+]"#;
+        let mut simulation = Simulation::post_json(models, connectors);
         let stored_value = Message {
             source_id: String::from("manual"),
             source_port: String::from("manual"),
@@ -1251,8 +1207,7 @@ mod tests {
 
     #[test]
     fn parallel_gateway_splits_and_joins() {
-        let models = String::from(
-            r#"
+        let models = r#"
 - type: "Generator"
   id: "generator-01"
   portsIn: {}
@@ -1288,10 +1243,8 @@ mod tests {
     read: "read"
   portsOut:
     stored: "stored"
-"#,
-        );
-        let connectors: String = String::from(
-            r#"
+"#;
+        let connectors = r#"
 - id: "connector-01"
   sourceID: "generator-01"
   targetID: "parallel-01"
@@ -1317,9 +1270,8 @@ mod tests {
   targetID: "storage-01"
   sourcePort: "out"
   targetPort: "store"
-"#,
-        );
-        let mut simulation = Simulation::post_yaml(&models, &connectors);
+"#;
+        let mut simulation = Simulation::post_yaml(models, connectors);
         let message_records: Vec<Message> = simulation.step_n(101);
         let alpha_passes = message_records
             .iter()
@@ -1345,8 +1297,7 @@ mod tests {
 
     #[test]
     fn match_status_reporting() {
-        let models = String::from(
-            r#"
+        let models = r#"
 [
   {
     "type": "Generator",
@@ -1376,18 +1327,16 @@ mod tests {
     }
   }
 ]
-"#,
-        );
-        let connectors: String = String::from("[]");
-        let simulation = Simulation::post_json(&models, &connectors);
+"#;
+        let connectors = "[]";
+        let simulation = Simulation::post_json(models, connectors);
         assert![simulation.status("generator-01") == "Generating commits"];
         assert![simulation.status("load-balancer-01") == "Listening for requests"];
     }
 
     #[test]
     fn stochastic_gate_blocking() {
-        let models = String::from(
-            r#"
+        let models = r#"
 - type: "Generator"
   id: "generator-01"
   portsIn: {}
@@ -1412,10 +1361,8 @@ mod tests {
     read: "read"
   portsOut:
     stored: "stored"
-"#,
-        );
-        let connectors: String = String::from(
-            r#"
+"#;
+        let connectors = r#"
 - id: "connector-01"
   sourceID: "generator-01"
   targetID: "stochastic-gate-01"
@@ -1426,9 +1373,8 @@ mod tests {
   targetID: "storage-01"
   sourcePort: "job"
   targetPort: "store"
-"#,
-        );
-        let mut simulation = Simulation::post_yaml(&models, &connectors);
+"#;
+        let mut simulation = Simulation::post_yaml(models, connectors);
         let message_records: Vec<Message> = simulation.step_n(101);
         let mut results: Vec<f64> = Vec::new();
         message_records
