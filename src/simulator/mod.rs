@@ -53,7 +53,7 @@ pub struct Simulation {
 /// Specification) via these connectors.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Connector {
+pub struct Connector {
     id: String,
     #[serde(rename = "sourceID")]
     source_id: String,
