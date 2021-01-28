@@ -9,7 +9,7 @@
 [![Crates.io](https://img.shields.io/crates/l/sim?style=flat-square)](#license)
 [![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 
-"Sim" or "SimRS" provides a discrete event simulation engine, to facilitate Rust- and npm-based simulation products and projects.
+"Sim" or "SimRS" is a discrete event simulation package that facilitates Rust- and npm-based simulation products and projects.
 
 This repository contains:
 
