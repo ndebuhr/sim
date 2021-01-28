@@ -10,7 +10,7 @@ repository = "https://github.com/ndebuhr/sim"
 readme = "README.md"
 keywords = ["simulation", "discrete", "event", "stochastic", "modeling"]
 categories = ["simulation"]
-exclude = ["images/", "MODELS.md", ".github/"]
+exclude = ["images/", "MODELS.md", ".github/", ".codecov.yml"]
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-Oz", "--enable-mutable-globals"]
