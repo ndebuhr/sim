@@ -1,4 +1,10 @@
-# Sim
+<div align="center">
+	<img src="images/logo.png" width="200" height="200">
+	<h1>Sim</h1>
+  <p>"Sim" or "SimRS" is a discrete event simulation package that facilitates<br>Rust- and npm-based simulation products and projects</p>
+  <p><a href="https://simrs.com">Sim Website</a> | <a href="https://simrs.com/demo/">Sim Demo</a> | <a href="https://docs.rs/sim/">Sim Docs</p>
+  <br>
+</div>
 
 ![stability-experimental](https://img.shields.io/badge/stability-experimental-bd0058.svg?style=flat-square)
 [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ndebuhr/sim/CI?style=flat-square)](https://github.com/ndebuhr/sim/actions)
@@ -7,7 +13,6 @@
 [![docs.rs](https://img.shields.io/badge/docs.rs-sim-purple?style=flat-square)](https://docs.rs/sim/)
 [![Codecov](https://img.shields.io/codecov/c/github/ndebuhr/sim?style=flat-square)](https://codecov.io/gh/ndebuhr/sim)
 [![Crates.io](https://img.shields.io/crates/l/sim?style=flat-square)](#license)
-[![standard-readme compliant](https://img.shields.io/badge/readme%20style-standard-brightgreen.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 
 "Sim" or "SimRS" is a discrete event simulation package that facilitates Rust- and npm-based simulation products and projects.
 
