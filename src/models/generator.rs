@@ -8,6 +8,7 @@ use super::ModelMessage;
 use crate::input_modeling::random_variable::ContinuousRandomVariable;
 use crate::input_modeling::thinning::Thinning;
 use crate::input_modeling::uniform_rng::UniformRNG;
+use crate::utils::error::SimulationError;
 
 /// The generator produces jobs based on a configured interarrival
 /// distribution. A normalized thinning function is used to enable
@@ -130,11 +131,14 @@ impl Model for Generator {
         &mut self,
         _uniform_rng: &mut UniformRNG,
         _incoming_message: ModelMessage,
-    ) -> Vec<ModelMessage> {
-        Vec::new()
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
+        Ok(Vec::new())
     }
 
-    fn events_int(&mut self, uniform_rng: &mut UniformRNG) -> Vec<ModelMessage> {
+    fn events_int(
+        &mut self,
+        uniform_rng: &mut UniformRNG,
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let events = self.state.event_list.clone();
         self.state.event_list = self
@@ -147,57 +151,66 @@ impl Model for Generator {
         events
             .iter()
             .filter(|scheduled_event| scheduled_event.time == 0.0)
-            .for_each(|scheduled_event| match scheduled_event.event {
-                Event::Run => {
-                    self.state.event_list.push(ScheduledEvent {
-                        time: 0.0,
-                        event: Event::BeginGeneration,
-                    });
-                }
-                Event::BeginGeneration => {
-                    self.state.until_message_interdeparture =
-                        self.message_interdeparture_time.random_variate(uniform_rng);
-                    self.state.event_list.push(ScheduledEvent {
-                        time: self.state.until_message_interdeparture,
-                        event: Event::BeginGeneration,
-                    });
-                    if let Some(thinning) = self.thinning.clone() {
-                        let thinning_threshold = thinning.evaluate(self.state.global_time);
-                        let uniform_rn = uniform_rng.rn();
-                        if uniform_rn < thinning_threshold {
+            .map(
+                |scheduled_event| -> Result<Vec<ModelMessage>, SimulationError> {
+                    match scheduled_event.event {
+                        Event::Run => {
                             self.state.event_list.push(ScheduledEvent {
-                                time: self.state.until_message_interdeparture,
-                                event: Event::SendJob,
+                                time: 0.0,
+                                event: Event::BeginGeneration,
                             });
                         }
-                    } else {
-                        self.state.event_list.push(ScheduledEvent {
-                            time: self.state.until_message_interdeparture,
-                            event: Event::SendJob,
-                        });
+                        Event::BeginGeneration => {
+                            self.state.until_message_interdeparture = self
+                                .message_interdeparture_time
+                                .random_variate(uniform_rng)?;
+                            self.state.event_list.push(ScheduledEvent {
+                                time: self.state.until_message_interdeparture,
+                                event: Event::BeginGeneration,
+                            });
+                            if let Some(thinning) = self.thinning.clone() {
+                                let thinning_threshold =
+                                    thinning.evaluate(self.state.global_time)?;
+                                let uniform_rn = uniform_rng.rn();
+                                if uniform_rn < thinning_threshold {
+                                    self.state.event_list.push(ScheduledEvent {
+                                        time: self.state.until_message_interdeparture,
+                                        event: Event::SendJob,
+                                    });
+                                }
+                            } else {
+                                self.state.event_list.push(ScheduledEvent {
+                                    time: self.state.until_message_interdeparture,
+                                    event: Event::SendJob,
+                                });
+                            }
+                        }
+                        Event::SendJob => {
+                            self.state.job_counter += 1;
+                            let generated = format![
+                                "{job_type} {job_id}",
+                                job_type = self.ports_out.job,
+                                job_id = self.state.job_counter
+                            ];
+                            outgoing_messages.push(ModelMessage {
+                                port_name: self.ports_out.job.clone(),
+                                message: generated.clone(),
+                            });
+                            // Possible metrics updates
+                            if self.need_snapshot_metrics() {
+                                self.snapshot.last_generation =
+                                    Some((generated, self.state.global_time));
+                            }
+                            if self.need_historical_metrics() {
+                                self.history.push(self.snapshot.clone());
+                            }
+                        }
                     }
-                }
-                Event::SendJob => {
-                    self.state.job_counter += 1;
-                    let generated = format![
-                        "{job_type} {job_id}",
-                        job_type = self.ports_out.job,
-                        job_id = self.state.job_counter
-                    ];
-                    outgoing_messages.push(ModelMessage {
-                        port_name: self.ports_out.job.clone(),
-                        message: generated.clone(),
-                    });
-                    // Possible metrics updates
-                    if self.need_snapshot_metrics() {
-                        self.snapshot.last_generation = Some((generated, self.state.global_time));
-                    }
-                    if self.need_historical_metrics() {
-                        self.history.push(self.snapshot.clone());
-                    }
-                }
-            });
-        outgoing_messages
+                    Ok(Vec::new())
+                },
+            )
+            .find(|result| result.is_err())
+            .unwrap_or(Ok(outgoing_messages))
     }
 
     fn time_advance(&mut self, time_delta: f64) {

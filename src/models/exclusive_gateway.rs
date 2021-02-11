@@ -7,6 +7,7 @@ use super::model::Model;
 use super::ModelMessage;
 use crate::input_modeling::random_variable::IndexRandomVariable;
 use crate::input_modeling::uniform_rng::UniformRNG;
+use crate::utils::error::SimulationError;
 
 /// The exclusive gateway splits a process flow into a set of possible paths.
 /// The process will only follow one of the possible paths. Path selection is
@@ -117,9 +118,9 @@ impl Model for ExclusiveGateway {
         &mut self,
         uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
-    ) -> Vec<ModelMessage> {
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
-        let port_number = self.port_weights.random_variate(uniform_rng);
+        let port_number = self.port_weights.random_variate(uniform_rng)?;
         // Possible metrics updates
         if self.need_snapshot_metrics() {
             self.snapshot.last_job = Some((
@@ -136,10 +137,13 @@ impl Model for ExclusiveGateway {
             port_name: self.ports_out.flow_paths[port_number].clone(),
             message: incoming_message.message,
         });
-        outgoing_messages
+        Ok(outgoing_messages)
     }
 
-    fn events_int(&mut self, _uniform_rng: &mut UniformRNG) -> Vec<ModelMessage> {
+    fn events_int(
+        &mut self,
+        _uniform_rng: &mut UniformRNG,
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
         let events = self.state.event_list.clone();
         self.state.event_list = self
             .state
@@ -154,7 +158,7 @@ impl Model for ExclusiveGateway {
             .for_each(|scheduled_event| match scheduled_event.event {
                 Event::Run => {}
             });
-        Vec::new()
+        Ok(Vec::new())
     }
 
     fn time_advance(&mut self, time_delta: f64) {

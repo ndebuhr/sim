@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use super::model::Model;
 use super::ModelMessage;
 use crate::input_modeling::uniform_rng::UniformRNG;
+use crate::utils::error::SimulationError;
 
 /// The storage model stores a value, and responds with it upon request.
 /// Values are stored and value requests are handled instantantaneously.
@@ -120,7 +121,7 @@ impl Model for Storage {
         &mut self,
         _uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
-    ) -> Vec<ModelMessage> {
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let incoming_port: &str = &incoming_message.port_name;
         match &self.ports_in {
@@ -172,12 +173,15 @@ impl Model for Storage {
                     }
                 }
             }
-            _ => panic!["ModelMessage recieved on a non-existent port"],
+            _ => return Err(SimulationError::PortNotFound),
         }
-        outgoing_messages
+        Ok(outgoing_messages)
     }
 
-    fn events_int(&mut self, _uniform_rng: &mut UniformRNG) -> Vec<ModelMessage> {
+    fn events_int(
+        &mut self,
+        _uniform_rng: &mut UniformRNG,
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
         // Currently, there is no events_int behavior except the initialization
         let events = self.state.event_list.clone();
         self.state.event_list = self
@@ -193,7 +197,7 @@ impl Model for Storage {
             .for_each(|scheduled_event| match scheduled_event.event {
                 Event::Run => {}
             });
-        Vec::new()
+        Ok(Vec::new())
     }
 
     fn time_advance(&mut self, time_delta: f64) {

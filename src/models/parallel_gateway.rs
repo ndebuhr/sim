@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use super::model::Model;
 use super::ModelMessage;
 use crate::input_modeling::uniform_rng::UniformRNG;
+use crate::utils::error::SimulationError;
 
 /// The parallel gateway splits a job across multiple processing paths. The
 /// job is duplicated across every one of the processing paths. In addition
@@ -122,7 +123,7 @@ impl Model for ParallelGateway {
         &mut self,
         _uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
-    ) -> Vec<ModelMessage> {
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
         // Possible metrics updates
         if self.need_snapshot_metrics() {
             self.snapshot.last_arrival =
@@ -144,10 +145,13 @@ impl Model for ParallelGateway {
                 event: Event::SendJob,
             })
         }
-        Vec::new()
+        Ok(Vec::new())
     }
 
-    fn events_int(&mut self, _uniform_rng: &mut UniformRNG) -> Vec<ModelMessage> {
+    fn events_int(
+        &mut self,
+        _uniform_rng: &mut UniformRNG,
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let events = self.state.event_list.clone();
         self.state.event_list = self
@@ -160,35 +164,39 @@ impl Model for ParallelGateway {
         events
             .iter()
             .filter(|scheduled_event| scheduled_event.time == 0.0)
-            .for_each(|scheduled_event| match scheduled_event.event {
-                Event::Run => {}
-                Event::SendJob => {
-                    let completed_collection = self
-                        .state
-                        .collections
-                        .iter()
-                        .find(|(_, count)| **count == self.ports_in.flow_paths.len())
-                        .unwrap()
-                        .0
-                        .to_string();
-                    self.ports_out.flow_paths.iter().for_each(|port_out| {
-                        outgoing_messages.push(ModelMessage {
-                            port_name: String::from(port_out),
-                            message: completed_collection.clone(),
+            .map(|scheduled_event| {
+                match scheduled_event.event {
+                    Event::Run => {}
+                    Event::SendJob => {
+                        let completed_collection = self
+                            .state
+                            .collections
+                            .iter()
+                            .find(|(_, count)| **count == self.ports_in.flow_paths.len())
+                            .ok_or_else(|| SimulationError::InvalidModelState)?
+                            .0
+                            .to_string();
+                        self.ports_out.flow_paths.iter().for_each(|port_out| {
+                            outgoing_messages.push(ModelMessage {
+                                port_name: String::from(port_out),
+                                message: completed_collection.clone(),
+                            });
                         });
-                    });
-                    self.state.collections.remove(&completed_collection);
-                    // Possible metrics updates
-                    if self.need_snapshot_metrics() {
-                        self.snapshot.last_departure =
-                            Some((completed_collection, self.state.global_time));
-                    }
-                    if self.need_historical_metrics() {
-                        self.history.push(self.snapshot.clone());
+                        self.state.collections.remove(&completed_collection);
+                        // Possible metrics updates
+                        if self.need_snapshot_metrics() {
+                            self.snapshot.last_departure =
+                                Some((completed_collection, self.state.global_time));
+                        }
+                        if self.need_historical_metrics() {
+                            self.history.push(self.snapshot.clone());
+                        }
                     }
                 }
-            });
-        outgoing_messages
+                Ok(Vec::new())
+            })
+            .find(|result| result.is_err())
+            .unwrap_or(Ok(outgoing_messages))
     }
 
     fn time_advance(&mut self, time_delta: f64) {

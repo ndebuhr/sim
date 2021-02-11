@@ -3,16 +3,22 @@
 //! utilities are centered around debugging/traceability and common
 //! arithmetic.
 
+pub mod error;
+
+use error::SimulationError;
+
 /// The function evaluates a polynomial at a single value, with coefficients
 /// defined as a slice, from the highest polynomial order to the zero order.
 /// Horner's method is used for this polynomial evaluation
-pub fn evaluate_polynomial(coefficients: &[f64], x: f64) -> f64 {
-    let highest_order_polynomial_coeff = coefficients.first().unwrap();
-    coefficients[0..coefficients.len() - 1]
+pub fn evaluate_polynomial(coefficients: &[f64], x: f64) -> Result<f64, SimulationError> {
+    let highest_order_polynomial_coeff = coefficients
+        .first()
+        .ok_or_else(|| SimulationError::EmptyPolynomial)?;
+    Ok(coefficients[0..coefficients.len() - 1]
         .iter()
         .fold(*highest_order_polynomial_coeff, |acc, coefficient| {
             coefficient + x * acc
-        })
+        }))
 }
 
 /// When the `console_error_panic_hook` feature is enabled, we can call the

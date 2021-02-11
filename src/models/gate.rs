@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use super::model::Model;
 use super::ModelMessage;
 use crate::input_modeling::uniform_rng::UniformRNG;
+use crate::utils::error::SimulationError;
 
 /// The gate model passes or blocks jobs, when it is in the open or closed
 /// state, respectively. The gate can be opened and closed throughout the
@@ -143,7 +144,7 @@ impl Model for Gate {
         &mut self,
         _uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
-    ) -> Vec<ModelMessage> {
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
         let incoming_port: &str = &incoming_message.port_name;
         match &self.ports_in {
             PortsIn { activation, .. } if activation == incoming_port => {
@@ -192,12 +193,15 @@ impl Model for Gate {
                     }),
                 }
             }
-            _ => panic!["ModelMessage recieved on a non-existent port"],
+            _ => return Err(SimulationError::PortNotFound),
         }
-        Vec::new()
+        Ok(Vec::new())
     }
 
-    fn events_int(&mut self, _uniform_rng: &mut UniformRNG) -> Vec<ModelMessage> {
+    fn events_int(
+        &mut self,
+        _uniform_rng: &mut UniformRNG,
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let events = self.state.event_list.clone();
         self.state.event_list = self
@@ -238,7 +242,7 @@ impl Model for Gate {
                     });
                 }
             });
-        outgoing_messages
+        Ok(outgoing_messages)
     }
 
     fn time_advance(&mut self, time_delta: f64) {

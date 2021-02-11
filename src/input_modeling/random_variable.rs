@@ -13,6 +13,7 @@ use rand_distr::{Beta, Exp, Gamma, LogNormal, Normal, Triangular, Uniform, Weibu
 use rand_distr::{Bernoulli, Geometric, Poisson, WeightedIndex};
 
 use super::uniform_rng::UniformRNG;
+use crate::utils::error::SimulationError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -66,34 +67,32 @@ impl ContinuousRandomVariable {
     /// The generation of random variates drives stochastic behaviors during
     /// simulation execution.  This function requires the random number
     /// generator of the simulation, and produces a f64 random variate.
-    pub fn random_variate(&mut self, uniform_rng: &mut UniformRNG) -> f64 {
+    pub fn random_variate(&mut self, uniform_rng: &mut UniformRNG) -> Result<f64, SimulationError> {
         match self {
             ContinuousRandomVariable::Beta { alpha, beta } => {
-                Beta::new(*alpha, *beta).unwrap().sample(uniform_rng.rng())
+                Ok(Beta::new(*alpha, *beta)?.sample(uniform_rng.rng()))
             }
             ContinuousRandomVariable::Exp { lambda } => {
-                Exp::new(*lambda).unwrap().sample(uniform_rng.rng())
+                Ok(Exp::new(*lambda)?.sample(uniform_rng.rng()))
             }
-            ContinuousRandomVariable::Gamma { shape, scale } => Gamma::new(*shape, *scale)
-                .unwrap()
-                .sample(uniform_rng.rng()),
-            ContinuousRandomVariable::LogNormal { mu, sigma } => LogNormal::new(*mu, *sigma)
-                .unwrap()
-                .sample(uniform_rng.rng()),
-            ContinuousRandomVariable::Normal { mean, std_dev } => Normal::new(*mean, *std_dev)
-                .unwrap()
-                .sample(uniform_rng.rng()),
+            ContinuousRandomVariable::Gamma { shape, scale } => {
+                Ok(Gamma::new(*shape, *scale)?.sample(uniform_rng.rng()))
+            }
+            ContinuousRandomVariable::LogNormal { mu, sigma } => {
+                Ok(LogNormal::new(*mu, *sigma)?.sample(uniform_rng.rng()))
+            }
+            ContinuousRandomVariable::Normal { mean, std_dev } => {
+                Ok(Normal::new(*mean, *std_dev)?.sample(uniform_rng.rng()))
+            }
             ContinuousRandomVariable::Triangular { min, max, mode } => {
-                Triangular::new(*min, *max, *mode)
-                    .unwrap()
-                    .sample(uniform_rng.rng())
+                Ok(Triangular::new(*min, *max, *mode)?.sample(uniform_rng.rng()))
             }
             ContinuousRandomVariable::Uniform { min, max } => {
-                Uniform::new(*min, *max).sample(uniform_rng.rng())
+                Ok(Uniform::new(*min, *max).sample(uniform_rng.rng()))
             }
-            ContinuousRandomVariable::Weibull { shape, scale } => Weibull::new(*shape, *scale)
-                .unwrap()
-                .sample(uniform_rng.rng()),
+            ContinuousRandomVariable::Weibull { shape, scale } => {
+                Ok(Weibull::new(*shape, *scale)?.sample(uniform_rng.rng()))
+            }
         }
     }
 }
@@ -102,10 +101,13 @@ impl BooleanRandomVariable {
     /// The generation of random variates drives stochastic behaviors during
     /// simulation execution.  This function requires the random number
     /// generator of the simulation, and produces a boolean random variate.
-    pub fn random_variate(&mut self, uniform_rng: &mut UniformRNG) -> bool {
+    pub fn random_variate(
+        &mut self,
+        uniform_rng: &mut UniformRNG,
+    ) -> Result<bool, SimulationError> {
         match self {
             BooleanRandomVariable::Bernoulli { p } => {
-                Bernoulli::new(*p).unwrap().sample(uniform_rng.rng())
+                Ok(Bernoulli::new(*p)?.sample(uniform_rng.rng()))
             }
         }
     }
@@ -115,16 +117,16 @@ impl DiscreteRandomVariable {
     /// The generation of random variates drives stochastic behaviors during
     /// simulation execution.  This function requires the random number
     /// generator of the simulation, and produces a u64 random variate.
-    pub fn random_variate(&mut self, uniform_rng: &mut UniformRNG) -> u64 {
+    pub fn random_variate(&mut self, uniform_rng: &mut UniformRNG) -> Result<u64, SimulationError> {
         match self {
             DiscreteRandomVariable::Geometric { p } => {
-                Geometric::new(*p).unwrap().sample(uniform_rng.rng())
+                Ok(Geometric::new(*p)?.sample(uniform_rng.rng()))
             }
             DiscreteRandomVariable::Poisson { lambda } => {
-                Poisson::new(*lambda).unwrap().sample(uniform_rng.rng()) as u64
+                Ok(Poisson::new(*lambda)?.sample(uniform_rng.rng()) as u64)
             }
             DiscreteRandomVariable::Uniform { min, max } => {
-                Uniform::new(*min, *max).sample(uniform_rng.rng())
+                Ok(Uniform::new(*min, *max).sample(uniform_rng.rng()))
             }
         }
     }
@@ -134,14 +136,17 @@ impl IndexRandomVariable {
     /// The generation of random variates drives stochastic behaviors during
     /// simulation execution.  This function requires the random number
     /// generator of the simulation, and produces a usize random variate.
-    pub fn random_variate(&mut self, uniform_rng: &mut UniformRNG) -> usize {
+    pub fn random_variate(
+        &mut self,
+        uniform_rng: &mut UniformRNG,
+    ) -> Result<usize, SimulationError> {
         match self {
             IndexRandomVariable::Uniform { min, max } => {
-                Uniform::new(*min, *max).sample(uniform_rng.rng())
+                Ok(Uniform::new(*min, *max).sample(uniform_rng.rng()))
             }
-            IndexRandomVariable::WeightedIndex { weights } => WeightedIndex::new(weights.clone())
-                .unwrap()
-                .sample(uniform_rng.rng()),
+            IndexRandomVariable::WeightedIndex { weights } => {
+                Ok(WeightedIndex::new(weights.clone())?.sample(uniform_rng.rng()))
+            }
         }
     }
 }
@@ -158,7 +163,7 @@ mod tests {
         };
         let mut uniform_rng = UniformRNG::default();
         let mean = (0..10000)
-            .map(|_| variable.random_variate(&mut uniform_rng))
+            .map(|_| variable.random_variate(&mut uniform_rng).unwrap())
             .sum::<f64>()
             / 10000.0;
         let expected = 7.0 / (7.0 + 11.0);
@@ -170,7 +175,7 @@ mod tests {
         let mut variable = ContinuousRandomVariable::Exp { lambda: 7.0 };
         let mut uniform_rng = UniformRNG::default();
         let mean = (0..10000)
-            .map(|_| variable.random_variate(&mut uniform_rng))
+            .map(|_| variable.random_variate(&mut uniform_rng).unwrap())
             .sum::<f64>()
             / 10000.0;
         let expected = 1.0 / 7.0;
@@ -185,7 +190,7 @@ mod tests {
         };
         let mut uniform_rng = UniformRNG::default();
         let mean = (0..10000)
-            .map(|_| variable.random_variate(&mut uniform_rng))
+            .map(|_| variable.random_variate(&mut uniform_rng).unwrap())
             .sum::<f64>()
             / 10000.0;
         let expected = 77.0;
@@ -200,7 +205,7 @@ mod tests {
         };
         let mut uniform_rng = UniformRNG::default();
         let mean = (0..10000)
-            .map(|_| variable.random_variate(&mut uniform_rng))
+            .map(|_| variable.random_variate(&mut uniform_rng).unwrap())
             .sum::<f64>()
             / 10000.0;
         let expected = (11.0f64 + 1.0f64.powi(2) / 2.0f64).exp();
@@ -218,7 +223,7 @@ mod tests {
         let mut class_counts: [f64; 8] = [0.0; 8];
         let mut uniform_rng = UniformRNG::default();
         (0..10000).for_each(|_| {
-            let variate = variable.random_variate(&mut uniform_rng);
+            let variate = variable.random_variate(&mut uniform_rng).unwrap();
             if variate < 2.0 {
                 class_counts[0] += 1.0;
             } else if variate < 5.0 {
@@ -261,7 +266,7 @@ mod tests {
         let mut class_counts: [f64; 4] = [0.0; 4];
         let mut uniform_rng = UniformRNG::default();
         (0..1000).for_each(|_| {
-            let variate = variable.random_variate(&mut uniform_rng);
+            let variate = variable.random_variate(&mut uniform_rng).unwrap();
             class_counts[((variate - 5.0) / 5.0) as usize] += 1.0;
         });
         let expected_counts: [f64; 4] = [125.0, 375.0, 375.0, 125.0];
@@ -286,7 +291,7 @@ mod tests {
         let mut class_counts: [f64; 40] = [0.0; 40];
         let mut uniform_rng = UniformRNG::default();
         (0..10000).for_each(|_| {
-            let rn = variable.random_variate(&mut uniform_rng);
+            let rn = variable.random_variate(&mut uniform_rng).unwrap();
             let class_index = (rn - 7.0) * 10.0;
             class_counts[class_index as usize] += 1.0;
         });
@@ -311,7 +316,7 @@ mod tests {
         };
         let mut uniform_rng = UniformRNG::default();
         let mean = (0..10000)
-            .map(|_| variable.random_variate(&mut uniform_rng))
+            .map(|_| variable.random_variate(&mut uniform_rng).unwrap())
             .sum::<f64>()
             / 10000.0;
         let expected = 14.0;
@@ -324,7 +329,7 @@ mod tests {
         let mut class_counts: [f64; 2] = [0.0; 2];
         let mut uniform_rng = UniformRNG::default();
         (0..10000).for_each(|_| {
-            let rn = variable.random_variate(&mut uniform_rng);
+            let rn = variable.random_variate(&mut uniform_rng).unwrap();
             class_counts[rn as usize] += 1.0;
         });
         let expected_counts: [f64; 2] = [7000.0, 3000.0];
@@ -345,7 +350,7 @@ mod tests {
         let mut variable = DiscreteRandomVariable::Geometric { p: 0.2 };
         let mut uniform_rng = UniformRNG::default();
         let mean = (0..10000)
-            .map(|_| variable.random_variate(&mut uniform_rng) as f64)
+            .map(|_| variable.random_variate(&mut uniform_rng).unwrap() as f64)
             .sum::<f64>()
             / 10000.0;
         let expected = (1.0 - 0.2) / 0.2;
@@ -357,7 +362,7 @@ mod tests {
         let mut variable = DiscreteRandomVariable::Poisson { lambda: 7.0 };
         let mut uniform_rng = UniformRNG::default();
         let mean = (0..10000)
-            .map(|_| variable.random_variate(&mut uniform_rng) as f64)
+            .map(|_| variable.random_variate(&mut uniform_rng).unwrap() as f64)
             .sum::<f64>()
             / 10000.0;
         let expected = 7.0;
@@ -370,7 +375,7 @@ mod tests {
         let mut class_counts: [f64; 4] = [0.0; 4];
         let mut uniform_rng = UniformRNG::default();
         (0..10000).for_each(|_| {
-            let rn = variable.random_variate(&mut uniform_rng);
+            let rn = variable.random_variate(&mut uniform_rng).unwrap();
             let class_index = rn - 7;
             class_counts[class_index as usize] += 1.0;
         });
@@ -395,7 +400,7 @@ mod tests {
         let mut class_counts: [f64; 4] = [0.0; 4];
         let mut uniform_rng = UniformRNG::default();
         (0..10000).for_each(|_| {
-            let rn = variable.random_variate(&mut uniform_rng);
+            let rn = variable.random_variate(&mut uniform_rng).unwrap();
             class_counts[rn as usize] += 1.0;
         });
         let expected_counts: [f64; 4] = [1000.0, 2000.0, 3000.0, 4000.0];
@@ -417,7 +422,7 @@ mod tests {
         let mut class_counts: [f64; 4] = [0.0; 4];
         let mut uniform_rng = UniformRNG::default();
         (0..10000).for_each(|_| {
-            let rn = variable.random_variate(&mut uniform_rng);
+            let rn = variable.random_variate(&mut uniform_rng).unwrap();
             let class_index = rn - 7;
             class_counts[class_index] += 1.0;
         });

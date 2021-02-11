@@ -65,9 +65,9 @@ mod tests {
         // A Poisson generator (mean of 0.5) arrival pattern (exponential interarrival with mean 2)
         // A processor with exponential processing time, mean processing time 3.0, and queue capacity 14
         // A stage for processed job collection
-        let mut simulation = Simulation::post_yaml(models, connectors);
+        let mut web = WebSimulation::post_yaml(models, connectors);
         // Sample size will be reduced during output analysis - initialization bias reduction through deletion
-        let message_records: Vec<Message> = simulation.step_n(3000);
+        let message_records: Vec<Message> = web.simulation.step_n(3000).unwrap();
         let departures: Vec<(f64, String)> = message_records
             .iter()
             .filter(|message_record| message_record.target_id == "storage-01")
@@ -190,7 +190,7 @@ mod tests {
         "targetPort": "store"
     }
 ]"#;
-        let mut simulation = Simulation::post_json(models, connectors);
+        let mut web = WebSimulation::post_json(models, connectors);
         let average_batch_completion_time = (0..200) // 100 jobs, and 2 steps per job
             .map(|simulation_step| {
                 // Get expected Option<String> message at each step
@@ -203,8 +203,7 @@ mod tests {
             .map(|expected_output| {
                 // Run simulation and capture output messages
                 // Assert based on None vs. Some(String) message expectations
-                simulation.step();
-                let messages_set: Vec<Message> = simulation.get_messages();
+                let messages_set: Vec<Message> = web.simulation.step().unwrap();
                 match expected_output {
                     None => {
                         assert![messages_set.is_empty()];
@@ -437,12 +436,11 @@ mod tests {
         "targetPort": "store"
     }
 ]"#;
-        let mut simulation = Simulation::post_json(models, connectors);
+        let mut web = WebSimulation::post_json(models, connectors);
         let mut message_records: Vec<Message> = Vec::new();
         // Needs to be around 360+ steps (10 jobs, 3 network paths, across 6 processors, and 2 events per processing cycle)
         for _x in 0..720 {
-            simulation.step();
-            let messages_set: Vec<Message> = simulation.get_messages();
+            let messages_set: Vec<Message> = web.simulation.step().unwrap();
             message_records.extend(messages_set);
         }
         let storage_arrivals_count = message_records
@@ -496,7 +494,7 @@ mod tests {
   sourcePort: "processed job"
   sourceID: "processor-01"
 "#;
-        Simulation::post_yaml(models, connectors);
+        WebSimulation::post_yaml(models, connectors);
     }
 
     #[test]
@@ -526,13 +524,13 @@ mod tests {
   targetPort: "store"
 "#;
         let mut generations_count: Vec<f64> = Vec::new();
-        let mut simulation = Simulation::default();
+        let mut web = WebSimulation::default();
         // 10 replications
         for _ in 0..10 {
             // Refresh the models, but maintain the Uniform RNG for replication independence
-            simulation.reset();
-            simulation.put_yaml(models, connectors);
-            let messages = simulation.step_until(100.0);
+            web.reset();
+            web.put_yaml(models, connectors);
+            let messages = web.simulation.step_until(100.0).unwrap();
             generations_count.push(messages.len() as f64);
         }
         let generations_per_replication = IndependentSample::post(generations_count);
@@ -546,7 +544,7 @@ mod tests {
     #[test]
     #[ignore]
     fn simulation_serialization_deserialization_round_trip() {
-        // Confirm a round trip dese
+        // Confirm a round trip deserialization-serialization
         let s_models = r#"
 - type: "Generator"
   id: "generator-01"
@@ -588,7 +586,7 @@ mod tests {
 "#;
         let models: Vec<Box<dyn Model>> = serde_yaml::from_str(s_models).unwrap();
         let connectors: Vec<Connector> = serde_yaml::from_str(s_connectors).unwrap();
-        Simulation::post_yaml(
+        WebSimulation::post_yaml(
             &serde_yaml::to_string(&models).unwrap(),
             &serde_yaml::to_string(&connectors).unwrap(),
         );
@@ -634,15 +632,15 @@ mod tests {
   sourcePort: "processed"
   targetPort: "store"
 "#;
-        let mut simulation = Simulation::default();
+        let mut web = WebSimulation::default();
         let mut message_records: Vec<Message> = Vec::new();
         let mut arrivals_count: Vec<f64> = Vec::new();
         // 10 replications
         for _ in 0..10 {
             // Refresh the models, but maintain the Uniform RNG for replication independence
-            simulation.reset();
-            simulation.put_yaml(models, connectors);
-            let messages = simulation.step_until(480.0);
+            web.reset();
+            web.put_yaml(models, connectors);
+            let messages = web.simulation.step_until(480.0).unwrap();
             let arrivals: Vec<&Message> = messages
                 .iter()
                 .filter(|message| message.target_id == "processor-01")
@@ -728,13 +726,12 @@ mod tests {
   sourcePort: "s03"
   targetPort: "store"
 "#;
-        let mut simulation = Simulation::post_yaml(models, connectors);
+        let mut web = WebSimulation::post_yaml(models, connectors);
         let mut message_records: Vec<Message> = Vec::new();
         // 601 steps means 200 processed jobs (3 steps per gateway passthrough)
         // 1 initialization step
         for _x in 0..601 {
-            simulation.step();
-            let messages_set: Vec<Message> = simulation.get_messages();
+            let messages_set: Vec<Message> = web.simulation.step().unwrap();
             message_records.extend(messages_set);
         }
         let outputs = vec![
@@ -917,7 +914,7 @@ mod tests {
   sourcePort: "history"
   targetPort: "store"
 "#;
-        let mut simulation = Simulation::default();
+        let mut web = WebSimulation::default();
         // Average waiting times across processors (first dimension) and replication average (second dimension)
         let mut average_waiting_times: [Vec<f64>; 3] = [Vec::new(), Vec::new(), Vec::new()];
         let mut cis_sufficient_precision = [false, false, false];
@@ -925,9 +922,9 @@ mod tests {
         let mut waiting_times: Vec<IndependentSample<f64>>;
         loop {
             // Refresh the models, but maintain the Uniform RNG for replication independence
-            simulation.reset();
-            simulation.put_yaml(models, connectors);
-            simulation.step_until(480.0);
+            web.reset();
+            web.put_yaml(models, connectors);
+            web.simulation.step_until(480.0).unwrap();
             waiting_times = Vec::new();
             for processor_number in ["01", "02", "03"].iter() {
                 let metrics_history_request = Message {
@@ -935,12 +932,11 @@ mod tests {
                     source_port: String::from("manual"),
                     target_id: format!["processor-{}", processor_number],
                     target_port: String::from("history"),
-                    time: simulation.global_time,
+                    time: web.get_global_time(),
                     message: String::from(""),
                 };
-                simulation.inject_input(metrics_history_request);
-                simulation.step();
-                let messages: Vec<Message> = simulation.get_messages();
+                web.simulation.inject_input(metrics_history_request);
+                let messages: Vec<Message> = web.simulation.step().unwrap();
                 let metrics_message = messages
                     .iter()
                     .find(|message| message.source_port == "history")
@@ -1054,17 +1050,16 @@ mod tests {
   sourcePort: "job"
   targetPort: "store"
 "#;
-        let mut simulation = Simulation::default();
+        let mut web = WebSimulation::default();
         let mut passed: Vec<f64> = Vec::new();
         // 10 replications and 10000 steps is more or less arbitrary here
         for _ in 0..10 {
             // Refresh the models, but maintain the Uniform RNG for replication independence
-            simulation.reset();
-            simulation.put_yaml(models, connectors);
+            web.reset();
+            web.put_yaml(models, connectors);
             let mut message_records: Vec<Message> = Vec::new();
             for _x in 0..1000 {
-                simulation.step();
-                let messages_set: Vec<Message> = simulation.get_messages();
+                let messages_set: Vec<Message> = web.simulation.step().unwrap();
                 message_records.extend(messages_set);
             }
             let arrivals = message_records
@@ -1152,11 +1147,11 @@ mod tests {
   sourcePort: "server-3"
   targetPort: "store"
 "#;
-        let mut simulation = Simulation::post_yaml(models, connectors);
+        let mut web = WebSimulation::post_yaml(models, connectors);
         // 28 steps means 9 processed jobs
         // 3 steps per processed job
         // 1 step for initialization
-        let message_records: Vec<Message> = simulation.step_n(28);
+        let message_records: Vec<Message> = web.simulation.step_n(28).unwrap();
         let outputs = vec![
             message_records
                 .iter()
@@ -1220,38 +1215,37 @@ mod tests {
         "targetPort": "store"
     }
 ]"#;
-        let mut simulation = Simulation::post_json(models, connectors);
+        let mut web = WebSimulation::post_json(models, connectors);
         let stored_value = Message {
             source_id: String::from("manual"),
             source_port: String::from("manual"),
             target_id: String::from("storage-01"),
             target_port: String::from("store"),
-            time: simulation.global_time,
+            time: web.get_global_time(),
             message: String::from("42"),
         };
-        simulation.inject_input(stored_value);
-        simulation.step();
+        web.simulation.inject_input(stored_value);
+        web.simulation.step().unwrap();
         let transfer_request = Message {
             source_id: String::from("manual"),
             source_port: String::from("manual"),
             target_id: String::from("storage-01"),
             target_port: String::from("read"),
-            time: simulation.global_time,
+            time: web.get_global_time(),
             message: String::from(""),
         };
-        simulation.inject_input(transfer_request);
-        simulation.step();
+        web.simulation.inject_input(transfer_request);
+        web.simulation.step().unwrap();
         let read_request = Message {
             source_id: String::from("manual"),
             source_port: String::from("manual"),
             target_id: String::from("storage-02"),
             target_port: String::from("read"),
-            time: simulation.global_time,
+            time: web.get_global_time(),
             message: String::from(""),
         };
-        simulation.inject_input(read_request);
-        simulation.step();
-        let messages: Vec<Message> = simulation.get_messages();
+        web.simulation.inject_input(read_request);
+        let messages: Vec<Message> = web.simulation.step().unwrap();
         assert![messages[0].message == "42"];
     }
 
@@ -1321,8 +1315,8 @@ mod tests {
   sourcePort: "out"
   targetPort: "store"
 "#;
-        let mut simulation = Simulation::post_yaml(models, connectors);
-        let message_records: Vec<Message> = simulation.step_n(101);
+        let mut web = WebSimulation::post_yaml(models, connectors);
+        let message_records: Vec<Message> = web.simulation.step_n(101).unwrap();
         let alpha_passes = message_records
             .iter()
             .filter(|message_record| message_record.target_port == "alpha")
@@ -1379,9 +1373,9 @@ mod tests {
 ]
 "#;
         let connectors = "[]";
-        let simulation = Simulation::post_json(models, connectors);
-        assert![simulation.status("generator-01") == "Generating commits"];
-        assert![simulation.status("load-balancer-01") == "Listening for requests"];
+        let web = WebSimulation::post_json(models, connectors);
+        assert![web.status("generator-01") == "Generating commits"];
+        assert![web.status("load-balancer-01") == "Listening for requests"];
     }
 
     #[test]
@@ -1424,8 +1418,8 @@ mod tests {
   sourcePort: "job"
   targetPort: "store"
 "#;
-        let mut simulation = Simulation::post_yaml(models, connectors);
-        let message_records: Vec<Message> = simulation.step_n(101);
+        let mut web = WebSimulation::post_yaml(models, connectors);
+        let message_records: Vec<Message> = web.simulation.step_n(101).unwrap();
         let mut results: Vec<f64> = Vec::new();
         message_records
             .iter()

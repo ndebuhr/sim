@@ -3,6 +3,7 @@ use std::fmt;
 
 use serde::de::value::MapAccessDeserializer;
 use serde::de::{self, MapAccess, Visitor};
+use serde::ser;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::exclusive_gateway::ExclusiveGateway;
@@ -15,6 +16,7 @@ use super::stochastic_gate::StochasticGate;
 use super::storage::Storage;
 use super::ModelMessage;
 use crate::input_modeling::uniform_rng::UniformRNG;
+use crate::utils::error::SimulationError;
 
 /// The `Model` trait defines everything required for a model to operate
 /// within the discrete event simulation.  These requirements are based
@@ -29,14 +31,17 @@ pub trait Model {
         &mut self,
         uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
-    ) -> Vec<ModelMessage>;
-    fn events_int(&mut self, uniform_rng: &mut UniformRNG) -> Vec<ModelMessage>;
+    ) -> Result<Vec<ModelMessage>, SimulationError>;
+    fn events_int(
+        &mut self,
+        uniform_rng: &mut UniformRNG,
+    ) -> Result<Vec<ModelMessage>, SimulationError>;
     fn time_advance(&mut self, time_delta: f64);
     fn until_next_event(&self) -> f64;
 }
 
 impl Clone for Box<dyn Model> {
-    fn clone(&self) -> Box<dyn Model> {
+    fn clone(&self) -> Self {
         if let Some(exclusive_gateway) = self.as_any().downcast_ref::<ExclusiveGateway>() {
             Box::new(exclusive_gateway.clone())
         } else if let Some(gate) = self.as_any().downcast_ref::<Gate>() {
@@ -87,7 +92,9 @@ impl Serialize for Box<dyn Model> {
         } else if let Some(ref storage) = self.as_any().downcast_ref::<Storage>() {
             storage.serialize(serializer)
         } else {
-            panic!["Failed to serialize component model"];
+            Err(ser::Error::custom(
+                "A model type was not recognized during serialization",
+            ))
         }
     }
 }
@@ -166,7 +173,7 @@ impl<'de> Visitor<'de> for ModelVisitor {
 
 impl<'de> Deserialize<'de> for Box<dyn Model> {
     // TODO - Assumes the type field is at the beginning - make this order agnostic
-    fn deserialize<D>(deserializer: D) -> Result<Box<dyn Model>, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {

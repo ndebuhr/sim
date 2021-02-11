@@ -7,6 +7,7 @@ use super::model::Model;
 use super::ModelMessage;
 use crate::input_modeling::random_variable::ContinuousRandomVariable;
 use crate::input_modeling::uniform_rng::UniformRNG;
+use crate::utils::error::SimulationError;
 
 /// The processor accepts jobs, processes them for a period of time, and then
 /// outputs a processed job. The processor can have a configurable queue, of
@@ -157,7 +158,7 @@ impl Model for Processor {
         &mut self,
         _uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
-    ) -> Vec<ModelMessage> {
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let incoming_port: String = incoming_message.port_name;
         match &self.ports_in {
@@ -198,22 +199,33 @@ impl Model for Processor {
             }
             PortsIn { snapshot, .. } if Some(incoming_port.clone()) == *snapshot => {
                 outgoing_messages.push(ModelMessage {
-                    port_name: self.ports_out.snapshot.clone().unwrap(),
-                    message: serde_json::to_string(&self.snapshot).unwrap(),
+                    port_name: self
+                        .ports_out
+                        .snapshot
+                        .clone()
+                        .ok_or_else(|| SimulationError::PortNotFound)?,
+                    message: serde_json::to_string(&self.snapshot)?,
                 });
             }
             PortsIn { history, .. } if Some(incoming_port) == *history => {
                 outgoing_messages.push(ModelMessage {
-                    port_name: self.ports_out.history.clone().unwrap(),
-                    message: serde_json::to_string(&self.history).unwrap(),
+                    port_name: self
+                        .ports_out
+                        .history
+                        .clone()
+                        .ok_or_else(|| SimulationError::PortNotFound)?,
+                    message: serde_json::to_string(&self.history)?,
                 });
             }
-            _ => panic!["ModelMessage recieved on a non-existent port"],
+            _ => return Err(SimulationError::PortNotFound),
         };
-        outgoing_messages
+        Ok(outgoing_messages)
     }
 
-    fn events_int(&mut self, uniform_rng: &mut UniformRNG) -> Vec<ModelMessage> {
+    fn events_int(
+        &mut self,
+        uniform_rng: &mut UniformRNG,
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let events = self.state.event_list.clone();
         self.state.event_list = self
@@ -226,75 +238,94 @@ impl Model for Processor {
         events
             .iter()
             .filter(|scheduled_event| scheduled_event.time == 0.0)
-            .for_each(|scheduled_event| match scheduled_event.event {
-                Event::Run => {
-                    if self.need_snapshot_metrics() {
-                        self.snapshot = Metrics::default();
+            .map(|scheduled_event| {
+                match scheduled_event.event {
+                    Event::Run => {
+                        if self.need_snapshot_metrics() {
+                            self.snapshot = Metrics::default();
+                        }
+                        if self.need_historical_metrics() {
+                            self.history.push(Metrics::default());
+                        }
                     }
-                    if self.need_historical_metrics() {
-                        self.history.push(Metrics::default());
+                    Event::DropJob => {
+                        self.state.queue.remove(self.state.queue.len() - 1);
+                        if self.need_snapshot_metrics() {
+                            self.snapshot.queue_size = self.state.queue.len();
+                        }
+                        if self.need_historical_metrics() {
+                            self.history.push(self.snapshot.clone());
+                        }
                     }
-                }
-                Event::DropJob => {
-                    self.state.queue.remove(self.state.queue.len() - 1);
-                    if self.need_snapshot_metrics() {
-                        self.snapshot.queue_size = self.state.queue.len();
-                    }
-                    if self.need_historical_metrics() {
-                        self.history.push(self.snapshot.clone());
-                    }
-                }
-                Event::BeginProcessing => {
-                    self.state.until_job_completion = self.service_time.random_variate(uniform_rng);
-                    self.state.phase = Phase::Active;
-                    if self.need_snapshot_metrics() {
-                        self.snapshot.last_service_start = Some((
-                            self.state.queue.first().unwrap().to_string(),
-                            self.state.global_time,
-                        ));
-                        self.snapshot.is_utilized = true;
-                    }
-                    if self.need_historical_metrics() {
-                        self.history.push(self.snapshot.clone());
-                    }
-                    self.state.event_list.push(ScheduledEvent {
-                        time: self.state.until_job_completion,
-                        event: Event::SendJob,
-                    });
-                }
-                Event::SendJob => {
-                    if self.need_snapshot_metrics() {
-                        self.snapshot.last_completion = Some((
-                            self.state.queue.first().unwrap().to_string(),
-                            self.state.global_time,
-                        ));
-                    }
-                    // Use just the job ID from the input message - transform job type
-                    outgoing_messages.push(ModelMessage {
-                        port_name: self.ports_out.processed_job.clone(),
-                        message: format![
-                            "{job_type} {job_id}",
-                            job_type = self.ports_out.processed_job,
-                            job_id = self.state.queue.remove(0).split(' ').last().unwrap()
-                        ],
-                    });
-                    self.state.phase = Phase::Passive;
-                    if self.need_snapshot_metrics() {
-                        self.snapshot.is_utilized = false;
-                        self.snapshot.queue_size = self.state.queue.len();
-                    }
-                    if self.need_historical_metrics() {
-                        self.history.push(self.snapshot.clone());
-                    }
-                    if !self.state.queue.is_empty() {
+                    Event::BeginProcessing => {
+                        self.state.until_job_completion =
+                            self.service_time.random_variate(uniform_rng)?;
+                        self.state.phase = Phase::Active;
+                        if self.need_snapshot_metrics() {
+                            self.snapshot.last_service_start = Some((
+                                self.state
+                                    .queue
+                                    .first()
+                                    .ok_or_else(|| SimulationError::InvalidModelState)?
+                                    .to_string(),
+                                self.state.global_time,
+                            ));
+                            self.snapshot.is_utilized = true;
+                        }
+                        if self.need_historical_metrics() {
+                            self.history.push(self.snapshot.clone());
+                        }
                         self.state.event_list.push(ScheduledEvent {
-                            time: 0.0,
-                            event: Event::BeginProcessing,
+                            time: self.state.until_job_completion,
+                            event: Event::SendJob,
                         });
                     }
+                    Event::SendJob => {
+                        if self.need_snapshot_metrics() {
+                            self.snapshot.last_completion = Some((
+                                self.state
+                                    .queue
+                                    .first()
+                                    .ok_or_else(|| SimulationError::InvalidModelState)?
+                                    .to_string(),
+                                self.state.global_time,
+                            ));
+                        }
+                        // Use just the job ID from the input message - transform job type
+                        outgoing_messages.push(ModelMessage {
+                            port_name: self.ports_out.processed_job.clone(),
+                            message: format![
+                                "{job_type} {job_id}",
+                                job_type = self.ports_out.processed_job,
+                                job_id = self
+                                    .state
+                                    .queue
+                                    .remove(0)
+                                    .split(' ')
+                                    .last()
+                                    .ok_or_else(|| SimulationError::InvalidMessage)?
+                            ],
+                        });
+                        self.state.phase = Phase::Passive;
+                        if self.need_snapshot_metrics() {
+                            self.snapshot.is_utilized = false;
+                            self.snapshot.queue_size = self.state.queue.len();
+                        }
+                        if self.need_historical_metrics() {
+                            self.history.push(self.snapshot.clone());
+                        }
+                        if !self.state.queue.is_empty() {
+                            self.state.event_list.push(ScheduledEvent {
+                                time: 0.0,
+                                event: Event::BeginProcessing,
+                            });
+                        }
+                    }
                 }
-            });
-        outgoing_messages
+                Ok(Vec::new())
+            })
+            .find(|result| result.is_err())
+            .unwrap_or(Ok(outgoing_messages))
     }
 
     fn time_advance(&mut self, time_delta: f64) {

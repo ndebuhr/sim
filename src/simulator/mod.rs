@@ -4,20 +4,15 @@
 //! interaction is also captured in this module - simulation stepping and
 //! input injection.
 //!
-//! Two constructors are provided for creating a `Simulation`, `post_json`
-//! and `post_yaml`.  If the default `Simulation::default()` is used to
-//! create the simulation, models and connectors should be added with the
-//! `put_json` or `put_yaml` method.
+//! `Simulation` and `WebSimulation` are used for Rust- and npm-based
+//! projects, respectively.  The `Simulation` methods use the associated
+//! struct types directly, while the `WebSimulation` provides an interface
+//! with better JS/WASM compatibility.
 //!
 //! Most simulation analysis will involve the collection, transformation,
-//! and analysis of messages.  Messages can be retrieved after each
-//! simulation step with the `get_messages_yaml` and `get_messages_json`
-//! methods.  The Step N and Step Until methods enable the execution of many
-//! simulation steps with a single method call.  Since message history isn't
-//! stored in the simulation struct, `step_n` and `step_until` collect the
-//! messages during the simulation steps, and provide them as a returned
-//! value.  The returned value format depends on the method call:
-//! `step_n_json`, `step_n_yaml`, `step_until_json`, or `step_until_yaml`.
+//! and analysis of messages.  The `step`, `step_n`, and `step_until` methods
+//! return the messages generated during the execution of the simulation
+//! step(s), for use in message analysis.
 
 use std::f64::INFINITY;
 
@@ -29,6 +24,7 @@ use crate::input_modeling::uniform_rng::UniformRNG;
 use crate::models::model::Model;
 use crate::models::ModelMessage;
 use crate::utils;
+use crate::utils::error::SimulationError;
 
 mod test_simulations;
 
@@ -36,7 +32,6 @@ mod test_simulations;
 /// needed to run a simulation - models, connectors, and a random number
 /// generator.  State information, specifically global time and active
 /// messages are additionally retained in the struct.
-#[wasm_bindgen]
 #[derive(Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Simulation {
@@ -79,70 +74,22 @@ pub struct Message {
     message: String,
 }
 
-#[wasm_bindgen]
 impl Simulation {
-    /// Like `post_yaml`, this constructor method creates a simulation from
-    /// a supplied configuration (models and connectors).
-    pub fn post_json(models: &str, connectors: &str) -> Simulation {
+    /// This constructor method creates a simulation from a supplied
+    /// configuration (models and connectors).
+    pub fn post(models: Vec<Box<dyn Model>>, connectors: Vec<Connector>) -> Self {
         utils::set_panic_hook();
-        Simulation {
-            models: serde_json::from_str(models).unwrap(),
-            connectors: serde_json::from_str(connectors).unwrap(),
-            ..Simulation::default()
+        Self {
+            models,
+            connectors,
+            ..Self::default()
         }
     }
 
-    /// Like `put_yaml`, this method sets the models and connectors of an
-    /// existing simulation.
-    pub fn put_json(&mut self, models: &str, connectors: &str) {
-        self.models = serde_json::from_str(models).unwrap();
-        self.connectors = serde_json::from_str(connectors).unwrap();
-    }
-
-    /// This method provides the simulation state in a "pretty" serialized
-    /// JSON format - with line breaks and indentations.  The simulation
-    /// details not included in this serialization are internal
-    /// implementation details.  If it is not included in the serialization,
-    /// the data is not required to specify the simulation state, and it has
-    /// been excluded deliberately.
-    pub fn get_json(&self) -> String {
-        serde_json::to_string_pretty(self).unwrap()
-    }
-
-    /// Like `post_json`, this constructor method creates a simulation from
-    /// a supplied configuration (models and connectors).
-    pub fn post_yaml(models: &str, connectors: &str) -> Simulation {
-        utils::set_panic_hook();
-        Simulation {
-            models: serde_yaml::from_str(models).unwrap(),
-            connectors: serde_yaml::from_str(connectors).unwrap(),
-            ..Simulation::default()
-        }
-    }
-
-    /// Like `put_json`, this method sets the models and connectors of an
-    /// existing simulation.
-    pub fn put_yaml(&mut self, models: &str, connectors: &str) {
-        self.models = serde_yaml::from_str(models).unwrap();
-        self.connectors = serde_yaml::from_str(connectors).unwrap();
-    }
-
-    /// This method provides the simulation state in a yaml serialized JSON
-    /// format - with line breaks and indentations.  The simulation details
-    /// not included in this serialization are internal implementation
-    /// details.  If it is not included in the serialization, the data is not
-    /// required to specify the simulation state, and it has been excluded
-    /// deliberately.
-    pub fn get_yaml(&self) -> String {
-        serde_yaml::to_string(self).unwrap()
-    }
-
-    /// The get_messages implementation underpinning `get_messages_js`,
-    /// `get_messages_json`, and `get_messages_yaml`.  This cannot be made
-    /// public due to
-    /// https://github.com/rustwasm/wasm-bindgen/issues/111
-    fn get_messages(&self) -> Vec<Message> {
-        self.messages.clone()
+    /// This method sets the models and connectors of an existing simulation.
+    pub fn put(&mut self, models: Vec<Box<dyn Model>>, connectors: Vec<Connector>) {
+        self.models = models;
+        self.connectors = connectors;
     }
 
     /// Simulation steps generate messages, which are then consumed on
@@ -152,19 +99,8 @@ impl Simulation {
     /// point of time in the simulation.  Message history is not retained, so
     /// simulation products and projects should collect messages as needed
     /// throughout the simulation execution.
-    pub fn get_messages_js(&self) -> Array {
-        // Workaround for https://github.com/rustwasm/wasm-bindgen/issues/111
-        self.get_messages().into_iter().map(JsValue::from).collect()
-    }
-
-    /// This method is like `get_messages_js`, but returns the messages as JSON.
-    pub fn get_messages_json(&self) -> String {
-        serde_json::to_string(&self.get_messages()).unwrap()
-    }
-
-    /// This method is like `get_messages_js`, but returns the messages as YAML.
-    pub fn get_messages_yaml(&self) -> String {
-        serde_yaml::to_string(&self.get_messages()).unwrap()
+    pub fn get_messages(&self) -> &Vec<Message> {
+        &self.messages
     }
 
     /// An accessor method for the simulation global time.
@@ -175,12 +111,13 @@ impl Simulation {
     /// This method provides a mechanism for getting the status of any model
     /// in a simulation.  The method takes the model ID as an argument, and
     /// returns the current status string for that model.
-    pub fn status(&self, model_id: &str) -> String {
-        self.models
+    pub fn status(&self, model_id: &str) -> Result<String, SimulationError> {
+        Ok(self
+            .models
             .iter()
             .find(|model| model.id() == model_id)
-            .unwrap()
-            .status()
+            .ok_or_else(|| SimulationError::ModelNotFound)?
+            .status())
     }
 
     /// To enable simulation replications, the reset method resets the state
@@ -204,7 +141,7 @@ impl Simulation {
 
     /// This method provides a convenient foundation for operating on the
     /// full set of models in the simulation.
-    fn models(&mut self) -> Vec<&mut Box<dyn Model>> {
+    pub fn models(&mut self) -> Vec<&mut Box<dyn Model>> {
         self.models.iter_mut().collect()
     }
 
@@ -249,69 +186,64 @@ impl Simulation {
         self.messages.push(message);
     }
 
-    /// This method is like `inject_input`, but the message is provided in
-    /// JSON format.
-    pub fn inject_input_json(&mut self, message: &str) {
-        self.inject_input(serde_json::from_str(message).unwrap());
-    }
-
-    /// This method is like `inject_input`, but the message is provided in
-    /// YAML format.
-    pub fn inject_input_yaml(&mut self, message: &str) {
-        self.inject_input(serde_yaml::from_str(message).unwrap());
-    }
-
     /// The simulation step is foundational for a discrete event simulation.
     /// This method executes a single discrete event simulation step,
     /// including internal state transitions, external state transitions,
-    /// message orchestration, and global time accounting.
-    pub fn step(&mut self) {
+    /// message orchestration, global time accounting, and step messages
+    /// output.
+    pub fn step(&mut self) -> Result<Vec<Message>, SimulationError> {
         let messages = self.messages.clone();
         let mut next_messages: Vec<Message> = Vec::new();
         // Process external events and gather associated messages
         if !messages.is_empty() {
-            (0..self.models.len()).for_each(|model_index| {
-                let model_messages: Vec<ModelMessage> = messages
-                    .iter()
-                    .filter_map(|message| {
-                        if message.target_id == self.models[model_index].id() {
-                            Some(ModelMessage {
-                                port_name: message.target_port.clone(),
-                                message: message.message.clone(),
-                            })
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
-                model_messages.iter().for_each(|model_message| {
-                    self.models[model_index]
-                        .events_ext(&mut self.uniform_rng, model_message.clone())
+            (0..self.models.len())
+                .map(|model_index| -> Result<(), SimulationError> {
+                    let model_messages: Vec<ModelMessage> = messages
                         .iter()
-                        .for_each(|outgoing_message| {
-                            let target_ids = self.get_message_target_ids(
-                                &self.models[model_index].id(), // Outgoing message source model ID
-                                &outgoing_message.port_name, // Outgoing message source model port
-                            );
-                            let target_ports = self.get_message_target_ports(
-                                &self.models[model_index].id(), // Outgoing message source model ID
-                                &outgoing_message.port_name, // Outgoing message source model port
-                            );
-                            target_ids.iter().zip(target_ports.iter()).for_each(
-                                |(target_id, target_port)| {
-                                    next_messages.push(Message {
-                                        source_id: self.models[model_index].id(),
-                                        source_port: outgoing_message.port_name.clone(),
-                                        target_id: target_id.clone(),
-                                        target_port: target_port.clone(),
-                                        time: self.global_time,
-                                        message: outgoing_message.message.clone(),
-                                    });
-                                },
-                            );
-                        });
-                });
-            });
+                        .filter_map(|message| {
+                            if message.target_id == self.models[model_index].id() {
+                                Some(ModelMessage {
+                                    port_name: message.target_port.clone(),
+                                    message: message.message.clone(),
+                                })
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    model_messages
+                        .iter()
+                        .map(|model_message| -> Result<(), SimulationError> {
+                            self.models[model_index]
+                                .events_ext(&mut self.uniform_rng, model_message.clone())?
+                                .iter()
+                                .for_each(|outgoing_message| {
+                                    let target_ids = self.get_message_target_ids(
+                                        &self.models[model_index].id(), // Outgoing message source model ID
+                                        &outgoing_message.port_name, // Outgoing message source model port
+                                    );
+                                    let target_ports = self.get_message_target_ports(
+                                        &self.models[model_index].id(), // Outgoing message source model ID
+                                        &outgoing_message.port_name, // Outgoing message source model port
+                                    );
+                                    target_ids.iter().zip(target_ports.iter()).for_each(
+                                        |(target_id, target_port)| {
+                                            next_messages.push(Message {
+                                                source_id: self.models[model_index].id(),
+                                                source_port: outgoing_message.port_name.clone(),
+                                                target_id: target_id.clone(),
+                                                target_port: target_port.clone(),
+                                                time: self.global_time,
+                                                message: outgoing_message.message.clone(),
+                                            });
+                                        },
+                                    );
+                                });
+                            Ok(())
+                        })
+                        .fold(Ok(()), |a, b| b.and(a))
+                })
+                .fold(Ok(()), |a, b| b.and(a))?
         }
         // Process internal events and gather associated messages
         let until_next_event: f64;
@@ -326,101 +258,263 @@ impl Simulation {
             model.time_advance(until_next_event);
         });
         self.global_time += until_next_event;
-        (0..self.models.len()).for_each(|model_index| {
-            self.models[model_index]
-                .events_int(&mut self.uniform_rng)
-                .iter()
-                .for_each(|outgoing_message| {
-                    let target_ids = self.get_message_target_ids(
-                        &self.models[model_index].id(), // Outgoing message source model ID
-                        &outgoing_message.port_name,    // Outgoing message source model port
-                    );
-                    let target_ports = self.get_message_target_ports(
-                        &self.models[model_index].id(), // Outgoing message source model ID
-                        &outgoing_message.port_name,    // Outgoing message source model port
-                    );
-                    target_ids.iter().zip(target_ports.iter()).for_each(
-                        |(target_id, target_port)| {
-                            next_messages.push(Message {
-                                source_id: self.models[model_index].id(),
-                                source_port: outgoing_message.port_name.clone(),
-                                target_id: target_id.clone(),
-                                target_port: target_port.clone(),
-                                time: self.global_time,
-                                message: outgoing_message.message.clone(),
-                            });
-                        },
-                    );
-                });
-        });
+        (0..self.models.len())
+            .map(|model_index| -> Result<(), SimulationError> {
+                self.models[model_index]
+                    .events_int(&mut self.uniform_rng)?
+                    .iter()
+                    .for_each(|outgoing_message| {
+                        let target_ids = self.get_message_target_ids(
+                            &self.models[model_index].id(), // Outgoing message source model ID
+                            &outgoing_message.port_name,    // Outgoing message source model port
+                        );
+                        let target_ports = self.get_message_target_ports(
+                            &self.models[model_index].id(), // Outgoing message source model ID
+                            &outgoing_message.port_name,    // Outgoing message source model port
+                        );
+                        target_ids.iter().zip(target_ports.iter()).for_each(
+                            |(target_id, target_port)| {
+                                next_messages.push(Message {
+                                    source_id: self.models[model_index].id(),
+                                    source_port: outgoing_message.port_name.clone(),
+                                    target_id: target_id.clone(),
+                                    target_port: target_port.clone(),
+                                    time: self.global_time,
+                                    message: outgoing_message.message.clone(),
+                                });
+                            },
+                        );
+                    });
+                Ok(())
+            })
+            .fold(Ok(()), |a, b| b.and(a))?;
         self.messages = next_messages;
-    }
-
-    /// The step_until implementation underpinning `step_until_js`,
-    /// `step_until_json`, and `step_until_yaml`.  This cannot be made public
-    /// due to
-    /// https://github.com/rustwasm/wasm-bindgen/issues/111
-    fn step_until(&mut self, until: f64) -> Vec<Message> {
-        let mut message_records: Vec<Message> = Vec::new();
-        loop {
-            self.step();
-            if self.global_time < until {
-                message_records.extend(self.get_messages());
-            } else {
-                break;
-            }
-        }
-        message_records
+        Ok(self.get_messages().to_vec())
     }
 
     /// This method executes simulation `step` calls, until a global time
     /// has been exceeded.  At which point, the messages from all the
     /// simulation steps are returned.
-    pub fn step_until_js(&mut self, until: f64) -> Array {
-        self.step_until(until)
-            .into_iter()
-            .map(JsValue::from)
-            .collect()
-    }
-
-    /// This method is like `step_until_js`, but returns the messages as
-    /// JSON.
-    pub fn step_until_json(&mut self, until: f64) -> String {
-        serde_json::to_string(&self.step_until(until)).unwrap()
-    }
-
-    /// This method is like `step_until_js`, but returns the messages as
-    /// YAML.
-    pub fn step_until_yaml(&mut self, until: f64) -> String {
-        serde_yaml::to_string(&self.step_until(until)).unwrap()
-    }
-
-    /// The step_n implementation underpinning `step_n_js`, `step_n_json`,
-    /// and `step_n_yaml`.  This cannot be made public due to
-    /// https://github.com/rustwasm/wasm-bindgen/issues/111
-    fn step_n(&mut self, n: usize) -> Vec<Message> {
+    pub fn step_until(&mut self, until: f64) -> Result<Vec<Message>, SimulationError> {
         let mut message_records: Vec<Message> = Vec::new();
-        (0..n).for_each(|_| {
-            self.step();
-            message_records.extend(self.messages.clone());
-        });
-        message_records
+        loop {
+            self.step()?;
+            if self.global_time < until {
+                message_records.extend(self.get_messages().clone());
+            } else {
+                break;
+            }
+        }
+        Ok(message_records)
     }
 
     /// This method executes the specified number of simulation steps, `n`.
     /// Upon execution of the n steps, the messages from all the steps are
     /// returned.
+    fn step_n(&mut self, n: usize) -> Result<Vec<Message>, SimulationError> {
+        let mut message_records: Vec<Message> = Vec::new();
+        (0..n)
+            .map(|_| -> Result<Vec<Message>, SimulationError> {
+                self.step()?;
+                message_records.extend(self.messages.clone());
+                Ok(Vec::new())
+            })
+            .find(|result| result.is_err())
+            .unwrap_or(Ok(message_records))
+    }
+}
+
+/// The `WebSimulation` provides JS/WASM-compatible interfaces to the core
+/// `Simulation` struct.  For additional insight on these methods, refer to
+/// the associated `Simulation` methods.  Errors are unwrapped, instead of
+/// returned, in the `WebSimulation` methods.
+#[wasm_bindgen]
+#[derive(Default, Serialize, Deserialize)]
+pub struct WebSimulation {
+    simulation: Simulation,
+}
+
+#[wasm_bindgen]
+impl WebSimulation {
+    /// A JS/WASM interface for `Simulation.post`, which uses JSON
+    /// representations of the simulation models and connectors.
+    pub fn post_json(models: &str, connectors: &str) -> Self {
+        utils::set_panic_hook();
+        Self {
+            simulation: Simulation {
+                models: serde_json::from_str(models).unwrap(),
+                connectors: serde_json::from_str(connectors).unwrap(),
+                ..Simulation::default()
+            },
+        }
+    }
+
+    /// A JS/WASM interface for `Simulation.put`, which uses JSON
+    /// representations of the simulation models and connectors.
+    pub fn put_json(&mut self, models: &str, connectors: &str) {
+        self.simulation.models = serde_json::from_str(models).unwrap();
+        self.simulation.connectors = serde_json::from_str(connectors).unwrap();
+    }
+
+    /// Get a JSON representation of the full `Simulation` configuration.
+    pub fn get_json(&self) -> String {
+        serde_json::to_string_pretty(&self.simulation).unwrap()
+    }
+
+    /// A JS/WASM interface for `Simulation.post`, which uses YAML
+    /// representations of the simulation models and connectors.
+    pub fn post_yaml(models: &str, connectors: &str) -> WebSimulation {
+        utils::set_panic_hook();
+        Self {
+            simulation: Simulation {
+                models: serde_yaml::from_str(models).unwrap(),
+                connectors: serde_yaml::from_str(connectors).unwrap(),
+                ..Simulation::default()
+            },
+        }
+    }
+
+    /// A JS/WASM interface for `Simulation.put`, which uses YAML
+    /// representations of the simulation models and connectors.
+    pub fn put_yaml(&mut self, models: &str, connectors: &str) {
+        self.simulation.models = serde_yaml::from_str(models).unwrap();
+        self.simulation.connectors = serde_yaml::from_str(connectors).unwrap();
+    }
+
+    /// Get a YAML representation of the full `Simulation` configuration.
+    pub fn get_yaml(&self) -> String {
+        serde_yaml::to_string(&self.simulation).unwrap()
+    }
+
+    /// A JS/WASM interface for `Simulation.get_messages`, which converts the
+    /// messages to a JavaScript Array.
+    pub fn get_messages_js(&self) -> Array {
+        // Workaround for https://github.com/rustwasm/wasm-bindgen/issues/111
+        self.simulation
+            .get_messages()
+            .clone()
+            .into_iter()
+            .map(JsValue::from)
+            .collect()
+    }
+
+    /// A JS/WASM interface for `Simulation.get_messages`, which converts the
+    /// messages to a JSON string.
+    pub fn get_messages_json(&self) -> String {
+        serde_json::to_string(&self.simulation.get_messages()).unwrap()
+    }
+
+    /// A JS/WASM interface for `Simulation.get_messages`, which converts the
+    /// messages to a YAML string.
+    pub fn get_messages_yaml(&self) -> String {
+        serde_yaml::to_string(&self.simulation.get_messages()).unwrap()
+    }
+
+    /// An interface to `Simulation.get_global_time`.
+    pub fn get_global_time(&self) -> f64 {
+        self.simulation.get_global_time()
+    }
+
+    /// An interface to `Simulation.status`.
+    pub fn status(&self, model_id: &str) -> String {
+        self.simulation.status(model_id).unwrap()
+    }
+
+    /// An interface to `Simulation.reset`.
+    pub fn reset(&mut self) {
+        self.simulation.reset();
+    }
+
+    /// An interface to `Simulation.reset_messages`.
+    pub fn reset_messages(&mut self) {
+        self.simulation.reset_messages();
+    }
+
+    /// An interface to `Simulation.reset_global_time`
+    pub fn reset_global_time(&mut self) {
+        self.simulation.reset_global_time();
+    }
+
+    /// A JS/WASM interface for `Simulation.inject_input`, which uses a JSON
+    /// representation of the injected messages.
+    pub fn inject_input_json(&mut self, message: &str) {
+        self.simulation
+            .inject_input(serde_json::from_str(message).unwrap());
+    }
+
+    /// A JS/WASM interface for `Simulation.inject_input`, which uses a YAML
+    /// representation of the injected messages.
+    pub fn inject_input_yaml(&mut self, message: &str) {
+        self.simulation
+            .inject_input(serde_yaml::from_str(message).unwrap());
+    }
+
+    /// A JS/WASM interface for `Simulation.step`, which converts the
+    /// returned messages to a JavaScript Array.
+    pub fn step_js(&mut self) -> Array {
+        self.simulation
+            .step()
+            .unwrap()
+            .into_iter()
+            .map(JsValue::from)
+            .collect()
+    }
+
+    /// A JS/WASM interface for `Simulation.step`, which converts the
+    /// returned messages to a JSON string.
+    pub fn step_json(&mut self) -> String {
+        serde_json::to_string(&self.simulation.step().unwrap()).unwrap()
+    }
+
+    /// A JS/WASM interface for `Simulation.step`, which converts the
+    /// returned messages to a YAML string.
+    pub fn step_yaml(&mut self) -> String {
+        serde_yaml::to_string(&self.simulation.step().unwrap()).unwrap()
+    }
+
+    /// A JS/WASM interface for `Simulation.step_until`, which converts the
+    /// returned messages to a JavaScript Array.
+    pub fn step_until_js(&mut self, until: f64) -> Array {
+        self.simulation
+            .step_until(until)
+            .unwrap()
+            .into_iter()
+            .map(JsValue::from)
+            .collect()
+    }
+
+    /// A JS/WASM interface for `Simulation.step_until`, which converts the
+    /// returned messages to a JSON string.
+    pub fn step_until_json(&mut self, until: f64) -> String {
+        serde_json::to_string(&self.simulation.step_until(until).unwrap()).unwrap()
+    }
+
+    /// A JS/WASM interface for `Simulation.step_until`, which converts the
+    /// returned messages to a YAML string.
+    pub fn step_until_yaml(&mut self, until: f64) -> String {
+        serde_yaml::to_string(&self.simulation.step_until(until).unwrap()).unwrap()
+    }
+
+    /// A JS/WASM interface for `Simulation.step_n`, which converts the
+    /// returned messages to a JavaScript Array.
     pub fn step_n_js(&mut self, n: usize) -> Array {
-        self.step_n(n).into_iter().map(JsValue::from).collect()
+        self.simulation
+            .step_n(n)
+            .unwrap()
+            .into_iter()
+            .map(JsValue::from)
+            .collect()
     }
 
-    /// This method is like `step_n_js`, but returns the messages as JSON.
+    /// A JS/WASM interface for `Simulation.step_n`, which converts the
+    /// returned messages to a JSON string.
     pub fn step_n_json(&mut self, n: usize) -> String {
-        serde_json::to_string(&self.step_n(n)).unwrap()
+        serde_json::to_string(&self.simulation.step_n(n).unwrap()).unwrap()
     }
 
-    /// This method is like `step_n_js`, but returns the messages as YAML.
+    /// A JS/WASM interface for `Simulation.step_n`, which converts the
+    /// returned messages to a YAML string.
     pub fn step_n_yaml(&mut self, n: usize) -> String {
-        serde_yaml::to_string(&self.step_n(n)).unwrap()
+        serde_yaml::to_string(&self.simulation.step_n(n).unwrap()).unwrap()
     }
 }

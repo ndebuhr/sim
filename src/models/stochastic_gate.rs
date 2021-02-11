@@ -7,6 +7,7 @@ use super::model::Model;
 use super::ModelMessage;
 use crate::input_modeling::random_variable::BooleanRandomVariable;
 use crate::input_modeling::uniform_rng::UniformRNG;
+use crate::utils::error::SimulationError;
 
 /// The stochastic gate blocks (drops) or passes jobs, based on a specified
 /// Bernoulli distribution. If the Bernoulli random variate is a 0, the job
@@ -133,12 +134,12 @@ impl Model for StochasticGate {
         &mut self,
         uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
-    ) -> Vec<ModelMessage> {
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
         let incoming_port: &str = &incoming_message.port_name;
         match &self.ports_in {
             PortsIn { job, .. } if job == incoming_port => {
                 // Execution
-                if self.pass_distribution.random_variate(uniform_rng) {
+                if self.pass_distribution.random_variate(uniform_rng)? {
                     self.state.event_list.push(ScheduledEvent {
                         time: 0.0,
                         event: Event::SendJob,
@@ -151,12 +152,15 @@ impl Model for StochasticGate {
                 }
                 self.state.jobs.push(incoming_message.message);
             }
-            _ => panic!["ModelMessage recieved on a non-existent port"],
+            _ => return Err(SimulationError::PortNotFound),
         }
-        Vec::new()
+        Ok(Vec::new())
     }
 
-    fn events_int(&mut self, _uniform_rng: &mut UniformRNG) -> Vec<ModelMessage> {
+    fn events_int(
+        &mut self,
+        _uniform_rng: &mut UniformRNG,
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let events = self.state.event_list.clone();
         self.state.event_list = self
@@ -199,7 +203,7 @@ impl Model for StochasticGate {
                     });
                 }
             });
-        outgoing_messages
+        Ok(outgoing_messages)
     }
 
     fn time_advance(&mut self, time_delta: f64) {

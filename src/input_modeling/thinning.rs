@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::utils;
+use crate::utils::error::SimulationError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -23,7 +24,7 @@ pub struct Thinning {
 }
 
 impl Thinning {
-    pub fn evaluate(self, point: f64) -> f64 {
+    pub fn evaluate(self, point: f64) -> Result<f64, SimulationError> {
         match &self.function {
             ThinningFunction::Polynomial { coefficients } => {
                 utils::evaluate_polynomial(&coefficients, point)

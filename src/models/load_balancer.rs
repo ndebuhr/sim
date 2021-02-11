@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use super::model::Model;
 use super::ModelMessage;
 use crate::input_modeling::uniform_rng::UniformRNG;
+use crate::utils::error::SimulationError;
 
 /// The load balancer routes jobs to a set of possible process paths, using a
 /// round robin strategy. There is no stochastic behavior in this model.
@@ -116,16 +117,19 @@ impl Model for LoadBalancer {
         &mut self,
         _uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
-    ) -> Vec<ModelMessage> {
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
         self.state.jobs.push(incoming_message.message);
         self.state.event_list.push(ScheduledEvent {
             time: 0.0,
             event: Event::SendJob,
         });
-        Vec::new()
+        Ok(Vec::new())
     }
 
-    fn events_int(&mut self, _uniform_rng: &mut UniformRNG) -> Vec<ModelMessage> {
+    fn events_int(
+        &mut self,
+        _uniform_rng: &mut UniformRNG,
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let events = self.state.event_list.clone();
         self.state.event_list = self
@@ -161,7 +165,7 @@ impl Model for LoadBalancer {
                         (self.state.next_port_out + 1) % self.ports_out.flow_paths.len();
                 }
             });
-        outgoing_messages
+        Ok(outgoing_messages)
     }
 
     fn time_advance(&mut self, time_delta: f64) {
