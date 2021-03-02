@@ -196,7 +196,7 @@ impl Simulation {
         let mut next_messages: Vec<Message> = Vec::new();
         // Process external events and gather associated messages
         if !messages.is_empty() {
-            (0..self.models.len())
+            let errors: Result<(), SimulationError> = (0..self.models.len())
                 .map(|model_index| -> Result<(), SimulationError> {
                     let model_messages: Vec<ModelMessage> = messages
                         .iter()
@@ -241,9 +241,10 @@ impl Simulation {
                                 });
                             Ok(())
                         })
-                        .fold(Ok(()), |a, b| b.and(a))
+                        .collect()
                 })
-                .fold(Ok(()), |a, b| b.and(a))?
+                .collect();
+            errors?;
         }
         // Process internal events and gather associated messages
         let until_next_event: f64;
@@ -258,7 +259,7 @@ impl Simulation {
             model.time_advance(until_next_event);
         });
         self.global_time += until_next_event;
-        (0..self.models.len())
+        let errors: Result<Vec<()>, SimulationError> = (0..self.models.len())
             .map(|model_index| -> Result<(), SimulationError> {
                 self.models[model_index]
                     .events_int(&mut self.uniform_rng)?
@@ -287,7 +288,8 @@ impl Simulation {
                     });
                 Ok(())
             })
-            .fold(Ok(()), |a, b| b.and(a))?;
+            .collect();
+        errors?;
         self.messages = next_messages;
         Ok(self.get_messages().to_vec())
     }

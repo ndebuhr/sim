@@ -10,26 +10,41 @@ use num_traits::{Float, NumAssign};
 use serde::{Deserialize, Serialize};
 
 pub mod t_scores;
-use super::utils;
+use crate::utils::error::SimulationError;
+use crate::utils::usize_sqrt;
 
-fn sum<T: Float>(points: &[T]) -> T {
-    points
-        .iter()
-        .fold(T::from(0.0).unwrap(), |sum, point| sum + *point)
+fn sum<T: Float>(points: &[T]) -> T
+where
+    f64: Into<T>,
+{
+    points.iter().fold(0.0.into(), |sum, point| sum + *point)
 }
 
 /// This function calculates the sample mean from a set of points - a simple
 /// arithmetic mean.
-fn sample_mean<T: Float>(points: &[T]) -> T {
-    sum(points) / T::from(points.len()).unwrap()
+fn sample_mean<T: Float>(points: &[T]) -> Result<T, SimulationError>
+where
+    f64: Into<T>,
+{
+    Ok(sum(points) / usize_to_float(points.len())?)
 }
 
 /// This function calculates sample variance, given a set of points and the
 /// sample mean.
-fn sample_variance<T: Float>(points: &[T], mean: &T) -> T {
-    points.iter().fold(T::from(0.0).unwrap(), |acc, point| {
-        acc + (*point - *mean).powi(2)
-    }) / T::from(points.len()).unwrap()
+fn sample_variance<T: Float>(points: &[T], mean: &T) -> Result<T, SimulationError>
+where
+    f64: Into<T>,
+{
+    Ok(points
+        .iter()
+        .fold(0.0.into(), |acc, point| acc + (*point - *mean).powi(2))
+        / usize_to_float(points.len())?)
+}
+
+/// This function converts a usize to a Float, with an associated SimulationError
+/// returned for failed conversions
+fn usize_to_float<T: Float>(unconv: usize) -> Result<T, SimulationError> {
+    T::from(unconv).ok_or_else(|| SimulationError::FloatConvError)
 }
 
 /// The confidence interval provides an upper and lower estimate on a given
@@ -41,7 +56,10 @@ pub struct ConfidenceInterval<T: Float> {
     upper: T,
 }
 
-impl<T: Float> ConfidenceInterval<T> {
+impl<T: Float> ConfidenceInterval<T>
+where
+    f64: Into<T>,
+{
     pub fn lower(&self) -> T {
         self.lower
     }
@@ -51,7 +69,7 @@ impl<T: Float> ConfidenceInterval<T> {
     }
 
     pub fn half_width(&self) -> T {
-        (self.upper - self.lower) / T::from(2.0).unwrap()
+        (self.upper - self.lower) / 2.0.into()
     }
 }
 
@@ -69,36 +87,43 @@ pub struct IndependentSample<T> {
     variance: T,
 }
 
-impl<T: Float> IndependentSample<T> {
+impl<T: Float> IndependentSample<T>
+where
+    f64: Into<T>,
+{
     /// This constructor method creates an `IndependentSample` from a vector
     /// of floating point values.
-    pub fn post(points: Vec<T>) -> IndependentSample<T> {
-        let mean = sample_mean(&points);
-        let variance = sample_variance(&points, &mean);
-        IndependentSample {
+    pub fn post(points: Vec<T>) -> Result<IndependentSample<T>, SimulationError> {
+        let mean = sample_mean(&points)?;
+        let variance = sample_variance(&points, &mean)?;
+        Ok(IndependentSample {
             points,
             mean,
             variance,
-        }
+        })
     }
 
     /// Calculate the confidence interval of the mean, base on the provided
     /// value of alpha.
-    pub fn confidence_interval_mean(&self, alpha: T) -> ConfidenceInterval<T> {
+    pub fn confidence_interval_mean(
+        &self,
+        alpha: T,
+    ) -> Result<ConfidenceInterval<T>, SimulationError> {
         if self.points.len() == 1 {
-            return ConfidenceInterval {
+            return Ok(ConfidenceInterval {
                 lower: self.mean,
                 upper: self.mean,
-            };
+            });
         }
-        ConfidenceInterval {
+        let points_len: T = usize_to_float(self.points.len())?;
+        Ok(ConfidenceInterval {
             lower: self.mean
                 - t_scores::t_score(alpha, self.points.len() - 1) * self.variance.sqrt()
-                    / T::from(self.points.len()).unwrap().sqrt(),
+                    / points_len.sqrt(),
             upper: self.mean
                 + t_scores::t_score(alpha, self.points.len() - 1) * self.variance.sqrt()
-                    / T::from(self.points.len()).unwrap().sqrt(),
-        }
+                    / points_len.sqrt(),
+        })
     }
 
     /// Return the sample mean.
@@ -173,7 +198,10 @@ pub struct SteadyStateOutput<T> {
     batches_variance: Option<T>,
 }
 
-impl<T: Float + NumAssign> SteadyStateOutput<T> {
+impl<T: Float + NumAssign> SteadyStateOutput<T>
+where
+    f64: Into<T>,
+{
     /// This `SteadyStateOutput` constructor method takes the simulation
     /// output time series, as a vector of floating point values.
     pub fn post(time_series: Vec<T>) -> SteadyStateOutput<T> {
@@ -195,21 +223,20 @@ impl<T: Float + NumAssign> SteadyStateOutput<T> {
     /// autocorrelation, respectively.  After this method determines the
     /// strategy/configuration, the `calculate_batch_statistics` then
     /// executes the processing.
-    fn set_to_fixed_budget(&mut self) {
-        let mut s = T::from(0.0).unwrap();
-        let mut q = T::from(0.0).unwrap();
+    fn set_to_fixed_budget(&mut self) -> Result<(), SimulationError> {
+        let mut s = 0.0.into();
+        let mut q = 0.0.into();
         let mut d = self.time_series.len() - 2;
-        let mut mser = vec![T::from(0.0).unwrap(); self.time_series.len() - 1];
+        let mut mser = vec![0.0.into(); self.time_series.len() - 1];
+        let time_series_len: T = usize_to_float(self.time_series.len())?;
         loop {
             s += self.time_series[d + 1];
             q += self.time_series[d + 1].powi(2);
-            mser[d] = q - s.powi(2)
-                / T::from(self.time_series.len() - d).unwrap()
-                / T::from(self.time_series.len() - d).unwrap().powi(2);
+            mser[d] = q - s.powi(2) / (time_series_len - usize_to_float(d)?).powi(3);
             if d == 0 {
                 // Find the minimum MSER in the first half of the time series
                 let min_mser = (0..(self.time_series.len() - 1) / 2)
-                    .fold(T::from(INFINITY).unwrap(), |min_mser, mser_index| {
+                    .fold(INFINITY.into(), |min_mser, mser_index| {
                         min_mser.min(mser[mser_index])
                     });
                 // Use that point for deletion determination
@@ -223,16 +250,16 @@ impl<T: Float + NumAssign> SteadyStateOutput<T> {
         // is little benefit from dividing it into more than k = 30 batches,
         // even if we could do so and still retain independence between the
         // batch means.
-        self.batch_count = Some(usize::min(
-            utils::usize_sqrt(self.time_series.len() - self.deletion_point.unwrap()),
-            30,
-        ));
-        self.batch_size = Some(
-            (self.time_series.len() - self.deletion_point.unwrap()) / self.batch_count.unwrap(),
-        );
+        let deletion_point = self
+            .deletion_point
+            .ok_or_else(|| SimulationError::PrerequisiteCalcError)?;
+        let batch_count = usize::min(usize_sqrt(self.time_series.len() - deletion_point), 30);
+        self.batch_count = Some(batch_count);
+        let batch_size = (self.time_series.len() - deletion_point) / batch_count;
         // if data are left over, eliminate from the beginning
-        self.deletion_point =
-            Some(self.time_series.len() - self.batch_count.unwrap() * self.batch_size.unwrap());
+        self.deletion_point = Some(self.time_series.len() - batch_count * batch_size);
+        self.batch_size = Some(batch_size);
+        Ok(())
     }
 
     /// After the `set_to_fixed_budget` method analyzes the time series to
@@ -241,64 +268,84 @@ impl<T: Float + NumAssign> SteadyStateOutput<T> {
     /// and processing.  This method stores the batch statistics in the
     /// `SteadyStateOutput` struct, for later use in retrieving point and
     /// confidence interval estimates.
-    fn calculate_batch_statistics(&mut self) {
+    fn calculate_batch_statistics(&mut self) -> Result<(), SimulationError> {
         if self.batch_count.is_none() {
-            self.set_to_fixed_budget();
+            self.set_to_fixed_budget()?;
         }
-        self.batch_means = (0..self.batch_count.unwrap())
+        let deletion_point = self
+            .deletion_point
+            .ok_or_else(|| SimulationError::PrerequisiteCalcError)?;
+        let batch_size = self
+            .batch_size
+            .ok_or_else(|| SimulationError::PrerequisiteCalcError)?;
+        let batch_count = self
+            .batch_count
+            .ok_or_else(|| SimulationError::PrerequisiteCalcError)?;
+        let batch_means: Result<Vec<T>, SimulationError> = (0..batch_count)
             .map(|batch_index| {
-                let batch_start_index =
-                    self.deletion_point.unwrap() + self.batch_size.unwrap() * batch_index;
-                let batch_end_index =
-                    self.deletion_point.unwrap() + self.batch_size.unwrap() * (batch_index + 1);
+                let batch_start_index = deletion_point + batch_size * batch_index;
+                let batch_end_index = deletion_point + batch_size * (batch_index + 1);
                 let points: Vec<T> = (batch_start_index..batch_end_index)
                     .map(|index| self.time_series[index])
                     .collect();
                 sample_mean(&points)
             })
             .collect();
-        self.batches_mean = Some(sample_mean(&self.batch_means));
-        self.batches_variance = Some(sample_variance(
-            &self.batch_means,
-            &self.batches_mean.unwrap(),
-        ));
+        self.batch_means = batch_means?;
+        let batches_mean = sample_mean(&self.batch_means)?;
+        self.batches_variance = Some(sample_variance(&self.batch_means, &batches_mean)?);
+        self.batches_mean = Some(batches_mean);
+        Ok(())
     }
 
     /// The method provides a confidence interval on the mean, for the
     /// simuation output.  If not already processed, the raw data will first
     /// use standard approaches for initialization bias reduction and
     /// autocorrelation management.
-    pub fn confidence_interval_mean(&mut self, alpha: T) -> ConfidenceInterval<T> {
+    pub fn confidence_interval_mean(
+        &mut self,
+        alpha: T,
+    ) -> Result<ConfidenceInterval<T>, SimulationError> {
         if self.batches_mean.is_none() {
-            self.calculate_batch_statistics();
+            self.calculate_batch_statistics()?;
         }
-        if self.batch_count.unwrap() == 1 {
-            return ConfidenceInterval {
-                lower: self.batches_mean.unwrap(),
-                upper: self.batches_mean.unwrap(),
-            };
+        let batches_mean = self
+            .batches_mean
+            .ok_or_else(|| SimulationError::PrerequisiteCalcError)?;
+        let batch_count = self
+            .batch_count
+            .ok_or_else(|| SimulationError::PrerequisiteCalcError)?;
+        let f_batch_count: T = usize_to_float(batch_count)?;
+        let batches_variance = self
+            .batches_variance
+            .ok_or_else(|| SimulationError::PrerequisiteCalcError)?;
+        if batch_count == 1 {
+            return Ok(ConfidenceInterval {
+                lower: batches_mean,
+                upper: batches_mean,
+            });
         }
-        ConfidenceInterval {
-            lower: self.batches_mean.unwrap()
-                - t_scores::t_score(alpha, self.batch_count.unwrap() - 1)
-                    * self.batches_variance.unwrap().sqrt()
-                    / T::from(self.batch_count.unwrap()).unwrap().sqrt(),
-            upper: self.batches_mean.unwrap()
-                + t_scores::t_score(alpha, self.batch_count.unwrap() - 1)
-                    * self.batches_variance.unwrap().sqrt()
-                    / T::from(self.batch_count.unwrap()).unwrap().sqrt(),
-        }
+        Ok(ConfidenceInterval {
+            lower: batches_mean
+                - t_scores::t_score(alpha, batch_count) * batches_variance.sqrt()
+                    / f_batch_count.sqrt(),
+            upper: batches_mean
+                + t_scores::t_score(alpha, batch_count - 1) * batches_variance.sqrt()
+                    / f_batch_count.sqrt(),
+        })
     }
 
     /// The method provides a point estimate on the mean, for the simulation
     /// output.  If not already processed, the raw data will first use
     /// standard approaches for initialization bias reduction and
     /// autocorrelation management.
-    pub fn point_estimate_mean(&mut self) -> T {
+    pub fn point_estimate_mean(&mut self) -> Result<T, SimulationError> {
         if self.batches_mean.is_none() {
-            self.calculate_batch_statistics();
+            self.calculate_batch_statistics()?;
         }
-        self.batches_mean.unwrap()
+        Ok(self
+            .batches_mean
+            .ok_or_else(|| SimulationError::PrerequisiteCalcError)?)
     }
 }
 
@@ -315,7 +362,7 @@ mod tests {
         let sample = IndependentSample::post(vec![
             1.02, 0.73, 3.20, 0.23, 1.76, 0.47, 1.89, 1.45, 0.44, 0.23,
         ]);
-        let confidence_interval = sample.confidence_interval_mean(0.1);
+        let confidence_interval = sample.unwrap().confidence_interval_mean(0.1).unwrap();
         assert!((confidence_interval.lower - 0.7492630635369267).abs() < epsilon());
         assert!((confidence_interval.upper - 1.534736936463073).abs() < epsilon());
     }

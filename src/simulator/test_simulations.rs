@@ -96,8 +96,9 @@ mod tests {
         // Varying queue size leads to auto-correlation
         // To combat this, use steady state output analysis with deletion+batching
         let mut response_times_sample = SteadyStateOutput::post(response_times);
-        let response_times_confidence_interval =
-            response_times_sample.confidence_interval_mean(0.001);
+        let response_times_confidence_interval = response_times_sample
+            .confidence_interval_mean(0.001)
+            .unwrap();
         // average number of jobs in the processor divided by the effective arrival rate (Little's Formula)
         let expected = (172285188.0 / 14316139.0) / (4766600.0 / 14316169.0);
         assert!(response_times_confidence_interval.lower() < expected);
@@ -533,9 +534,10 @@ mod tests {
             let messages = web.simulation.step_until(100.0).unwrap();
             generations_count.push(messages.len() as f64);
         }
-        let generations_per_replication = IndependentSample::post(generations_count);
-        let generations_per_replication_ci =
-            generations_per_replication.confidence_interval_mean(0.001);
+        let generations_per_replication = IndependentSample::post(generations_count).unwrap();
+        let generations_per_replication_ci = generations_per_replication
+            .confidence_interval_mean(0.001)
+            .unwrap();
         let expected = 50.0; // 50 interarrivals - 1/0.5 mean and 100 duration
         assert!(generations_per_replication_ci.lower() < expected);
         assert!(generations_per_replication_ci.upper() > expected);
@@ -648,10 +650,14 @@ mod tests {
             arrivals_count.push(arrivals.len() as f64);
             message_records.extend(messages);
         }
-        let arrivals_ci = IndependentSample::post(arrivals_count).confidence_interval_mean(0.05);
+        let arrivals_ci = IndependentSample::post(arrivals_count)
+            .unwrap()
+            .confidence_interval_mean(0.05)
+            .unwrap();
         // Confirm empirical CI and simulation output CI overlap
-        let empirical_arrivals = IndependentSample::post(vec![47.0, 42.0, 45.0, 34.0, 37.0]);
-        let empirical_arrivals_ci = empirical_arrivals.confidence_interval_mean(0.05);
+        let empirical_arrivals =
+            IndependentSample::post(vec![47.0, 42.0, 45.0, 34.0, 37.0]).unwrap();
+        let empirical_arrivals_ci = empirical_arrivals.confidence_interval_mean(0.05).unwrap();
         assert!(
             arrivals_ci.lower() < empirical_arrivals_ci.upper()
                 && arrivals_ci.upper() > empirical_arrivals_ci.lower()
@@ -957,7 +963,7 @@ mod tests {
                         service_start_snapshot.1 - associated_arrival.1
                     })
                     .collect();
-                waiting_times.push(IndependentSample::post(processor_waiting_times));
+                waiting_times.push(IndependentSample::post(processor_waiting_times).unwrap());
             }
 
             waiting_times
@@ -969,7 +975,9 @@ mod tests {
                             .push(waiting_times_sample.point_estimate_mean());
                     }
                     let ci = IndependentSample::post(average_waiting_times[index].clone())
-                        .confidence_interval_mean(0.05);
+                        .unwrap()
+                        .confidence_interval_mean(0.05)
+                        .unwrap();
                     if ci.half_width() < 1.0 && ci.half_width() > 0.0 {
                         cis_sufficient_precision[index] = true;
                     }
@@ -1077,7 +1085,10 @@ mod tests {
                 passed.push(departures as f64 / arrivals as f64);
             }
         }
-        let passed_ci = IndependentSample::post(passed).confidence_interval_mean(0.01);
+        let passed_ci = IndependentSample::post(passed)
+            .unwrap()
+            .confidence_interval_mean(0.01)
+            .unwrap();
         // With no "processing" delay for the gate, we can expect the blocked/unblocked proportions to be 50%
         assert![passed_ci.lower() < 0.5 && 0.5 < passed_ci.upper()];
     }
@@ -1433,8 +1444,8 @@ mod tests {
                 message_record.target_id == "stochastic-gate-01" && *index > passes
             })
             .for_each(|_fail| results.push(0.0));
-        let sample = IndependentSample::post(results);
-        assert![sample.confidence_interval_mean(0.01).lower() < 0.2];
-        assert![sample.confidence_interval_mean(0.01).upper() > 0.2];
+        let sample = IndependentSample::post(results).unwrap();
+        assert![sample.confidence_interval_mean(0.01).unwrap().lower() < 0.2];
+        assert![sample.confidence_interval_mean(0.01).unwrap().upper() > 0.2];
     }
 }

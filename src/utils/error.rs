@@ -39,6 +39,14 @@ pub enum SimulationError {
     #[error("A polynomial was configured in a simulation, but the coefficients are empty")]
     EmptyPolynomial,
 
+    /// Represents an internal logic error, where prerequisite calculations were not executed
+    #[error("An internal logic error occured, where prerequisite calculations were not executed")]
+    PrerequisiteCalcError,
+
+    /// Represents a failed conversion to num-traits Float
+    #[error("Failed to convert to a Float value")]
+    FloatConvError,
+
     /// Transparent serde_json errors
     #[error(transparent)]
     JSONError(#[from] serde_json::error::Error),
