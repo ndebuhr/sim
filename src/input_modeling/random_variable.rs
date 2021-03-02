@@ -155,287 +155,327 @@ impl IndexRandomVariable {
 mod tests {
     use super::*;
 
+    enum RandomVariable {
+        Continuous(ContinuousRandomVariable),
+        Discrete(DiscreteRandomVariable),
+    }
+
+    enum ChiSquareTest {
+        Continuous {
+            variable: ContinuousRandomVariable,
+            bin_mapping_fn: fn(f64) -> usize,
+        },
+        Boolean {
+            variable: BooleanRandomVariable,
+            bin_mapping_fn: fn(bool) -> usize,
+        },
+        Discrete {
+            variable: DiscreteRandomVariable,
+            bin_mapping_fn: fn(u64) -> usize,
+        },
+        Index {
+            variable: IndexRandomVariable,
+            bin_mapping_fn: fn(usize) -> usize,
+        },
+    }
+
+    fn empirical_mean(random_variable: &mut RandomVariable, sample_size: usize) -> f64 {
+        let mut uniform_rng = UniformRNG::default();
+        (0..sample_size)
+            .map(|_| match random_variable {
+                RandomVariable::Continuous(variable) => {
+                    variable.random_variate(&mut uniform_rng).unwrap()
+                }
+                RandomVariable::Discrete(variable) => {
+                    variable.random_variate(&mut uniform_rng).unwrap() as f64
+                }
+            })
+            .sum::<f64>()
+            / (sample_size as f64)
+    }
+
+    fn chi_square(test: &mut ChiSquareTest, expected_counts: &[usize]) -> f64 {
+        let mut class_counts = vec![0; expected_counts.len()];
+        let mut uniform_rng = UniformRNG::default();
+        let sample_size = expected_counts.iter().sum();
+        (0..sample_size).for_each(|_| {
+            let index = match test {
+                ChiSquareTest::Continuous {
+                    variable,
+                    bin_mapping_fn,
+                } => bin_mapping_fn(variable.random_variate(&mut uniform_rng).unwrap()),
+                ChiSquareTest::Boolean {
+                    variable,
+                    bin_mapping_fn,
+                } => bin_mapping_fn(variable.random_variate(&mut uniform_rng).unwrap()),
+                ChiSquareTest::Discrete {
+                    variable,
+                    bin_mapping_fn,
+                } => bin_mapping_fn(variable.random_variate(&mut uniform_rng).unwrap()),
+                ChiSquareTest::Index {
+                    variable,
+                    bin_mapping_fn,
+                } => bin_mapping_fn(variable.random_variate(&mut uniform_rng).unwrap()),
+            };
+            class_counts[index] += 1
+        });
+        class_counts.iter().zip(expected_counts.iter()).fold(
+            0.0,
+            |acc, (class_count, expected_count)| {
+                let f_class_count = *class_count as f64;
+                let f_expected_count = *expected_count as f64;
+                acc + (f_class_count - f_expected_count).powi(2) / f_expected_count
+            },
+        )
+    }
+
     #[test]
     fn beta_samples_match_expectation() {
-        let mut variable = ContinuousRandomVariable::Beta {
+        let variable = ContinuousRandomVariable::Beta {
             alpha: 7.0,
             beta: 11.0,
         };
-        let mut uniform_rng = UniformRNG::default();
-        let mean = (0..10000)
-            .map(|_| variable.random_variate(&mut uniform_rng).unwrap())
-            .sum::<f64>()
-            / 10000.0;
+        let mean = empirical_mean(&mut RandomVariable::Continuous(variable), 10000);
         let expected = 7.0 / (7.0 + 11.0);
         assert!((mean - expected).abs() / expected < 0.025);
     }
 
     #[test]
     fn exponential_samples_match_expectation() {
-        let mut variable = ContinuousRandomVariable::Exp { lambda: 7.0 };
-        let mut uniform_rng = UniformRNG::default();
-        let mean = (0..10000)
-            .map(|_| variable.random_variate(&mut uniform_rng).unwrap())
-            .sum::<f64>()
-            / 10000.0;
+        let variable = ContinuousRandomVariable::Exp { lambda: 7.0 };
+        let mean = empirical_mean(&mut RandomVariable::Continuous(variable), 10000);
         let expected = 1.0 / 7.0;
         assert!((mean - expected).abs() / expected < 0.025);
     }
 
     #[test]
     fn gamma_samples_match_expectation() {
-        let mut variable = ContinuousRandomVariable::Gamma {
+        let variable = ContinuousRandomVariable::Gamma {
             shape: 7.0,
             scale: 11.0,
         };
-        let mut uniform_rng = UniformRNG::default();
-        let mean = (0..10000)
-            .map(|_| variable.random_variate(&mut uniform_rng).unwrap())
-            .sum::<f64>()
-            / 10000.0;
+        let mean = empirical_mean(&mut RandomVariable::Continuous(variable), 10000);
         let expected = 77.0;
         assert!((mean - expected).abs() / expected < 0.025);
     }
 
     #[test]
     fn lognormal_samples_match_expectation() {
-        let mut variable = ContinuousRandomVariable::LogNormal {
+        let variable = ContinuousRandomVariable::LogNormal {
             mu: 11.0,
             sigma: 1.0,
         };
-        let mut uniform_rng = UniformRNG::default();
-        let mean = (0..10000)
-            .map(|_| variable.random_variate(&mut uniform_rng).unwrap())
-            .sum::<f64>()
-            / 10000.0;
+        let mean = empirical_mean(&mut RandomVariable::Continuous(variable), 10000);
         let expected = (11.0f64 + 1.0f64.powi(2) / 2.0f64).exp();
         assert!((mean - expected).abs() / expected < 0.025);
     }
 
     #[test]
     fn normal_samples_chi_square() {
-        let mut variable = ContinuousRandomVariable::Normal {
+        fn bins_mapping(variate: f64) -> usize {
+            let mean = 11.0;
+            let std_dev = 3.0;
+            if variate < mean - 3.0 * std_dev {
+                0
+            } else if variate < mean - 2.0 * std_dev {
+                1
+            } else if variate < mean - std_dev {
+                2
+            } else if variate < mean {
+                3
+            } else if variate < mean + std_dev {
+                4
+            } else if variate < mean + 2.0 * std_dev {
+                5
+            } else if variate < mean + 3.0 * std_dev {
+                6
+            } else {
+                7
+            }
+        }
+        let variable = ContinuousRandomVariable::Normal {
             mean: 11.0,
             std_dev: 3.0,
         };
         // 8 classes (a.k.a. bins)
         // On each side: within 1 sigma, 1 sigma to 2 sigma, 2 sigma to 3 sigma, 3+ sigma
-        let mut class_counts: [f64; 8] = [0.0; 8];
-        let mut uniform_rng = UniformRNG::default();
-        (0..10000).for_each(|_| {
-            let variate = variable.random_variate(&mut uniform_rng).unwrap();
-            if variate < 2.0 {
-                class_counts[0] += 1.0;
-            } else if variate < 5.0 {
-                class_counts[1] += 1.0;
-            } else if variate < 8.0 {
-                class_counts[2] += 1.0;
-            } else if variate < 11.0 {
-                class_counts[3] += 1.0;
-            } else if variate < 14.0 {
-                class_counts[4] += 1.0;
-            } else if variate < 17.0 {
-                class_counts[5] += 1.0;
-            } else if variate < 20.0 {
-                class_counts[6] += 1.0;
-            } else {
-                class_counts[7] += 1.0;
-            }
-        });
-        let expected_counts: [f64; 8] = [20.0, 210.0, 1360.0, 3410.0, 3410.0, 1360.0, 210.0, 20.0];
-        let chi_square = class_counts.iter().zip(expected_counts.iter()).fold(
-            0.0,
-            |acc, (class_count, expected_count)| {
-                acc + (*class_count - expected_count).powi(2) / expected_count
+        let expected_counts: [usize; 8] = [20, 210, 1360, 3410, 3410, 1360, 210, 20];
+        let chi_square_actual = chi_square(
+            &mut ChiSquareTest::Continuous {
+                variable: variable,
+                bin_mapping_fn: bins_mapping,
             },
+            &expected_counts,
         );
         // At a significance level of 0.01, and with n-1=7 degrees of freedom, the chi square critical
         // value for this scenario is 18.475
         let chi_square_critical = 18.475;
-        assert![chi_square < chi_square_critical];
+        assert![chi_square_actual < chi_square_critical];
     }
 
     #[test]
     fn triangular_samples_chi_square() {
-        let mut variable = ContinuousRandomVariable::Triangular {
+        fn bins_mapping(variate: f64) -> usize {
+            ((variate - 5.0) / 5.0) as usize
+        }
+        let variable = ContinuousRandomVariable::Triangular {
             min: 5.0,
             max: 25.0,
             mode: 15.0,
         };
         // 4 classes/bins - each of width 5
-        let mut class_counts: [f64; 4] = [0.0; 4];
-        let mut uniform_rng = UniformRNG::default();
-        (0..1000).for_each(|_| {
-            let variate = variable.random_variate(&mut uniform_rng).unwrap();
-            class_counts[((variate - 5.0) / 5.0) as usize] += 1.0;
-        });
-        let expected_counts: [f64; 4] = [125.0, 375.0, 375.0, 125.0];
-        let chi_square = class_counts.iter().zip(expected_counts.iter()).fold(
-            0.0,
-            |acc, (class_count, expected_count)| {
-                acc + (*class_count - expected_count).powi(2) / expected_count
+        let expected_counts: [usize; 4] = [125, 375, 375, 125];
+        let chi_square_actual = chi_square(
+            &mut ChiSquareTest::Continuous {
+                variable: variable,
+                bin_mapping_fn: bins_mapping,
             },
+            &expected_counts,
         );
         // At a significance level of 0.01, and with n-1=3 degrees of freedom, the chi square critical
         // value for this scenario is 134.642
         let chi_square_critical = 11.345;
-        assert![chi_square < chi_square_critical];
+        assert![chi_square_actual < chi_square_critical];
     }
 
     #[test]
     fn continuous_uniform_samples_chi_square() {
-        let mut variable = ContinuousRandomVariable::Uniform {
+        fn bins_mapping(variate: f64) -> usize {
+            let min = 7.0;
+            let max = 11.0;
+            ((variate - min) * (max - 1.0)) as usize
+        }
+        let variable = ContinuousRandomVariable::Uniform {
             min: 7.0,
             max: 11.0,
         };
-        let mut class_counts: [f64; 40] = [0.0; 40];
-        let mut uniform_rng = UniformRNG::default();
-        (0..10000).for_each(|_| {
-            let rn = variable.random_variate(&mut uniform_rng).unwrap();
-            let class_index = (rn - 7.0) * 10.0;
-            class_counts[class_index as usize] += 1.0;
-        });
-        let expected_counts: [f64; 40] = [250.0; 40];
-        let chi_square = class_counts.iter().zip(expected_counts.iter()).fold(
-            0.0,
-            |acc, (class_count, expected_count)| {
-                acc + (*class_count - expected_count).powi(2) / expected_count
+        // Constant bin counts, due to uniformity of distribution
+        let expected_counts: [usize; 40] = [250; 40];
+        let chi_square_actual = chi_square(
+            &mut ChiSquareTest::Continuous {
+                variable: variable,
+                bin_mapping_fn: bins_mapping,
             },
+            &expected_counts,
         );
         // At a significance level of 0.01, and with n-1=39 degrees of freedom, the chi square critical
         // value for this scenario is 62.428
         let chi_square_critical = 62.428;
-        assert![chi_square < chi_square_critical];
+        assert![chi_square_actual < chi_square_critical];
     }
 
     #[test]
     fn weibull_samples_match_expectation() {
-        let mut variable = ContinuousRandomVariable::Weibull {
+        let variable = ContinuousRandomVariable::Weibull {
             shape: 7.0,
             scale: 0.5,
         };
-        let mut uniform_rng = UniformRNG::default();
-        let mean = (0..10000)
-            .map(|_| variable.random_variate(&mut uniform_rng).unwrap())
-            .sum::<f64>()
-            / 10000.0;
+        let mean = empirical_mean(&mut RandomVariable::Continuous(variable), 10000);
         let expected = 14.0;
         assert!((mean - expected).abs() / expected < 0.025);
     }
 
     #[test]
     fn bernoulli_samples_chi_square() {
-        let mut variable = BooleanRandomVariable::Bernoulli { p: 0.3 };
-        let mut class_counts: [f64; 2] = [0.0; 2];
-        let mut uniform_rng = UniformRNG::default();
-        (0..10000).for_each(|_| {
-            let rn = variable.random_variate(&mut uniform_rng).unwrap();
-            class_counts[rn as usize] += 1.0;
-        });
-        let expected_counts: [f64; 2] = [7000.0, 3000.0];
-        let chi_square = class_counts.iter().zip(expected_counts.iter()).fold(
-            0.0,
-            |acc, (class_count, expected_count)| {
-                acc + (*class_count - expected_count).powi(2) / expected_count
+        fn bins_mapping(variate: bool) -> usize {
+            variate as usize
+        }
+        let variable = BooleanRandomVariable::Bernoulli { p: 0.3 };
+        // Failures (false == 0) is 70% of trials and success (true == 1) is 30% of trials
+        let expected_counts: [usize; 2] = [7000, 3000];
+        let chi_square_actual = chi_square(
+            &mut ChiSquareTest::Boolean {
+                variable: variable,
+                bin_mapping_fn: bins_mapping,
             },
+            &expected_counts,
         );
         // At a significance level of 0.01, and with n-1=1 degrees of freedom, the chi square critical
         // value for this scenario is 6.635
         let chi_square_critical = 6.635;
-        assert![chi_square < chi_square_critical];
+        assert![chi_square_actual < chi_square_critical];
     }
 
     #[test]
     fn geometric_samples_match_expectation() {
-        let mut variable = DiscreteRandomVariable::Geometric { p: 0.2 };
-        let mut uniform_rng = UniformRNG::default();
-        let mean = (0..10000)
-            .map(|_| variable.random_variate(&mut uniform_rng).unwrap() as f64)
-            .sum::<f64>()
-            / 10000.0;
+        let variable = DiscreteRandomVariable::Geometric { p: 0.2 };
+        let mean = empirical_mean(&mut RandomVariable::Discrete(variable), 10000);
         let expected = (1.0 - 0.2) / 0.2;
         assert!((mean - expected).abs() / expected < 0.025);
     }
 
     #[test]
     fn poisson_samples_match_expectation() {
-        let mut variable = DiscreteRandomVariable::Poisson { lambda: 7.0 };
-        let mut uniform_rng = UniformRNG::default();
-        let mean = (0..10000)
-            .map(|_| variable.random_variate(&mut uniform_rng).unwrap() as f64)
-            .sum::<f64>()
-            / 10000.0;
+        let variable = DiscreteRandomVariable::Poisson { lambda: 7.0 };
+        let mean = empirical_mean(&mut RandomVariable::Discrete(variable), 10000);
         let expected = 7.0;
         assert!((mean - expected).abs() / expected < 0.025);
     }
 
     #[test]
     fn discrete_uniform_samples_chi_square() {
-        let mut variable = DiscreteRandomVariable::Uniform { min: 7, max: 11 };
-        let mut class_counts: [f64; 4] = [0.0; 4];
-        let mut uniform_rng = UniformRNG::default();
-        (0..10000).for_each(|_| {
-            let rn = variable.random_variate(&mut uniform_rng).unwrap();
-            let class_index = rn - 7;
-            class_counts[class_index as usize] += 1.0;
-        });
-        let expected_counts: [f64; 4] = [2500.0; 4];
-        let chi_square = class_counts.iter().zip(expected_counts.iter()).fold(
-            0.0,
-            |acc, (class_count, expected_count)| {
-                acc + (*class_count - expected_count).powi(2) / expected_count
+        fn bins_mapping(variate: u64) -> usize {
+            let min = 7;
+            (variate - min) as usize
+        }
+        let variable = DiscreteRandomVariable::Uniform { min: 7, max: 11 };
+        // Constant bin counts, due to uniformity of distribution
+        let expected_counts: [usize; 4] = [2500; 4];
+        let chi_square_actual = chi_square(
+            &mut ChiSquareTest::Discrete {
+                variable: variable,
+                bin_mapping_fn: bins_mapping,
             },
+            &expected_counts,
         );
         // At a significance level of 0.01, and with n-1=4 degrees of freedom, the chi square critical
         // value for this scenario is 13.277
         let chi_square_critical = 13.277;
-        assert![chi_square < chi_square_critical];
+        assert![chi_square_actual < chi_square_critical];
     }
 
     #[test]
     fn weighted_index_samples_chi_square() {
-        let mut variable = IndexRandomVariable::WeightedIndex {
+        fn bins_mapping(variate: usize) -> usize {
+            variate
+        }
+        let variable = IndexRandomVariable::WeightedIndex {
             weights: vec![1, 2, 3, 4],
         };
-        let mut class_counts: [f64; 4] = [0.0; 4];
-        let mut uniform_rng = UniformRNG::default();
-        (0..10000).for_each(|_| {
-            let rn = variable.random_variate(&mut uniform_rng).unwrap();
-            class_counts[rn as usize] += 1.0;
-        });
-        let expected_counts: [f64; 4] = [1000.0, 2000.0, 3000.0, 4000.0];
-        let chi_square = class_counts.iter().zip(expected_counts.iter()).fold(
-            0.0,
-            |acc, (class_count, expected_count)| {
-                acc + (*class_count - expected_count).powi(2) / expected_count
+        // The expected bin counts scale linearly with the weights
+        let expected_counts: [usize; 4] = [1000, 2000, 3000, 4000];
+        let chi_square_actual = chi_square(
+            &mut ChiSquareTest::Index {
+                variable: variable,
+                bin_mapping_fn: bins_mapping,
             },
+            &expected_counts,
         );
         // At a significance level of 0.01, and with n-1=3 degrees of freedom, the chi square critical
         // value for this scenario is 11.345
         let chi_square_critical = 11.345;
-        assert![chi_square < chi_square_critical];
+        assert![chi_square_actual < chi_square_critical];
     }
 
     #[test]
     fn index_uniform_samples_chi_square() {
-        let mut variable = IndexRandomVariable::Uniform { min: 7, max: 11 };
-        let mut class_counts: [f64; 4] = [0.0; 4];
-        let mut uniform_rng = UniformRNG::default();
-        (0..10000).for_each(|_| {
-            let rn = variable.random_variate(&mut uniform_rng).unwrap();
-            let class_index = rn - 7;
-            class_counts[class_index] += 1.0;
-        });
-        let expected_counts: [f64; 4] = [2500.0; 4];
-        let chi_square = class_counts.iter().zip(expected_counts.iter()).fold(
-            0.0,
-            |acc, (class_count, expected_count)| {
-                acc + (*class_count - expected_count).powi(2) / expected_count
+        fn bins_mapping(variate: usize) -> usize {
+            let min = 7;
+            variate - min
+        }
+        let variable = IndexRandomVariable::Uniform { min: 7, max: 11 };
+        // Constant bin counts, due to uniformity of distribution
+        let expected_counts: [usize; 4] = [2500; 4];
+        let chi_square_actual = chi_square(
+            &mut ChiSquareTest::Index {
+                variable: variable,
+                bin_mapping_fn: bins_mapping,
             },
+            &expected_counts,
         );
         // At a significance level of 0.01, and with n-1=4 degrees of freedom, the chi square critical
         // value for this scenario is 13.277
         let chi_square_critical = 13.277;
-        assert![chi_square < chi_square_critical];
+        assert![chi_square_actual < chi_square_critical];
     }
 }
