@@ -3,7 +3,7 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model::Model;
+use super::model::{Model, Type};
 use super::ModelMessage;
 use crate::input_modeling::random_variable::ContinuousRandomVariable;
 use crate::input_modeling::thinning::Thinning;
@@ -121,6 +121,10 @@ impl Model for Generator {
 
     fn id(&self) -> String {
         self.id.clone()
+    }
+
+    fn get_type(&self) -> Type {
+        Type::Generator
     }
 
     fn status(&self) -> String {
