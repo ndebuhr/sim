@@ -544,7 +544,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn simulation_serialization_deserialization_round_trip() {
         // Confirm a round trip deserialization-serialization
         let s_models = r#"

@@ -3,7 +3,7 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model::Model;
+use super::model::{Model, Type};
 use super::ModelMessage;
 use crate::input_modeling::uniform_rng::UniformRNG;
 use crate::utils::error::SimulationError;
@@ -131,6 +131,10 @@ impl Model for Gate {
 
     fn id(&self) -> String {
         self.id.clone()
+    }
+
+    fn get_type(&self) -> Type {
+        Type::Gate
     }
 
     fn status(&self) -> String {

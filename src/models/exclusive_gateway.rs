@@ -3,7 +3,7 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model::Model;
+use super::model::{Model, Type};
 use super::ModelMessage;
 use crate::input_modeling::random_variable::IndexRandomVariable;
 use crate::input_modeling::uniform_rng::UniformRNG;
@@ -108,6 +108,10 @@ impl Model for ExclusiveGateway {
 
     fn id(&self) -> String {
         self.id.clone()
+    }
+
+    fn get_type(&self) -> Type {
+        Type::ExclusiveGateway
     }
 
     fn status(&self) -> String {
