@@ -1,9 +1,8 @@
-use std::any::Any;
 use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model::{Model, Type};
+use super::model::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::uniform_rng::UniformRNG;
 use crate::utils::error::SimulationError;
@@ -100,17 +99,9 @@ impl LoadBalancer {
     }
 }
 
-impl Model for LoadBalancer {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
+impl AsModel for LoadBalancer {
     fn id(&self) -> String {
         self.id.clone()
-    }
-
-    fn get_type(&self) -> Type {
-        Type::LoadBalancer
     }
 
     fn status(&self) -> String {

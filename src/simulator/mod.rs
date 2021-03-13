@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
 use crate::input_modeling::uniform_rng::UniformRNG;
-use crate::models::model::Model;
+use crate::models::model::{AsModel, Model};
 use crate::models::ModelMessage;
 use crate::utils;
 use crate::utils::error::SimulationError;
@@ -35,7 +35,7 @@ mod test_simulations;
 #[derive(Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Simulation {
-    models: Vec<Box<dyn Model>>,
+    models: Vec<Model>,
     connectors: Vec<Connector>,
     messages: Vec<Message>,
     global_time: f64,
@@ -77,7 +77,7 @@ pub struct Message {
 impl Simulation {
     /// This constructor method creates a simulation from a supplied
     /// configuration (models and connectors).
-    pub fn post(models: Vec<Box<dyn Model>>, connectors: Vec<Connector>) -> Self {
+    pub fn post(models: Vec<Model>, connectors: Vec<Connector>) -> Self {
         utils::set_panic_hook();
         Self {
             models,
@@ -87,7 +87,7 @@ impl Simulation {
     }
 
     /// This method sets the models and connectors of an existing simulation.
-    pub fn put(&mut self, models: Vec<Box<dyn Model>>, connectors: Vec<Connector>) {
+    pub fn put(&mut self, models: Vec<Model>, connectors: Vec<Connector>) {
         self.models = models;
         self.connectors = connectors;
     }
@@ -141,7 +141,7 @@ impl Simulation {
 
     /// This method provides a convenient foundation for operating on the
     /// full set of models in the simulation.
-    pub fn models(&mut self) -> Vec<&mut Box<dyn Model>> {
+    pub fn models(&mut self) -> Vec<&mut Model> {
         self.models.iter_mut().collect()
     }
 

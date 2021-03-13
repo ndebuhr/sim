@@ -453,7 +453,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn simulation_serialization_deserialization_field_ordering() {
         // Confirm field order does not matter for yaml deserialization
         let models = r#"
@@ -585,7 +584,7 @@ mod tests {
   sourcePort: "processed job"
   targetPort: "store"
 "#;
-        let models: Vec<Box<dyn Model>> = serde_yaml::from_str(s_models).unwrap();
+        let models: Vec<Model> = serde_yaml::from_str(s_models).unwrap();
         let connectors: Vec<Connector> = serde_yaml::from_str(s_connectors).unwrap();
         WebSimulation::post_yaml(
             &serde_yaml::to_string(&models).unwrap(),

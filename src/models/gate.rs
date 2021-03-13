@@ -1,9 +1,8 @@
-use std::any::Any;
 use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model::{Model, Type};
+use super::model::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::uniform_rng::UniformRNG;
 use crate::utils::error::SimulationError;
@@ -124,17 +123,9 @@ impl Gate {
     }
 }
 
-impl Model for Gate {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
+impl AsModel for Gate {
     fn id(&self) -> String {
         self.id.clone()
-    }
-
-    fn get_type(&self) -> Type {
-        Type::Gate
     }
 
     fn status(&self) -> String {
