@@ -13,12 +13,56 @@ use super::ModelMessage;
 use crate::input_modeling::uniform_rng::UniformRNG;
 use crate::utils::error::SimulationError;
 
+/// The overall "wrapper" around a model, complete with the model's ID.
+/// This is what you probably want to use.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Model {
+    id: String,
+    #[serde(flatten)]
+    inner: ModelType,
+}
+
+impl Model {
+    pub fn id(&self) -> &str {
+        self.id.as_str()
+    }
+}
+
+impl AsModel for Model {
+    fn status(&self) -> String {
+        self.inner.status()
+    }
+
+    fn events_ext(
+        &mut self,
+        uniform_rng: &mut UniformRNG,
+        incoming_message: ModelMessage,
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
+        self.inner.events_ext(uniform_rng, incoming_message)
+    }
+
+    fn events_int(
+        &mut self,
+        uniform_rng: &mut UniformRNG,
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
+        self.inner.events_int(uniform_rng)
+    }
+
+    fn time_advance(&mut self, time_delta: f64) {
+        self.inner.time_advance(time_delta)
+    }
+
+    fn until_next_event(&self) -> f64 {
+        self.inner.until_next_event()
+    }
+}
+
 /// An enum encompassing all the available types of models. Each variant
 /// holds a concrete type that implements AsModel.
 #[enum_dispatch(AsModel)]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(tag = "type")]
-pub enum Model {
+pub enum ModelType {
     ExclusiveGateway,
     Gate,
     Generator,
@@ -36,7 +80,6 @@ pub enum Model {
 /// reporting method `status`.
 #[enum_dispatch]
 pub trait AsModel {
-    fn id(&self) -> String;
     fn status(&self) -> String;
     fn events_ext(
         &mut self,

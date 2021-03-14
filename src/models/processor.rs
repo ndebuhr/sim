@@ -20,7 +20,6 @@ use crate::utils::error::SimulationError;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Processor {
-    id: String,
     service_time: ContinuousRandomVariable,
     #[serde(default = "max_usize")]
     queue_capacity: usize,
@@ -138,10 +137,6 @@ impl Processor {
 }
 
 impl AsModel for Processor {
-    fn id(&self) -> String {
-        self.id.clone()
-    }
-
     fn status(&self) -> String {
         match self.state.phase {
             Phase::Active => String::from("Processing"),

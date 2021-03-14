@@ -16,7 +16,6 @@ use crate::utils::error::SimulationError;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExclusiveGateway {
-    id: String,
     ports_in: PortsIn,
     ports_out: PortsOut,
     port_weights: IndexRandomVariable,
@@ -101,10 +100,6 @@ impl ExclusiveGateway {
 }
 
 impl AsModel for ExclusiveGateway {
-    fn id(&self) -> String {
-        self.id.clone()
-    }
-
     fn status(&self) -> String {
         String::from("Active")
     }

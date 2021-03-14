@@ -15,7 +15,6 @@ use crate::utils::error::SimulationError;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StochasticGate {
-    id: String,
     pass_distribution: BooleanRandomVariable,
     ports_in: PortsIn,
     ports_out: PortsOut,
@@ -114,10 +113,6 @@ impl StochasticGate {
 }
 
 impl AsModel for StochasticGate {
-    fn id(&self) -> String {
-        self.id.clone()
-    }
-
     fn status(&self) -> String {
         match self.state.phase {
             Phase::Open => String::from("Pass"),

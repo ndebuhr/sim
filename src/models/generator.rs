@@ -20,7 +20,6 @@ use crate::utils::error::SimulationError;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Generator {
-    id: String,
     // Time between job generations
     message_interdeparture_time: ContinuousRandomVariable,
     // Thinning for non-stationarity
@@ -114,10 +113,6 @@ impl Generator {
 }
 
 impl AsModel for Generator {
-    fn id(&self) -> String {
-        self.id.clone()
-    }
-
     fn status(&self) -> String {
         format!["Generating {}s", self.ports_out.job]
     }

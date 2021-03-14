@@ -12,7 +12,6 @@ use crate::utils::error::SimulationError;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LoadBalancer {
-    id: String,
     ports_in: PortsIn,
     ports_out: PortsOut,
     #[serde(default)]
@@ -100,10 +99,6 @@ impl LoadBalancer {
 }
 
 impl AsModel for LoadBalancer {
-    fn id(&self) -> String {
-        self.id.clone()
-    }
-
     fn status(&self) -> String {
         format!["Listening for {}s", self.ports_in.job]
     }

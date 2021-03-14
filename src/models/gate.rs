@@ -16,7 +16,6 @@ use crate::utils::error::SimulationError;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Gate {
-    id: String,
     ports_in: PortsIn,
     ports_out: PortsOut,
     #[serde(default)]
@@ -124,10 +123,6 @@ impl Gate {
 }
 
 impl AsModel for Gate {
-    fn id(&self) -> String {
-        self.id.clone()
-    }
-
     fn status(&self) -> String {
         match self.state.phase {
             Phase::Open => String::from("Listening"),

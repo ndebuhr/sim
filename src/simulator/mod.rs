@@ -229,7 +229,9 @@ impl Simulation {
                                     target_ids.iter().zip(target_ports.iter()).for_each(
                                         |(target_id, target_port)| {
                                             next_messages.push(Message {
-                                                source_id: self.models[model_index].id(),
+                                                source_id: self.models[model_index]
+                                                    .id()
+                                                    .to_string(),
                                                 source_port: outgoing_message.port_name.clone(),
                                                 target_id: target_id.clone(),
                                                 target_port: target_port.clone(),
@@ -276,7 +278,7 @@ impl Simulation {
                         target_ids.iter().zip(target_ports.iter()).for_each(
                             |(target_id, target_port)| {
                                 next_messages.push(Message {
-                                    source_id: self.models[model_index].id(),
+                                    source_id: self.models[model_index].id().to_string(),
                                     source_port: outgoing_message.port_name.clone(),
                                     target_id: target_id.clone(),
                                     target_port: target_port.clone(),

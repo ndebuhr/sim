@@ -15,7 +15,6 @@ use crate::utils::error::SimulationError;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ParallelGateway {
-    id: String,
     ports_in: PortsIn,
     ports_out: PortsOut,
     #[serde(default)]
@@ -106,10 +105,6 @@ impl ParallelGateway {
 }
 
 impl AsModel for ParallelGateway {
-    fn id(&self) -> String {
-        self.id.clone()
-    }
-
     fn status(&self) -> String {
         String::from("Active")
     }

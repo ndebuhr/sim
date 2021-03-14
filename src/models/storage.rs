@@ -12,7 +12,6 @@ use crate::utils::error::SimulationError;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Storage {
-    id: String,
     ports_in: PortsIn,
     ports_out: PortsOut,
     #[serde(default)]
@@ -101,10 +100,6 @@ impl Storage {
 }
 
 impl AsModel for Storage {
-    fn id(&self) -> String {
-        self.id.clone()
-    }
-
     fn status(&self) -> String {
         match &self.state.job {
             Some(stored) => format!["Storing {}", stored],

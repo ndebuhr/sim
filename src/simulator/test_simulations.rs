@@ -665,16 +665,16 @@ mod tests {
     #[test]
     fn exclusive_gateway_proportions_chi_square() {
         let models = r#"
-- type: "Generator"
-  id: "generator-01"
+- id: "generator-01"
+  type: "Generator"
   portsIn: {}
   portsOut:
     job: "job"
   messageInterdepartureTime:
     exp:
       lambda: 5.0
-- type: "ExclusiveGateway"
-  id: "exclusive-01"
+- id: "exclusive-01"
+  type: "ExclusiveGateway"
   portsIn:
     flowPaths:
     - "in"
@@ -686,22 +686,22 @@ mod tests {
   portWeights:
     weightedIndex:
       weights: [6, 3, 1]
-- type: "Storage"
-  id: "storage-01"
+- id: "storage-01"
+  type: "Storage"
   portsIn:
     store: "store"
     read: "read"
   portsOut:
     stored: "stored"
-- type: "Storage"
-  id: "storage-02"
+- id: "storage-02"
+  type: "Storage"
   portsIn:
     store: "store"
     read: "read"
   portsOut:
     stored: "stored"
-- type: "Storage"
-  id: "storage-03"
+- id: "storage-03"
+  type: "Storage"
   portsIn:
     store: "store"
     read: "read"
