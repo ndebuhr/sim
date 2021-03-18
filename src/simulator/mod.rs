@@ -26,6 +26,7 @@ use crate::models::ModelMessage;
 use crate::utils;
 use crate::utils::error::SimulationError;
 
+#[cfg(test)]
 mod test_simulations;
 
 /// The `Simulation` struct is the core of sim, and includes everything
