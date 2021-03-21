@@ -74,7 +74,7 @@ jobs:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+    - uses: actions/checkout@v2
     - name: Install Rust
       run: rustup update stable && rustup default stable && rustup component add clippy
     - name: Generate Cargo.lock
