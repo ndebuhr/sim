@@ -18,14 +18,14 @@ use crate::utils::error::SimulationError;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Type {
-    ExclusiveGateway(ExclusiveGateway),
-    Gate(Gate),
-    Generator(Generator),
-    LoadBalancer(LoadBalancer),
-    ParallelGateway(ParallelGateway),
-    Processor(Processor),
-    StochasticGate(StochasticGate),
-    Storage(Storage),
+    ExclusiveGateway,
+    Gate,
+    Generator,
+    LoadBalancer,
+    ParallelGateway,
+    Processor,
+    StochasticGate,
+    Storage,
 }
 
 /// The `Model` trait defines everything required for a model to operate
