@@ -20,9 +20,8 @@ use js_sys::Array;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
-use crate::input_modeling::uniform_rng::UniformRNG;
-use crate::models::model::{AsModel, Model};
-use crate::models::ModelMessage;
+use crate::input_modeling::UniformRNG;
+use crate::models::{AsModel, Model, ModelMessage};
 use crate::utils;
 use crate::utils::error::SimulationError;
 

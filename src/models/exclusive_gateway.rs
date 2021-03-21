@@ -2,10 +2,10 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model::AsModel;
+use super::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::random_variable::IndexRandomVariable;
-use crate::input_modeling::uniform_rng::UniformRNG;
+use crate::input_modeling::UniformRNG;
 use crate::utils::error::SimulationError;
 
 /// The exclusive gateway splits a process flow into a set of possible paths.

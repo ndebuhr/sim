@@ -12,7 +12,7 @@ use rand_distr::{Beta, Exp, Gamma, LogNormal, Normal, Triangular, Uniform, Weibu
 // Discrete distributions
 use rand_distr::{Bernoulli, Geometric, Poisson, WeightedIndex};
 
-use super::uniform_rng::UniformRNG;
+use super::UniformRNG;
 use crate::utils::error::SimulationError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -7,3 +7,6 @@
 pub mod random_variable;
 pub mod thinning;
 pub mod uniform_rng;
+
+pub use thinning::Thinning;
+pub use uniform_rng::UniformRNG;

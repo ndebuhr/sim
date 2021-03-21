@@ -2,10 +2,10 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model::AsModel;
+use super::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::random_variable::BooleanRandomVariable;
-use crate::input_modeling::uniform_rng::UniformRNG;
+use crate::input_modeling::UniformRNG;
 use crate::utils::error::SimulationError;
 
 /// The stochastic gate blocks (drops) or passes jobs, based on a specified
