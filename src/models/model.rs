@@ -19,13 +19,13 @@ use crate::utils::error::SimulationError;
 #[serde(tag = "type")]
 pub enum Type {
     ExclusiveGateway(ExclusiveGateway),
-    Gate            (Gate),
-    Generator       (Generator),
-    LoadBalancer    (LoadBalancer),
-    ParallelGateway (ParallelGateway),
-    Processor       (Processor),
-    StochasticGate  (StochasticGate),
-    Storage         (Storage),
+    Gate(Gate),
+    Generator(Generator),
+    LoadBalancer(LoadBalancer),
+    ParallelGateway(ParallelGateway),
+    Processor(Processor),
+    StochasticGate(StochasticGate),
+    Storage(Storage),
 }
 
 /// The `Model` trait defines everything required for a model to operate
@@ -49,4 +49,3 @@ pub trait Model {
     fn time_advance(&mut self, time_delta: f64);
     fn until_next_event(&self) -> f64;
 }
-
