@@ -1,9 +1,8 @@
-use std::any::Any;
 use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model::{Model, Type};
+use super::model::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::uniform_rng::UniformRNG;
 use crate::utils::error::SimulationError;
@@ -13,7 +12,6 @@ use crate::utils::error::SimulationError;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LoadBalancer {
-    id: String,
     ports_in: PortsIn,
     ports_out: PortsOut,
     #[serde(default)]
@@ -100,19 +98,7 @@ impl LoadBalancer {
     }
 }
 
-impl Model for LoadBalancer {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn id(&self) -> String {
-        self.id.clone()
-    }
-
-    fn get_type(&self) -> Type {
-        Type::LoadBalancer
-    }
-
+impl AsModel for LoadBalancer {
     fn status(&self) -> String {
         format!["Listening for {}s", self.ports_in.job]
     }

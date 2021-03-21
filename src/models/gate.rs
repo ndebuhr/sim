@@ -1,9 +1,8 @@
-use std::any::Any;
 use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model::{Model, Type};
+use super::model::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::uniform_rng::UniformRNG;
 use crate::utils::error::SimulationError;
@@ -17,7 +16,6 @@ use crate::utils::error::SimulationError;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Gate {
-    id: String,
     ports_in: PortsIn,
     ports_out: PortsOut,
     #[serde(default)]
@@ -124,19 +122,7 @@ impl Gate {
     }
 }
 
-impl Model for Gate {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn id(&self) -> String {
-        self.id.clone()
-    }
-
-    fn get_type(&self) -> Type {
-        Type::Gate
-    }
-
+impl AsModel for Gate {
     fn status(&self) -> String {
         match self.state.phase {
             Phase::Open => String::from("Listening"),

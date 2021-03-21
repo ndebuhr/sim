@@ -1,9 +1,8 @@
-use std::any::Any;
 use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model::{Model, Type};
+use super::model::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::random_variable::ContinuousRandomVariable;
 use crate::input_modeling::uniform_rng::UniformRNG;
@@ -21,7 +20,6 @@ use crate::utils::error::SimulationError;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Processor {
-    id: String,
     service_time: ContinuousRandomVariable,
     #[serde(default = "max_usize")]
     queue_capacity: usize,
@@ -138,19 +136,7 @@ impl Processor {
     }
 }
 
-impl Model for Processor {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn id(&self) -> String {
-        self.id.clone()
-    }
-
-    fn get_type(&self) -> Type {
-        Type::Processor
-    }
-
+impl AsModel for Processor {
     fn status(&self) -> String {
         match self.state.phase {
             Phase::Active => String::from("Processing"),

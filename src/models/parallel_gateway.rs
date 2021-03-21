@@ -1,10 +1,9 @@
-use std::any::Any;
 use std::collections::HashMap;
 use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model::{Model, Type};
+use super::model::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::uniform_rng::UniformRNG;
 use crate::utils::error::SimulationError;
@@ -16,7 +15,6 @@ use crate::utils::error::SimulationError;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ParallelGateway {
-    id: String,
     ports_in: PortsIn,
     ports_out: PortsOut,
     #[serde(default)]
@@ -106,19 +104,7 @@ impl ParallelGateway {
     }
 }
 
-impl Model for ParallelGateway {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn id(&self) -> String {
-        self.id.clone()
-    }
-
-    fn get_type(&self) -> Type {
-        Type::ParallelGateway
-    }
-
+impl AsModel for ParallelGateway {
     fn status(&self) -> String {
         String::from("Active")
     }

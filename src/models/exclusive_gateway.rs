@@ -1,9 +1,8 @@
-use std::any::Any;
 use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model::{Model, Type};
+use super::model::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::random_variable::IndexRandomVariable;
 use crate::input_modeling::uniform_rng::UniformRNG;
@@ -17,7 +16,6 @@ use crate::utils::error::SimulationError;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExclusiveGateway {
-    id: String,
     ports_in: PortsIn,
     ports_out: PortsOut,
     port_weights: IndexRandomVariable,
@@ -101,19 +99,7 @@ impl ExclusiveGateway {
     }
 }
 
-impl Model for ExclusiveGateway {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn id(&self) -> String {
-        self.id.clone()
-    }
-
-    fn get_type(&self) -> Type {
-        Type::ExclusiveGateway
-    }
-
+impl AsModel for ExclusiveGateway {
     fn status(&self) -> String {
         String::from("Active")
     }

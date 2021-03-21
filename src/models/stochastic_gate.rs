@@ -1,9 +1,8 @@
-use std::any::Any;
 use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model::{Model, Type};
+use super::model::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::random_variable::BooleanRandomVariable;
 use crate::input_modeling::uniform_rng::UniformRNG;
@@ -16,7 +15,6 @@ use crate::utils::error::SimulationError;
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StochasticGate {
-    id: String,
     pass_distribution: BooleanRandomVariable,
     ports_in: PortsIn,
     ports_out: PortsOut,
@@ -114,19 +112,7 @@ impl StochasticGate {
     }
 }
 
-impl Model for StochasticGate {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn id(&self) -> String {
-        self.id.clone()
-    }
-
-    fn get_type(&self) -> Type {
-        Type::StochasticGate
-    }
-
+impl AsModel for StochasticGate {
     fn status(&self) -> String {
         match self.state.phase {
             Phase::Open => String::from("Pass"),

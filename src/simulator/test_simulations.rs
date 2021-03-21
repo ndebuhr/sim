@@ -450,7 +450,6 @@ fn processor_network_no_job_loss() {
 }
 
 #[test]
-#[ignore]
 fn simulation_serialization_deserialization_field_ordering() {
     // Confirm field order does not matter for yaml deserialization
     let models = r#"
@@ -582,7 +581,7 @@ fn simulation_serialization_deserialization_round_trip() {
   sourcePort: "processed job"
   targetPort: "store"
 "#;
-    let models: Vec<Box<dyn Model>> = serde_yaml::from_str(s_models).unwrap();
+    let models: Vec<Model> = serde_yaml::from_str(s_models).unwrap();
     let connectors: Vec<Connector> = serde_yaml::from_str(s_connectors).unwrap();
     WebSimulation::post_yaml(
         &serde_yaml::to_string(&models).unwrap(),
@@ -662,16 +661,16 @@ fn non_stationary_generation() {
 #[test]
 fn exclusive_gateway_proportions_chi_square() {
     let models = r#"
-- type: "Generator"
-  id: "generator-01"
+- id: "generator-01"
+  type: "Generator"
   portsIn: {}
   portsOut:
     job: "job"
   messageInterdepartureTime:
     exp:
       lambda: 5.0
-- type: "ExclusiveGateway"
-  id: "exclusive-01"
+- id: "exclusive-01"
+  type: "ExclusiveGateway"
   portsIn:
     flowPaths:
     - "in"
@@ -683,22 +682,22 @@ fn exclusive_gateway_proportions_chi_square() {
   portWeights:
     weightedIndex:
       weights: [6, 3, 1]
-- type: "Storage"
-  id: "storage-01"
+- id: "storage-01"
+  type: "Storage"
   portsIn:
     store: "store"
     read: "read"
   portsOut:
     stored: "stored"
-- type: "Storage"
-  id: "storage-02"
+- id: "storage-02"
+  type: "Storage"
   portsIn:
     store: "store"
     read: "read"
   portsOut:
     stored: "stored"
-- type: "Storage"
-  id: "storage-03"
+- id: "storage-03"
+  type: "Storage"
   portsIn:
     store: "store"
     read: "read"

@@ -1,9 +1,8 @@
-use std::any::Any;
 use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model::{Model, Type};
+use super::model::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::random_variable::ContinuousRandomVariable;
 use crate::input_modeling::thinning::Thinning;
@@ -21,7 +20,6 @@ use crate::utils::error::SimulationError;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Generator {
-    id: String,
     // Time between job generations
     message_interdeparture_time: ContinuousRandomVariable,
     // Thinning for non-stationarity
@@ -114,19 +112,7 @@ impl Generator {
     }
 }
 
-impl Model for Generator {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn id(&self) -> String {
-        self.id.clone()
-    }
-
-    fn get_type(&self) -> Type {
-        Type::Generator
-    }
-
+impl AsModel for Generator {
     fn status(&self) -> String {
         format!["Generating {}s", self.ports_out.job]
     }
