@@ -11,11 +11,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Build sim with wasm-pack
+    - name: Install Rust (rustup)
+      run: rustup update stable && rustup default stable
+    - name: Generate Cargo.lock
+      run: cargo generate-lockfile
+    - uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    - name: Build (wasm-pack)
       run: |
         curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
         wasm-pack build
-    - name: Push code coverage data to codecov
+    - name: Push Coverage Data (codecov)
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       run: |
