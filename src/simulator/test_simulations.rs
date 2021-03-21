@@ -450,7 +450,7 @@ fn processor_network_no_job_loss() {
 }
 
 #[test]
-#[ignore]
+// #[ignore]
 fn simulation_serialization_deserialization_field_ordering() {
     // Confirm field order does not matter for yaml deserialization
     let models = r#"
@@ -582,7 +582,7 @@ fn simulation_serialization_deserialization_round_trip() {
   sourcePort: "processed job"
   targetPort: "store"
 "#;
-    let models: Vec<Box<dyn Model>> = serde_yaml::from_str(s_models).unwrap();
+    let models: Vec<Type> = serde_yaml::from_str(s_models).unwrap();
     let connectors: Vec<Connector> = serde_yaml::from_str(s_connectors).unwrap();
     WebSimulation::post_yaml(
         &serde_yaml::to_string(&models).unwrap(),

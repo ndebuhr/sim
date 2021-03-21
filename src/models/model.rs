@@ -1,10 +1,5 @@
-use std::any::Any;
-use std::fmt;
-
-use serde::de::value::MapAccessDeserializer;
-use serde::de::{self, MapAccess, Visitor};
-use serde::ser;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use enum_dispatch::enum_dispatch;
+use serde::{Deserialize, Serialize};
 
 use super::exclusive_gateway::ExclusiveGateway;
 use super::gate::Gate;
@@ -19,16 +14,18 @@ use crate::input_modeling::uniform_rng::UniformRNG;
 use crate::utils::error::SimulationError;
 
 /// The type of the Model.
-#[derive(Serialize, Clone, Copy)]
+#[enum_dispatch(Model)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum Type {
-    ExclusiveGateway,
-    Gate,
-    Generator,
-    LoadBalancer,
-    ParallelGateway,
-    Processor,
-    StochasticGate,
-    Storage,
+    ExclusiveGateway(ExclusiveGateway),
+    Gate            (Gate),
+    Generator       (Generator),
+    LoadBalancer    (LoadBalancer),
+    ParallelGateway (ParallelGateway),
+    Processor       (Processor),
+    StochasticGate  (StochasticGate),
+    Storage         (Storage),
 }
 
 /// The `Model` trait defines everything required for a model to operate
@@ -36,10 +33,9 @@ pub enum Type {
 /// largely on the Discrete Event System Specification (DEVS), but with a
 /// small amount of plumbing (`as_any` and `id`) and a dedicated status
 /// reporting method `status`.
+#[enum_dispatch]
 pub trait Model {
-    fn as_any(&self) -> &dyn Any;
     fn id(&self) -> String;
-    fn get_type(&self) -> Type;
     fn status(&self) -> String;
     fn events_ext(
         &mut self,
@@ -54,160 +50,3 @@ pub trait Model {
     fn until_next_event(&self) -> f64;
 }
 
-impl Clone for Box<dyn Model> {
-    fn clone(&self) -> Self {
-        if let Some(exclusive_gateway) = self.as_any().downcast_ref::<ExclusiveGateway>() {
-            Box::new(exclusive_gateway.clone())
-        } else if let Some(gate) = self.as_any().downcast_ref::<Gate>() {
-            Box::new(gate.clone())
-        } else if let Some(generator) = self.as_any().downcast_ref::<Generator>() {
-            Box::new(generator.clone())
-        } else if let Some(load_balancer) = self.as_any().downcast_ref::<LoadBalancer>() {
-            Box::new(load_balancer.clone())
-        } else if let Some(parallel_gateway) = self.as_any().downcast_ref::<ParallelGateway>() {
-            Box::new(parallel_gateway.clone())
-        } else if let Some(processor) = self.as_any().downcast_ref::<Processor>() {
-            Box::new(processor.clone())
-        } else if let Some(stochastic_gate) = self.as_any().downcast_ref::<StochasticGate>() {
-            Box::new(stochastic_gate.clone())
-        } else if let Some(storage) = self.as_any().downcast_ref::<Storage>() {
-            Box::new(storage.clone())
-        } else {
-            panic!["Failed to clone component model"];
-        }
-    }
-}
-
-// TODO Consider typetag, instead of custom "dyn model"
-// serialization and deserialization, after:
-// https://github.com/dtolnay/typetag/issues/8
-// https://github.com/dtolnay/typetag/issues/15
-// https://github.com/dtolnay/typetag/pull/16
-
-/// A wrapper around a Model that injects the `type` field for serialization.
-#[derive(Serialize)]
-struct ModelSerializationRepresentation<'m, M: Model> {
-    r#type: Type,
-    #[serde(flatten)]
-    model: &'m M,
-}
-
-impl<'m, M: Model> ModelSerializationRepresentation<'m, M> {
-    fn new(model: &'m M) -> Self {
-        Self {
-            r#type: model.get_type(),
-            model,
-        }
-    }
-}
-
-impl Serialize for Box<dyn Model> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        if let Some(ref exclusive_gateway) = self.as_any().downcast_ref::<ExclusiveGateway>() {
-            ModelSerializationRepresentation::new(*exclusive_gateway).serialize(serializer)
-        } else if let Some(ref gate) = self.as_any().downcast_ref::<Gate>() {
-            ModelSerializationRepresentation::new(*gate).serialize(serializer)
-        } else if let Some(ref generator) = self.as_any().downcast_ref::<Generator>() {
-            ModelSerializationRepresentation::new(*generator).serialize(serializer)
-        } else if let Some(ref load_balancer) = self.as_any().downcast_ref::<LoadBalancer>() {
-            ModelSerializationRepresentation::new(*load_balancer).serialize(serializer)
-        } else if let Some(ref parallel_gateway) = self.as_any().downcast_ref::<ParallelGateway>() {
-            ModelSerializationRepresentation::new(*parallel_gateway).serialize(serializer)
-        } else if let Some(ref processor) = self.as_any().downcast_ref::<Processor>() {
-            ModelSerializationRepresentation::new(*processor).serialize(serializer)
-        } else if let Some(ref stochastic_gate) = self.as_any().downcast_ref::<StochasticGate>() {
-            ModelSerializationRepresentation::new(*stochastic_gate).serialize(serializer)
-        } else if let Some(ref storage) = self.as_any().downcast_ref::<Storage>() {
-            ModelSerializationRepresentation::new(*storage).serialize(serializer)
-        } else {
-            Err(ser::Error::custom(
-                "A model type was not recognized during serialization",
-            ))
-        }
-    }
-}
-
-struct ModelVisitor;
-
-impl<'de> Visitor<'de> for ModelVisitor {
-    type Value = Box<dyn Model>;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("A software delivery simulator component model")
-    }
-
-    fn visit_map<V>(self, mut map: V) -> Result<Box<dyn Model>, V::Error>
-    where
-        V: MapAccess<'de>,
-    {
-        while let Some(key) = map.next_key::<String>()? {
-            match key.as_str() {
-                "type" => {
-                    let value = map.next_value::<String>()?;
-                    match value.as_str() {
-                        "ExclusiveGateway" => {
-                            return Ok(Box::new(ExclusiveGateway::deserialize(
-                                MapAccessDeserializer::new(map),
-                            )?));
-                        }
-                        "Gate" => {
-                            return Ok(Box::new(Gate::deserialize(MapAccessDeserializer::new(
-                                map,
-                            ))?));
-                        }
-                        "Generator" => {
-                            return Ok(Box::new(Generator::deserialize(
-                                MapAccessDeserializer::new(map),
-                            )?));
-                        }
-                        "LoadBalancer" => {
-                            return Ok(Box::new(LoadBalancer::deserialize(
-                                MapAccessDeserializer::new(map),
-                            )?));
-                        }
-                        "ParallelGateway" => {
-                            return Ok(Box::new(ParallelGateway::deserialize(
-                                MapAccessDeserializer::new(map),
-                            )?));
-                        }
-                        "Processor" => {
-                            return Ok(Box::new(Processor::deserialize(
-                                MapAccessDeserializer::new(map),
-                            )?));
-                        }
-                        "StochasticGate" => {
-                            return Ok(Box::new(StochasticGate::deserialize(
-                                MapAccessDeserializer::new(map),
-                            )?));
-                        }
-                        "Storage" => {
-                            return Ok(Box::new(Storage::deserialize(
-                                MapAccessDeserializer::new(map),
-                            )?));
-                        }
-                        &_ => {
-                            return Err(de::Error::custom(
-                                "A model type was not recognized during deserialization",
-                            ));
-                        }
-                    }
-                }
-                &_ => {}
-            }
-        }
-        Err(de::Error::custom("Failed to deserialize component model"))
-    }
-}
-
-impl<'de> Deserialize<'de> for Box<dyn Model> {
-    // TODO - Assumes the type field is at the beginning - make this order agnostic
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_any(ModelVisitor)
-    }
-}

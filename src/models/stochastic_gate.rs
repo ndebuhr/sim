@@ -1,9 +1,8 @@
-use std::any::Any;
 use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model::{Model, Type};
+use super::model::Model;
 use super::ModelMessage;
 use crate::input_modeling::random_variable::BooleanRandomVariable;
 use crate::input_modeling::uniform_rng::UniformRNG;
@@ -115,16 +114,8 @@ impl StochasticGate {
 }
 
 impl Model for StochasticGate {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
     fn id(&self) -> String {
         self.id.clone()
-    }
-
-    fn get_type(&self) -> Type {
-        Type::StochasticGate
     }
 
     fn status(&self) -> String {
