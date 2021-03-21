@@ -450,7 +450,6 @@ fn processor_network_no_job_loss() {
 }
 
 #[test]
-// #[ignore]
 fn simulation_serialization_deserialization_field_ordering() {
     // Confirm field order does not matter for yaml deserialization
     let models = r#"
