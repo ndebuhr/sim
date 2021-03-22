@@ -13,8 +13,9 @@ use super::Storage;
 use crate::input_modeling::UniformRNG;
 use crate::utils::error::SimulationError;
 
-/// The overall "wrapper" around a model, complete with the model's ID.
-/// This is what you probably want to use.
+/// `Model` wraps `ModelType` and provides common ID functionality (a struct
+/// field and associated accessor method).  The simulator requires all models
+/// to have an ID.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Model {
     id: String,
@@ -57,8 +58,8 @@ impl AsModel for Model {
     }
 }
 
-/// An enum encompassing all the available types of models. Each variant
-/// holds a concrete type that implements AsModel.
+/// `ModelType` is an enum encompassing all the available model types. Each
+/// variant holds a concrete type that implements AsModel.
 #[enum_dispatch(AsModel)]
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(tag = "type")]
@@ -74,10 +75,10 @@ pub enum ModelType {
 }
 
 /// The `AsModel` trait defines everything required for a model to operate
-/// within the discrete event simulation.  These requirements are based
-/// largely on the Discrete Event System Specification (DEVS), but with a
-/// small amount of plumbing (`as_any` and `id`) and a dedicated status
-/// reporting method `status`.
+/// within the discrete event simulation.  The simulator formalism (Discrete
+/// Event System Specification) requires `events_ext`, `events_int`,
+/// `time_advance`, and `until_next_event`.  The additional `status` is for
+/// facilitation of simulation reasoning, reporting, and debugging.
 #[enum_dispatch]
 pub trait AsModel {
     fn status(&self) -> String;
