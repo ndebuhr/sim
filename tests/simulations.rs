@@ -1,5 +1,10 @@
-use crate::output_analysis::{IndependentSample, SteadyStateOutput};
-use crate::simulator::*;
+use std::f64::INFINITY;
+
+use serde::{Deserialize, Serialize};
+use sim::input_modeling::random_variable::*;
+use sim::models::*;
+use sim::output_analysis::*;
+use sim::simulator::*;
 
 #[derive(Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -21,60 +26,70 @@ fn get_message_number(message: &str) -> &str {
 
 #[test]
 fn poisson_generator_processor_with_capacity() {
-    let models = r#"
-- type: "Generator"
-  id: "generator-01"
-  portsIn: {}
-  portsOut:
-    job: "job"
-  messageInterdepartureTime:
-    exp:
-      lambda: 0.5
-- type: "Processor"
-  id: "processor-01"
-  portsIn:
-    job: "job"
-  portsOut:
-    processedJob: "processed"
-  serviceTime:
-    exp:
-      lambda: 0.333333
-  queueCapacity: 14
-- type: "Storage"
-  id: "storage-01"
-  portsIn:
-    store: "store"
-    read: "read"
-  portsOut:
-    stored: "stored"
-"#;
-    let connectors = r#"
-- id: "connector-01"
-  sourceID: "generator-01"
-  targetID: "processor-01"
-  sourcePort: "job"
-  targetPort: "job"
-- id: "connector-02"
-  sourceID: "processor-01"
-  targetID: "storage-01"
-  sourcePort: "processed"
-  targetPort: "store"
-"#;
+    let models = [
+        Model::new(
+            String::from("generator-01"),
+            ModelType::Generator(Generator::new(
+                ContinuousRandomVariable::Exp { lambda: 0.5 },
+                None,
+                String::from("job"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("processor-01"),
+            ModelType::Processor(Processor::new(
+                ContinuousRandomVariable::Exp { lambda: 0.333333 },
+                14,
+                String::from("job"),
+                String::from("processed"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("storage-01"),
+            ModelType::Storage(Storage::new(
+                String::from("store"),
+                String::from("read"),
+                String::from("stored"),
+                false,
+                false,
+            )),
+        ),
+    ];
+    let connectors = [
+        Connector::new(
+            String::from("connector-01"),
+            String::from("generator-01"),
+            String::from("processor-01"),
+            String::from("job"),
+            String::from("job"),
+        ),
+        Connector::new(
+            String::from("connector-02"),
+            String::from("processor-01"),
+            String::from("storage-01"),
+            String::from("processed"),
+            String::from("store"),
+        ),
+    ];
     // A Poisson generator (mean of 0.5) arrival pattern (exponential interarrival with mean 2)
     // A processor with exponential processing time, mean processing time 3.0, and queue capacity 14
     // A stage for processed job collection
-    let mut web = WebSimulation::post_yaml(models, connectors);
+    let mut simulation = Simulation::post(models.to_vec(), connectors.to_vec());
     // Sample size will be reduced during output analysis - initialization bias reduction through deletion
-    let message_records: Vec<Message> = web.simulation.step_n(3000).unwrap();
-    let departures: Vec<(f64, String)> = message_records
+    let message_records: Vec<Message> = simulation.step_n(3000).unwrap();
+    let departures: Vec<(&f64, &str)> = message_records
         .iter()
-        .filter(|message_record| message_record.target_id == "storage-01")
-        .map(|message_record| (message_record.time, message_record.content.clone()))
+        .filter(|message_record| message_record.target_id() == "storage-01")
+        .map(|message_record| (message_record.time(), message_record.content()))
         .collect();
-    let arrivals: Vec<(f64, String)> = message_records
+    let arrivals: Vec<(&f64, &str)> = message_records
         .iter()
-        .filter(|message_record| message_record.target_id == "processor-01")
-        .map(|message_record| (message_record.time, message_record.content.clone()))
+        .filter(|message_record| message_record.target_id() == "processor-01")
+        .map(|message_record| (message_record.time(), message_record.content()))
         .collect();
     // Response Times
     let response_times: Vec<f64> = departures
@@ -202,16 +217,17 @@ fn processor_from_queue_response_time_is_correct() {
         .map(|expected_output| {
             // Run simulation and capture output messages
             // Assert based on None vs. Some(String) message expectations
-            let messages_set: Vec<Message> = web.simulation.step().unwrap();
+            let messages_json = web.step_json();
+            let messages_set: Vec<Message> = serde_json::from_str(&messages_json).unwrap();
             match expected_output {
                 None => {
                     assert![messages_set.is_empty()];
                     INFINITY
                 }
                 Some(output) => {
-                    assert![messages_set.len() == 1];
-                    assert![messages_set.first().unwrap().content == *output];
-                    messages_set.first().unwrap().time
+                    let first_message = messages_set.first().unwrap();
+                    assert![first_message.content() == output];
+                    *first_message.time()
                 }
             }
         })
@@ -438,12 +454,13 @@ fn processor_network_no_job_loss() {
     let mut message_records: Vec<Message> = Vec::new();
     // Needs to be around 360+ steps (10 jobs, 3 network paths, across 6 processors, and 2 events per processing cycle)
     for _x in 0..720 {
-        let messages_set: Vec<Message> = web.simulation.step().unwrap();
+        let messages_json = web.step_json();
+        let messages_set: Vec<Message> = serde_json::from_str(&messages_json).unwrap();
         message_records.extend(messages_set);
     }
     let storage_arrivals_count = message_records
         .iter()
-        .filter(|message_record| message_record.target_id == "storage-0")
+        .filter(|message_record| message_record.target_id() == "storage-0")
         .count();
     let expected = 3 * 10; // 10 jobs traversing three paths through network
     assert!(storage_arrivals_count == expected);
@@ -496,38 +513,43 @@ fn simulation_serialization_deserialization_field_ordering() {
 
 #[test]
 fn step_until_activities() {
-    let models = r#"
-- type: "Generator"
-  id: "generator-01"
-  portsIn: {}
-  portsOut:
-    job: "job"
-  messageInterdepartureTime:
-    exp:
-      lambda: 0.5
-- type: "Storage"
-  id: "storage-01"
-  portsIn:
-    store: "store"
-    read: "read"
-  portsOut:
-    stored: "stored"
-"#;
-    let connectors = r#"
-- id: "connector-01"
-  sourceID: "generator-01"
-  targetID: "storage-01"
-  sourcePort: "job"
-  targetPort: "store"
-"#;
+    let models = [
+        Model::new(
+            String::from("generator-01"),
+            ModelType::Generator(Generator::new(
+                ContinuousRandomVariable::Exp { lambda: 0.5 },
+                None,
+                String::from("job"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("storage-01"),
+            ModelType::Storage(Storage::new(
+                String::from("store"),
+                String::from("read"),
+                String::from("stored"),
+                false,
+                false,
+            )),
+        ),
+    ];
+    let connectors = [Connector::new(
+        String::from("connector-01"),
+        String::from("generator-01"),
+        String::from("storage-01"),
+        String::from("job"),
+        String::from("store"),
+    )];
     let mut generations_count: Vec<f64> = Vec::new();
-    let mut web = WebSimulation::default();
+    let mut simulation = Simulation::default();
     // 10 replications
     for _ in 0..10 {
         // Refresh the models, but maintain the Uniform RNG for replication independence
-        web.reset();
-        web.put_yaml(models, connectors);
-        let messages = web.simulation.step_until(100.0).unwrap();
+        simulation.reset();
+        simulation.put(models.to_vec(), connectors.to_vec());
+        let messages = simulation.step_until(100.0).unwrap();
         generations_count.push(messages.len() as f64);
     }
     let generations_per_replication = IndependentSample::post(generations_count).unwrap();
@@ -591,56 +613,67 @@ fn simulation_serialization_deserialization_round_trip() {
 
 #[test]
 fn non_stationary_generation() {
-    let models = r#"
-- type: "Generator"
-  id: "generator-01"
-  portsIn: {}
-  portsOut:
-    job: "job"
-  messageInterdepartureTime:
-    exp:
-      lambda: 0.0957
-- type: "Processor"
-  id: "processor-01"
-  portsIn:
-    job: "job"
-  portsOut:
-    processedJob: "processed"
-  serviceTime:
-    exp:
-      lambda: 0.1659
-- type: "Storage"
-  id: "storage-01"
-  portsIn:
-    store: "store"
-    read: "read"
-  portsOut:
-    stored: "stored"
-"#;
-    let connectors = r#"
-- id: "connector-01"
-  sourceID: "generator-01"
-  targetID: "processor-01"
-  sourcePort: "job"
-  targetPort: "job"
-- id: "connector-02"
-  sourceID: "processor-01"
-  targetID: "storage-01"
-  sourcePort: "processed"
-  targetPort: "store"
-"#;
-    let mut web = WebSimulation::default();
+    let models = [
+        Model::new(
+            String::from("generator-01"),
+            ModelType::Generator(Generator::new(
+                ContinuousRandomVariable::Exp { lambda: 0.0957 },
+                None,
+                String::from("job"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("processor-01"),
+            ModelType::Processor(Processor::new(
+                ContinuousRandomVariable::Exp { lambda: 0.1659 },
+                14,
+                String::from("job"),
+                String::from("processed"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("storage-01"),
+            ModelType::Storage(Storage::new(
+                String::from("store"),
+                String::from("read"),
+                String::from("stored"),
+                false,
+                false,
+            )),
+        ),
+    ];
+    let connectors = [
+        Connector::new(
+            String::from("connector-01"),
+            String::from("generator-01"),
+            String::from("processor-01"),
+            String::from("job"),
+            String::from("job"),
+        ),
+        Connector::new(
+            String::from("connector-02"),
+            String::from("processor-01"),
+            String::from("storage-01"),
+            String::from("processed"),
+            String::from("store"),
+        ),
+    ];
+    let mut simulation = Simulation::default();
     let mut message_records: Vec<Message> = Vec::new();
     let mut arrivals_count: Vec<f64> = Vec::new();
     // 10 replications
     for _ in 0..10 {
         // Refresh the models, but maintain the Uniform RNG for replication independence
-        web.reset();
-        web.put_yaml(models, connectors);
-        let messages = web.simulation.step_until(480.0).unwrap();
+        simulation.reset();
+        simulation.put(models.to_vec(), connectors.to_vec());
+        let messages = simulation.step_until(480.0).unwrap();
         let arrivals: Vec<&Message> = messages
             .iter()
-            .filter(|message| message.target_id == "processor-01")
+            .filter(|message| message.target_id() == "processor-01")
             .collect();
         arrivals_count.push(arrivals.len() as f64);
         message_records.extend(messages);
@@ -660,92 +693,114 @@ fn non_stationary_generation() {
 
 #[test]
 fn exclusive_gateway_proportions_chi_square() {
-    let models = r#"
-- id: "generator-01"
-  type: "Generator"
-  portsIn: {}
-  portsOut:
-    job: "job"
-  messageInterdepartureTime:
-    exp:
-      lambda: 5.0
-- id: "exclusive-01"
-  type: "ExclusiveGateway"
-  portsIn:
-    flowPaths:
-    - "in"
-  portsOut:
-    flowPaths:
-    - "s01"
-    - "s02"
-    - "s03"
-  portWeights:
-    weightedIndex:
-      weights: [6, 3, 1]
-- id: "storage-01"
-  type: "Storage"
-  portsIn:
-    store: "store"
-    read: "read"
-  portsOut:
-    stored: "stored"
-- id: "storage-02"
-  type: "Storage"
-  portsIn:
-    store: "store"
-    read: "read"
-  portsOut:
-    stored: "stored"
-- id: "storage-03"
-  type: "Storage"
-  portsIn:
-    store: "store"
-    read: "read"
-  portsOut:
-    stored: "stored"
-"#;
-    let connectors = r#"
-- id: "connector-01"
-  sourceID: "generator-01"
-  targetID: "exclusive-01"
-  sourcePort: "job"
-  targetPort: "in"
-- id: "connector-02"
-  sourceID: "exclusive-01"
-  targetID: "storage-01"
-  sourcePort: "s01"
-  targetPort: "store"
-- id: "connector-03"
-  sourceID: "exclusive-01"
-  targetID: "storage-02"
-  sourcePort: "s02"
-  targetPort: "store"
-- id: "connector-04"
-  sourceID: "exclusive-01"
-  targetID: "storage-03"
-  sourcePort: "s03"
-  targetPort: "store"
-"#;
-    let mut web = WebSimulation::post_yaml(models, connectors);
+    let models = [
+        Model::new(
+            String::from("generator-01"),
+            ModelType::Generator(Generator::new(
+                ContinuousRandomVariable::Exp { lambda: 5.0 },
+                None,
+                String::from("job"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("exclusive-01"),
+            ModelType::ExclusiveGateway(ExclusiveGateway::new(
+                vec![String::from("in")],
+                vec![
+                    String::from("s01"),
+                    String::from("s02"),
+                    String::from("s03"),
+                ],
+                IndexRandomVariable::WeightedIndex {
+                    weights: vec![6, 3, 1],
+                },
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("storage-01"),
+            ModelType::Storage(Storage::new(
+                String::from("store"),
+                String::from("read"),
+                String::from("stored"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("storage-02"),
+            ModelType::Storage(Storage::new(
+                String::from("store"),
+                String::from("read"),
+                String::from("stored"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("storage-03"),
+            ModelType::Storage(Storage::new(
+                String::from("store"),
+                String::from("read"),
+                String::from("stored"),
+                false,
+                false,
+            )),
+        ),
+    ];
+    let connectors = [
+        Connector::new(
+            String::from("connector-01"),
+            String::from("generator-01"),
+            String::from("exclusive-01"),
+            String::from("job"),
+            String::from("in"),
+        ),
+        Connector::new(
+            String::from("connector-02"),
+            String::from("exclusive-01"),
+            String::from("storage-01"),
+            String::from("s01"),
+            String::from("store"),
+        ),
+        Connector::new(
+            String::from("connector-03"),
+            String::from("exclusive-01"),
+            String::from("storage-02"),
+            String::from("s02"),
+            String::from("store"),
+        ),
+        Connector::new(
+            String::from("connector-04"),
+            String::from("exclusive-01"),
+            String::from("storage-03"),
+            String::from("s03"),
+            String::from("store"),
+        ),
+    ];
+    let mut simulation = Simulation::post(models.to_vec(), connectors.to_vec());
     let mut message_records: Vec<Message> = Vec::new();
     // 601 steps means 200 processed jobs (3 steps per gateway passthrough)
     // 1 initialization step
     for _x in 0..601 {
-        let messages_set: Vec<Message> = web.simulation.step().unwrap();
+        let messages_set: Vec<Message> = simulation.step().unwrap();
         message_records.extend(messages_set);
     }
     let outputs = vec![
         message_records
             .iter()
-            .filter(|message_record| message_record.target_id == "storage-01")
+            .filter(|message_record| message_record.target_id() == "storage-01")
             .count(),
         message_records
             .iter()
-            .filter(|message_record| message_record.target_id == "storage-02")
+            .filter(|message_record| message_record.target_id() == "storage-02")
             .count(),
         message_records
             .iter()
-            .filter(|message_record| message_record.target_id == "storage-03")
+            .filter(|message_record| message_record.target_id() == "storage-03")
             .count(),
     ];
     let per_class_expected = [120, 60, 20];
@@ -923,25 +978,26 @@ fn ci_half_width_for_average_waiting_time() {
         // Refresh the models, but maintain the Uniform RNG for replication independence
         web.reset();
         web.put_yaml(models, connectors);
-        web.simulation.step_until(480.0).unwrap();
+        web.step_until_json(480.0);
         waiting_times = Vec::new();
         for processor_number in ["01", "02", "03"].iter() {
-            let metrics_history_request = Message {
-                source_id: String::from("manual"),
-                source_port: String::from("manual"),
-                target_id: format!["processor-{}", processor_number],
-                target_port: String::from("history"),
-                time: web.get_global_time(),
-                content: String::from(""),
-            };
-            web.simulation.inject_input(metrics_history_request);
-            let messages: Vec<Message> = web.simulation.step().unwrap();
+            let metrics_history_request = Message::new(
+                String::from("manual"),
+                String::from("manual"),
+                format!["processor-{}", processor_number],
+                String::from("history"),
+                web.get_global_time(),
+                String::from(""),
+            );
+            web.inject_input_json(&serde_json::to_string(&metrics_history_request).unwrap());
+            let messages_json = web.step_json();
+            let messages: Vec<Message> = serde_json::from_str(&messages_json).unwrap();
             let metrics_message = messages
                 .iter()
-                .find(|message| message.source_port == "history")
+                .find(|message| message.source_port() == "history")
                 .unwrap();
             let metrics_history: Vec<ProcessorMetrics> =
-                serde_json::from_str(&metrics_message.content).unwrap();
+                serde_json::from_str(&metrics_message.content()).unwrap();
             let processor_waiting_times: Vec<f64> = metrics_history
                 .iter()
                 .map(|snapshot| &snapshot.last_service_start)
@@ -987,90 +1043,111 @@ fn ci_half_width_for_average_waiting_time() {
 #[test]
 fn gate_blocking_proportions() {
     // Deactivation/activation switch at a much higher frequency than job arrival, to limit autocorrelation and initialization bias
-    let models = r#"
-- type: "Generator"
-  id: "generator-01"
-  portsIn: {}
-  portsOut:
-    job: "job"
-  messageInterdepartureTime:
-    exp:
-      lambda: 10.0
-- type: "Generator"
-  id: "generator-02"
-  portsIn: {}
-  portsOut:
-    job: "job"
-  messageInterdepartureTime:
-    exp:
-      lambda: 10.0
-- type: "Generator"
-  id: "generator-03"
-  portsIn: {}
-  portsOut:
-    job: "job"
-  messageInterdepartureTime:
-    exp:
-      lambda: 1.0
-- type: "Gate"
-  id: "gate-01"
-  portsIn:
-    job: "job"
-    activation: "activation"
-    deactivation: "deactivation"
-  portsOut:
-    job: "job"
-- type: "Storage"
-  id: "storage-01"
-  portsIn:
-    store: "store"
-    read: "read"
-  portsOut:
-    stored: "stored"
-"#;
-    let connectors = r#"
-- id: "connector-01"
-  sourceID: "generator-01"
-  targetID: "gate-01"
-  sourcePort: "job"
-  targetPort: "activation"
-- id: "connector-02"
-  sourceID: "generator-02"
-  targetID: "gate-01"
-  sourcePort: "job"
-  targetPort: "deactivation"
-- id: "connector-03"
-  sourceID: "generator-03"
-  targetID: "gate-01"
-  sourcePort: "job"
-  targetPort: "job"
-- id: "connector-04"
-  sourceID: "gate-01"
-  targetID: "storage-01"
-  sourcePort: "job"
-  targetPort: "store"
-"#;
-    let mut web = WebSimulation::default();
+    let models = [
+        Model::new(
+            String::from("generator-01"),
+            ModelType::Generator(Generator::new(
+                ContinuousRandomVariable::Exp { lambda: 10.0 },
+                None,
+                String::from("job"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("generator-02"),
+            ModelType::Generator(Generator::new(
+                ContinuousRandomVariable::Exp { lambda: 10.0 },
+                None,
+                String::from("job"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("generator-03"),
+            ModelType::Generator(Generator::new(
+                ContinuousRandomVariable::Exp { lambda: 1.0 },
+                None,
+                String::from("job"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("gate-01"),
+            ModelType::Gate(Gate::new(
+                String::from("job"),
+                String::from("activation"),
+                String::from("deactivation"),
+                String::from("job"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("storage-01"),
+            ModelType::Storage(Storage::new(
+                String::from("store"),
+                String::from("read"),
+                String::from("stored"),
+                false,
+                false,
+            )),
+        ),
+    ];
+    let connectors = [
+        Connector::new(
+            String::from("connector-01"),
+            String::from("generator-01"),
+            String::from("gate-01"),
+            String::from("job"),
+            String::from("activation"),
+        ),
+        Connector::new(
+            String::from("connector-02"),
+            String::from("generator-02"),
+            String::from("gate-01"),
+            String::from("job"),
+            String::from("deactivation"),
+        ),
+        Connector::new(
+            String::from("connector-03"),
+            String::from("generator-03"),
+            String::from("gate-01"),
+            String::from("job"),
+            String::from("job"),
+        ),
+        Connector::new(
+            String::from("connector-04"),
+            String::from("gate-01"),
+            String::from("storage-01"),
+            String::from("job"),
+            String::from("store"),
+        ),
+    ];
+    let mut simulation = Simulation::default();
     let mut passed: Vec<f64> = Vec::new();
     // 10 replications and 10000 steps is more or less arbitrary here
     for _ in 0..10 {
         // Refresh the models, but maintain the Uniform RNG for replication independence
-        web.reset();
-        web.put_yaml(models, connectors);
+        simulation.reset();
+        simulation.put(models.to_vec(), connectors.to_vec());
         let mut message_records: Vec<Message> = Vec::new();
         for _x in 0..1000 {
-            let messages_set: Vec<Message> = web.simulation.step().unwrap();
+            let messages_set: Vec<Message> = simulation.step().unwrap();
             message_records.extend(messages_set);
         }
         let arrivals = message_records
             .iter()
             .filter(|message_record| {
-                message_record.source_id == "generator-03" && message_record.target_id == "gate-01"
+                message_record.source_id() == "generator-03"
+                    && message_record.target_id() == "gate-01"
             })
             .count();
         let departures = message_records
             .iter()
-            .filter(|message_record| message_record.target_id == "storage-01")
+            .filter(|message_record| message_record.target_id() == "storage-01")
             .count();
         if arrivals > 0 {
             passed.push(departures as f64 / arrivals as f64);
@@ -1087,85 +1164,108 @@ fn gate_blocking_proportions() {
 #[test]
 fn load_balancer_round_robin_outputs() {
     // Deactivation/activation switch at a much higher frequency than job arrival, to limit autocorrelation and initialization bias
-    let models = r#"
-- type: "Generator"
-  id: "generator-01"
-  portsIn: {}
-  portsOut:
-    job: "job"
-  messageInterdepartureTime:
-    exp:
-      lambda: 0.01
-- type: "LoadBalancer"
-  id: "load-balancer-01"
-  portsIn:
-    job: "request"
-  portsOut:
-    flowPaths:
-    - "server-1"
-    - "server-2"
-    - "server-3"
-- type: "Storage"
-  id: "storage-01"
-  portsIn:
-    store: "store"
-    read: "read"
-  portsOut:
-    stored: "stored"
-- type: "Storage"
-  id: "storage-02"
-  portsIn:
-    store: "store"
-    read: "read"
-  portsOut:
-    stored: "stored"
-- type: "Storage"
-  id: "storage-03"
-  portsIn:
-    store: "store"
-    read: "read"
-  portsOut:
-    stored: "stored"
-"#;
-    let connectors = r#"
-- id: "connector-01"
-  sourceID: "generator-01"
-  targetID: "load-balancer-01"
-  sourcePort: "job"
-  targetPort: "request"
-- id: "connector-02"
-  sourceID: "load-balancer-01"
-  targetID: "storage-01"
-  sourcePort: "server-1"
-  targetPort: "store"
-- id: "connector-03"
-  sourceID: "load-balancer-01"
-  targetID: "storage-02"
-  sourcePort: "server-2"
-  targetPort: "store"
-- id: "connector-04"
-  sourceID: "load-balancer-01"
-  targetID: "storage-03"
-  sourcePort: "server-3"
-  targetPort: "store"
-"#;
-    let mut web = WebSimulation::post_yaml(models, connectors);
+    let models = [
+        Model::new(
+            String::from("generator-01"),
+            ModelType::Generator(Generator::new(
+                ContinuousRandomVariable::Exp { lambda: 0.01 },
+                None,
+                String::from("job"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("load-balancer-01"),
+            ModelType::LoadBalancer(LoadBalancer::new(
+                String::from("request"),
+                vec![
+                    String::from("server-1"),
+                    String::from("server-2"),
+                    String::from("server-3"),
+                ],
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("storage-01"),
+            ModelType::Storage(Storage::new(
+                String::from("store"),
+                String::from("read"),
+                String::from("stored"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("storage-02"),
+            ModelType::Storage(Storage::new(
+                String::from("store"),
+                String::from("read"),
+                String::from("stored"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("storage-03"),
+            ModelType::Storage(Storage::new(
+                String::from("store"),
+                String::from("read"),
+                String::from("stored"),
+                false,
+                false,
+            )),
+        ),
+    ];
+    let connectors = [
+        Connector::new(
+            String::from("connector-01"),
+            String::from("generator-01"),
+            String::from("load-balancer-01"),
+            String::from("job"),
+            String::from("request"),
+        ),
+        Connector::new(
+            String::from("connector-02"),
+            String::from("load-balancer-01"),
+            String::from("storage-01"),
+            String::from("server-1"),
+            String::from("store"),
+        ),
+        Connector::new(
+            String::from("connector-03"),
+            String::from("load-balancer-01"),
+            String::from("storage-02"),
+            String::from("server-2"),
+            String::from("store"),
+        ),
+        Connector::new(
+            String::from("connector-04"),
+            String::from("load-balancer-01"),
+            String::from("storage-03"),
+            String::from("server-3"),
+            String::from("store"),
+        ),
+    ];
+    let mut simulation = Simulation::post(models.to_vec(), connectors.to_vec());
     // 28 steps means 9 processed jobs
     // 3 steps per processed job
     // 1 step for initialization
-    let message_records: Vec<Message> = web.simulation.step_n(28).unwrap();
+    let message_records: Vec<Message> = simulation.step_n(28).unwrap();
     let outputs = vec![
         message_records
             .iter()
-            .filter(|message_record| message_record.target_id == "storage-01")
+            .filter(|message_record| message_record.target_id() == "storage-01")
             .count(),
         message_records
             .iter()
-            .filter(|message_record| message_record.target_id == "storage-02")
+            .filter(|message_record| message_record.target_id() == "storage-02")
             .count(),
         message_records
             .iter()
-            .filter(|message_record| message_record.target_id == "storage-03")
+            .filter(|message_record| message_record.target_id() == "storage-03")
             .count(),
     ];
     outputs.iter().for_each(|server_arrival_count| {
@@ -1175,165 +1275,182 @@ fn load_balancer_round_robin_outputs() {
 
 #[test]
 fn injection_initiated_stored_value_exchange() {
-    let models = r#"
-[
-    {
-        "type": "Storage",
-        "id": "storage-01",
-        "portsIn": {
-            "store": "store",
-            "read": "read"
-        },
-        "portsOut": {
-            "stored": "stored"
-        }
-    },
-    {
-        "type": "Storage",
-        "id": "storage-02",
-        "portsIn": {
-            "store": "store",
-            "read": "read"
-        },
-        "portsOut": {
-            "stored": "stored"
-        }
-    }
-]"#;
-    let connectors = r#"
-[
-    {
-        "id": "connector-01",
-        "sourceID": "storage-02",
-        "targetID": "storage-01",
-        "sourcePort": "stored",
-        "targetPort": "store"
-    },
-    {
-        "id": "connector-02",
-        "sourceID": "storage-01",
-        "targetID": "storage-02",
-        "sourcePort": "stored",
-        "targetPort": "store"
-    }
-]"#;
-    let mut web = WebSimulation::post_json(models, connectors);
-    let stored_value = Message {
-        source_id: String::from("manual"),
-        source_port: String::from("manual"),
-        target_id: String::from("storage-01"),
-        target_port: String::from("store"),
-        time: web.get_global_time(),
-        content: String::from("42"),
-    };
-    web.simulation.inject_input(stored_value);
-    web.simulation.step().unwrap();
-    let transfer_request = Message {
-        source_id: String::from("manual"),
-        source_port: String::from("manual"),
-        target_id: String::from("storage-01"),
-        target_port: String::from("read"),
-        time: web.get_global_time(),
-        content: String::from(""),
-    };
-    web.simulation.inject_input(transfer_request);
-    web.simulation.step().unwrap();
-    let read_request = Message {
-        source_id: String::from("manual"),
-        source_port: String::from("manual"),
-        target_id: String::from("storage-02"),
-        target_port: String::from("read"),
-        time: web.get_global_time(),
-        content: String::from(""),
-    };
-    web.simulation.inject_input(read_request);
-    let messages: Vec<Message> = web.simulation.step().unwrap();
-    assert![messages[0].content == "42"];
+    let models = [
+        Model::new(
+            String::from("storage-01"),
+            ModelType::Storage(Storage::new(
+                String::from("store"),
+                String::from("read"),
+                String::from("stored"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("storage-02"),
+            ModelType::Storage(Storage::new(
+                String::from("store"),
+                String::from("read"),
+                String::from("stored"),
+                false,
+                false,
+            )),
+        ),
+    ];
+    let connectors = [
+        Connector::new(
+            String::from("connector-01"),
+            String::from("storage-02"),
+            String::from("storage-01"),
+            String::from("stored"),
+            String::from("store"),
+        ),
+        Connector::new(
+            String::from("connector-02"),
+            String::from("storage-01"),
+            String::from("storage-02"),
+            String::from("stored"),
+            String::from("store"),
+        ),
+    ];
+    let mut simulation = Simulation::post(models.to_vec(), connectors.to_vec());
+    let stored_value = Message::new(
+        String::from("manual"),
+        String::from("manual"),
+        String::from("storage-01"),
+        String::from("store"),
+        simulation.get_global_time(),
+        String::from("42"),
+    );
+    simulation.inject_input(stored_value);
+    simulation.step().unwrap();
+    let transfer_request = Message::new(
+        String::from("manual"),
+        String::from("manual"),
+        String::from("storage-01"),
+        String::from("read"),
+        simulation.get_global_time(),
+        String::from(""),
+    );
+    simulation.inject_input(transfer_request);
+    simulation.step().unwrap();
+    let read_request = Message::new(
+        String::from("manual"),
+        String::from("manual"),
+        String::from("storage-02"),
+        String::from("read"),
+        simulation.get_global_time(),
+        String::from(""),
+    );
+    simulation.inject_input(read_request);
+    let messages: Vec<Message> = simulation.step().unwrap();
+    assert![messages[0].content() == "42"];
 }
 
 #[test]
 fn parallel_gateway_splits_and_joins() {
-    let models = r#"
-- type: "Generator"
-  id: "generator-01"
-  portsIn: {}
-  portsOut:
-    job: "job"
-  messageInterdepartureTime:
-    exp:
-      lambda: 5.0
-- type: "ParallelGateway"
-  id: "parallel-01"
-  portsIn:
-    flowPaths:
-    - "in"
-  portsOut:
-    flowPaths:
-    - "alpha"
-    - "beta"
-    - "delta"
-- type: "ParallelGateway"
-  id: "parallel-02"
-  portsIn:
-    flowPaths:
-    - "alpha"
-    - "beta"
-    - "delta"
-  portsOut:
-    flowPaths:
-    - "out"
-- type: "Storage"
-  id: "storage-01"
-  portsIn:
-    store: "store"
-    read: "read"
-  portsOut:
-    stored: "stored"
-"#;
-    let connectors = r#"
-- id: "connector-01"
-  sourceID: "generator-01"
-  targetID: "parallel-01"
-  sourcePort: "job"
-  targetPort: "in"
-- id: "connector-02"
-  sourceID: "parallel-01"
-  targetID: "parallel-02"
-  sourcePort: "alpha"
-  targetPort: "alpha"
-- id: "connector-03"
-  sourceID: "parallel-01"
-  targetID: "parallel-02"
-  sourcePort: "beta"
-  targetPort: "beta"
-- id: "connector-04"
-  sourceID: "parallel-01"
-  targetID: "parallel-02"
-  sourcePort: "delta"
-  targetPort: "delta"
-- id: "connector-05"
-  sourceID: "parallel-02"
-  targetID: "storage-01"
-  sourcePort: "out"
-  targetPort: "store"
-"#;
-    let mut web = WebSimulation::post_yaml(models, connectors);
-    let message_records: Vec<Message> = web.simulation.step_n(101).unwrap();
+    let models = [
+        Model::new(
+            String::from("generator-01"),
+            ModelType::Generator(Generator::new(
+                ContinuousRandomVariable::Exp { lambda: 5.0 },
+                None,
+                String::from("job"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("parallel-01"),
+            ModelType::ParallelGateway(ParallelGateway::new(
+                vec![String::from("in")],
+                vec![
+                    String::from("alpha"),
+                    String::from("beta"),
+                    String::from("delta"),
+                ],
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("parallel-02"),
+            ModelType::ParallelGateway(ParallelGateway::new(
+                vec![
+                    String::from("alpha"),
+                    String::from("beta"),
+                    String::from("delta"),
+                ],
+                vec![String::from("out")],
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("storage-01"),
+            ModelType::Storage(Storage::new(
+                String::from("store"),
+                String::from("read"),
+                String::from("stored"),
+                false,
+                false,
+            )),
+        ),
+    ];
+    let connectors = [
+        Connector::new(
+            String::from("connector-01"),
+            String::from("generator-01"),
+            String::from("parallel-01"),
+            String::from("job"),
+            String::from("in"),
+        ),
+        Connector::new(
+            String::from("connector-02"),
+            String::from("parallel-01"),
+            String::from("parallel-02"),
+            String::from("alpha"),
+            String::from("alpha"),
+        ),
+        Connector::new(
+            String::from("connector-03"),
+            String::from("parallel-01"),
+            String::from("parallel-02"),
+            String::from("beta"),
+            String::from("beta"),
+        ),
+        Connector::new(
+            String::from("connector-04"),
+            String::from("parallel-01"),
+            String::from("parallel-02"),
+            String::from("delta"),
+            String::from("delta"),
+        ),
+        Connector::new(
+            String::from("connector-05"),
+            String::from("parallel-02"),
+            String::from("storage-01"),
+            String::from("out"),
+            String::from("store"),
+        ),
+    ];
+    let mut simulation = Simulation::post(models.to_vec(), connectors.to_vec());
+    let message_records: Vec<Message> = simulation.step_n(101).unwrap();
     let alpha_passes = message_records
         .iter()
-        .filter(|message_record| message_record.target_port == "alpha")
+        .filter(|message_record| message_record.target_port() == "alpha")
         .count();
     let beta_passes = message_records
         .iter()
-        .filter(|message_record| message_record.target_port == "beta")
+        .filter(|message_record| message_record.target_port() == "beta")
         .count();
     let delta_passes = message_records
         .iter()
-        .filter(|message_record| message_record.target_port == "delta")
+        .filter(|message_record| message_record.target_port() == "delta")
         .count();
     let storage_passes = message_records
         .iter()
-        .filter(|message_record| message_record.target_port == "store")
+        .filter(|message_record| message_record.target_port() == "store")
         .count();
     assert![alpha_passes == beta_passes];
     assert![beta_passes == delta_passes];
@@ -1343,96 +1460,100 @@ fn parallel_gateway_splits_and_joins() {
 
 #[test]
 fn match_status_reporting() {
-    let models = r#"
-[
-  {
-    "type": "Generator",
-    "id": "generator-01",
-    "portsIn": {},
-    "portsOut": {
-      "job": "commit"
-    },
-    "messageInterdepartureTime": {
-      "exp": {
-        "lambda": 5.0
-      }
-    }
-  },
-  {
-    "type": "LoadBalancer",
-    "id": "load-balancer-01",
-    "portsIn": {
-      "job": "request"
-    },
-    "portsOut": {
-      "flowPaths": [
-        "alpha",
-        "beta",
-        "delta"
-      ]
-    }
-  }
-]
-"#;
-    let connectors = "[]";
-    let web = WebSimulation::post_json(models, connectors);
-    assert![web.status("generator-01") == "Generating commits"];
-    assert![web.status("load-balancer-01") == "Listening for requests"];
+    let models = [
+        Model::new(
+            String::from("generator-01"),
+            ModelType::Generator(Generator::new(
+                ContinuousRandomVariable::Exp { lambda: 5.0 },
+                None,
+                String::from("job"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("load-balancer-01"),
+            ModelType::LoadBalancer(LoadBalancer::new(
+                String::from("request"),
+                vec![
+                    String::from("alpha"),
+                    String::from("beta"),
+                    String::from("delta"),
+                ],
+                false,
+                false,
+            )),
+        ),
+    ];
+    let connectors = [];
+    let simulation = Simulation::post(models.to_vec(), connectors.to_vec());
+    assert![simulation.status("generator-01").unwrap() == "Generating jobs"];
+    assert![simulation.status("load-balancer-01").unwrap() == "Listening for requests"];
 }
 
 #[test]
 fn stochastic_gate_blocking() {
-    let models = r#"
-- type: "Generator"
-  id: "generator-01"
-  portsIn: {}
-  portsOut:
-    job: "job"
-  messageInterdepartureTime:
-    exp:
-      lambda: 5.0
-- type: "StochasticGate"
-  id: "stochastic-gate-01"
-  portsIn:
-    job: "job"
-  portsOut:
-    job: "job"
-  passDistribution:
-    bernoulli:
-      p: 0.2
-- type: "Storage"
-  id: "storage-01"
-  portsIn:
-    store: "store"
-    read: "read"
-  portsOut:
-    stored: "stored"
-"#;
-    let connectors = r#"
-- id: "connector-01"
-  sourceID: "generator-01"
-  targetID: "stochastic-gate-01"
-  sourcePort: "job"
-  targetPort: "job"
-- id: "connector-02"
-  sourceID: "stochastic-gate-01"
-  targetID: "storage-01"
-  sourcePort: "job"
-  targetPort: "store"
-"#;
-    let mut web = WebSimulation::post_yaml(models, connectors);
-    let message_records: Vec<Message> = web.simulation.step_n(101).unwrap();
+    let models = [
+        Model::new(
+            String::from("generator-01"),
+            ModelType::Generator(Generator::new(
+                ContinuousRandomVariable::Exp { lambda: 5.0 },
+                None,
+                String::from("job"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("stochastic-gate-01"),
+            ModelType::StochasticGate(StochasticGate::new(
+                BooleanRandomVariable::Bernoulli { p: 0.2 },
+                String::from("job"),
+                String::from("job"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("storage-01"),
+            ModelType::Storage(Storage::new(
+                String::from("store"),
+                String::from("read"),
+                String::from("stored"),
+                false,
+                false,
+            )),
+        ),
+    ];
+    let connectors = [
+        Connector::new(
+            String::from("connector-01"),
+            String::from("generator-01"),
+            String::from("stochastic-gate-01"),
+            String::from("job"),
+            String::from("job"),
+        ),
+        Connector::new(
+            String::from("connector-02"),
+            String::from("stochastic-gate-01"),
+            String::from("storage-01"),
+            String::from("job"),
+            String::from("store"),
+        ),
+    ];
+    let mut simulation = Simulation::post(models.to_vec(), connectors.to_vec());
+    let message_records: Vec<Message> = simulation.step_n(101).unwrap();
     let mut results: Vec<f64> = Vec::new();
     message_records
         .iter()
-        .filter(|message_record| message_record.target_id == "storage-01")
+        .filter(|message_record| message_record.target_id() == "storage-01")
         .for_each(|_pass| results.push(1.0));
     let passes = results.len();
     message_records
         .iter()
         .enumerate()
         .filter(|(index, message_record)| {
-            message_record.target_id == "stochastic-gate-01" && *index > passes
+            message_record.target_id() == "stochastic-gate-01" && *index > passes
         })
         .for_each(|_fail| results.push(0.0));
     let sample = IndependentSample::post(results).unwrap();

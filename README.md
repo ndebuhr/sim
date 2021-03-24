@@ -58,10 +58,13 @@ npm i sim-rs
 
 Please refer to the documentation at [https://docs.rs/sim](https://docs.rs/sim)
 
-Also, the [test simulations](src/simulator/test_simulations.rs) are a good reference for creating, running, and analyzing simulations with Sim.
+Also, the [test simulations](tests/simulations.rs) are a good reference for creating, running, and analyzing simulations with Sim.
 
 ### Creating Simulations
-Simulation definitions are defined in a declarative YAML or JSON format, and then ingested through `Simulation`'s `post_yaml` or `post_json` constructors.
+
+Rust simulations are created by passing `Model`s and `Connector`s to `Simulation`'s `post` constructor.
+
+WebAssembly simulations are defined in a declarative YAML or JSON format, and then ingested through `WebSimulation`'s `post_yaml` or `post_json` constructors.
 
 Both models and connectors are required to define the simulation.  For descriptions of the pre-built models, see [MODELS.md](MODELS.md) A simple three-model simulation could be defined as:
 
@@ -116,7 +119,7 @@ Analyzing simulations will typically involve some combination of listening to mo
 
 ## Contributing
 
-Issues, feature requests and pull requests are always welcome!
+Issues, feature requests, and pull requests are always welcome!
 
 ## License
 

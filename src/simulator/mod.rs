@@ -25,9 +25,6 @@ use crate::models::{AsModel, Model, ModelMessage};
 use crate::utils;
 use crate::utils::error::SimulationError;
 
-#[cfg(test)]
-mod test_simulations;
-
 /// Connectors are configured to connect models through their ports.  During
 /// simulation, models exchange messages (as per the Discrete Event System
 /// Specification) via these connectors.
@@ -78,6 +75,26 @@ pub struct Message {
 }
 
 impl Message {
+    /// This constructor method builds a `Message`, which is passed between
+    /// simulation models
+    pub fn new(
+        source_id: String,
+        source_port: String,
+        target_id: String,
+        target_port: String,
+        time: f64,
+        content: String,
+    ) -> Self {
+        Self {
+            source_id,
+            source_port,
+            target_id,
+            target_port,
+            time,
+            content,
+        }
+    }
+
     /// This accessor method returns the model ID of a message source.
     pub fn source_id(&self) -> &str {
         &self.source_id
