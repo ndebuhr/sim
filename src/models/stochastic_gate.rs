@@ -7,6 +7,7 @@ use super::ModelMessage;
 use crate::input_modeling::random_variable::BooleanRandomVariable;
 use crate::input_modeling::UniformRNG;
 use crate::utils::error::SimulationError;
+use crate::utils::{populate_history_port, populate_snapshot_port};
 
 /// The stochastic gate blocks (drops) or passes jobs, based on a specified
 /// Bernoulli distribution. If the Bernoulli random variate is a 0, the job
@@ -101,6 +102,31 @@ impl Default for Metrics {
 }
 
 impl StochasticGate {
+    pub fn new(
+        pass_distribution: BooleanRandomVariable,
+        job_in_port: String,
+        job_out_port: String,
+        snapshot_metrics: bool,
+        history_metrics: bool,
+    ) -> Self {
+        Self {
+            pass_distribution,
+            ports_in: PortsIn {
+                job: job_in_port,
+                snapshot: populate_snapshot_port(snapshot_metrics),
+                history: populate_history_port(history_metrics),
+            },
+            ports_out: PortsOut {
+                job: job_out_port,
+                snapshot: populate_snapshot_port(snapshot_metrics),
+                history: populate_history_port(history_metrics),
+            },
+            state: Default::default(),
+            snapshot: Default::default(),
+            history: Default::default(),
+        }
+    }
+
     fn need_snapshot_metrics(&self) -> bool {
         self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
     }
@@ -140,7 +166,7 @@ impl AsModel for StochasticGate {
                         event: Event::DropJob,
                     })
                 }
-                self.state.jobs.push(incoming_message.message);
+                self.state.jobs.push(incoming_message.content);
             }
             _ => return Err(SimulationError::PortNotFound),
         }
@@ -189,7 +215,7 @@ impl AsModel for StochasticGate {
                     // Execution
                     outgoing_messages.push(ModelMessage {
                         port_name: self.ports_out.job.clone(),
-                        message: self.state.jobs.remove(0),
+                        content: self.state.jobs.remove(0),
                     });
                 }
             });

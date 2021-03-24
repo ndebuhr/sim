@@ -6,6 +6,7 @@ use super::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::UniformRNG;
 use crate::utils::error::SimulationError;
+use crate::utils::{populate_history_port, populate_snapshot_port};
 
 /// The load balancer routes jobs to a set of possible process paths, using a
 /// round robin strategy. There is no stochastic behavior in this model.
@@ -87,6 +88,29 @@ impl Default for Metrics {
 }
 
 impl LoadBalancer {
+    pub fn new(
+        job_port: String,
+        flow_path_ports: Vec<String>,
+        snapshot_metrics: bool,
+        history_metrics: bool,
+    ) -> Self {
+        Self {
+            ports_in: PortsIn {
+                job: job_port,
+                snapshot: populate_snapshot_port(snapshot_metrics),
+                history: populate_history_port(history_metrics),
+            },
+            ports_out: PortsOut {
+                flow_paths: flow_path_ports,
+                snapshot: populate_snapshot_port(snapshot_metrics),
+                history: populate_history_port(history_metrics),
+            },
+            state: Default::default(),
+            snapshot: Default::default(),
+            history: Default::default(),
+        }
+    }
+
     fn need_snapshot_metrics(&self) -> bool {
         self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
     }
@@ -108,7 +132,7 @@ impl AsModel for LoadBalancer {
         _uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.state.jobs.push(incoming_message.message);
+        self.state.jobs.push(incoming_message.content);
         self.state.event_list.push(ScheduledEvent {
             time: 0.0,
             event: Event::SendJob,
@@ -149,7 +173,7 @@ impl AsModel for LoadBalancer {
                     // State changes
                     outgoing_messages.push(ModelMessage {
                         port_name: self.ports_out.flow_paths[self.state.next_port_out].clone(),
-                        message: self.state.jobs.remove(0),
+                        content: self.state.jobs.remove(0),
                     });
                     self.state.next_port_out =
                         (self.state.next_port_out + 1) % self.ports_out.flow_paths.len();

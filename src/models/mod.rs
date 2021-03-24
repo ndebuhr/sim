@@ -17,7 +17,7 @@ pub use self::exclusive_gateway::ExclusiveGateway;
 pub use self::gate::Gate;
 pub use self::generator::Generator;
 pub use self::load_balancer::LoadBalancer;
-pub use self::model::{AsModel, Model};
+pub use self::model::{AsModel, Model, ModelType};
 pub use self::parallel_gateway::ParallelGateway;
 pub use self::processor::Processor;
 pub use self::stochastic_gate::StochasticGate;
@@ -26,5 +26,5 @@ pub use self::storage::Storage;
 #[derive(Debug, Clone)]
 pub struct ModelMessage {
     pub port_name: String,
-    pub message: String,
+    pub content: String,
 }

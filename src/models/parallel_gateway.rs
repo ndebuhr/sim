@@ -7,6 +7,7 @@ use super::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::UniformRNG;
 use crate::utils::error::SimulationError;
+use crate::utils::{populate_history_port, populate_snapshot_port};
 
 /// The parallel gateway splits a job across multiple processing paths. The
 /// job is duplicated across every one of the processing paths. In addition
@@ -93,6 +94,29 @@ impl Default for Metrics {
 }
 
 impl ParallelGateway {
+    pub fn new(
+        flow_paths_in: Vec<String>,
+        flow_paths_out: Vec<String>,
+        snapshot_metrics: bool,
+        history_metrics: bool,
+    ) -> Self {
+        Self {
+            ports_in: PortsIn {
+                flow_paths: flow_paths_in,
+                snapshot: populate_snapshot_port(snapshot_metrics),
+                history: populate_history_port(history_metrics),
+            },
+            ports_out: PortsOut {
+                flow_paths: flow_paths_out,
+                snapshot: populate_snapshot_port(snapshot_metrics),
+                history: populate_history_port(history_metrics),
+            },
+            state: Default::default(),
+            snapshot: Default::default(),
+            history: Default::default(),
+        }
+    }
+
     fn need_snapshot_metrics(&self) -> bool {
         self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
     }
@@ -117,7 +141,7 @@ impl AsModel for ParallelGateway {
         // Possible metrics updates
         if self.need_snapshot_metrics() {
             self.snapshot.last_arrival =
-                Some((incoming_message.message.clone(), self.state.global_time));
+                Some((incoming_message.content.clone(), self.state.global_time));
         }
         if self.need_historical_metrics() {
             self.history.push(self.snapshot.clone());
@@ -126,7 +150,7 @@ impl AsModel for ParallelGateway {
         let matching_collection = self
             .state
             .collections
-            .entry(incoming_message.message)
+            .entry(incoming_message.content)
             .or_insert(0);
         *matching_collection += 1;
         if *matching_collection == self.ports_in.flow_paths.len() {
@@ -169,7 +193,7 @@ impl AsModel for ParallelGateway {
                         self.ports_out.flow_paths.iter().for_each(|port_out| {
                             outgoing_messages.push(ModelMessage {
                                 port_name: String::from(port_out),
-                                message: completed_collection.clone(),
+                                content: completed_collection.clone(),
                             });
                         });
                         self.state.collections.remove(&completed_collection);

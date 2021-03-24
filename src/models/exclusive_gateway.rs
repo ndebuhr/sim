@@ -7,6 +7,7 @@ use super::ModelMessage;
 use crate::input_modeling::random_variable::IndexRandomVariable;
 use crate::input_modeling::UniformRNG;
 use crate::utils::error::SimulationError;
+use crate::utils::{populate_history_port, populate_snapshot_port};
 
 /// The exclusive gateway splits a process flow into a set of possible paths.
 /// The process will only follow one of the possible paths. Path selection is
@@ -88,6 +89,31 @@ impl Default for Metrics {
 }
 
 impl ExclusiveGateway {
+    pub fn new(
+        flow_paths_in: Vec<String>,
+        flow_paths_out: Vec<String>,
+        port_weights: IndexRandomVariable,
+        snapshot_metrics: bool,
+        history_metrics: bool,
+    ) -> Self {
+        Self {
+            ports_in: PortsIn {
+                flow_paths: flow_paths_in,
+                snapshot: populate_snapshot_port(snapshot_metrics),
+                history: populate_history_port(history_metrics),
+            },
+            ports_out: PortsOut {
+                flow_paths: flow_paths_out,
+                snapshot: populate_snapshot_port(snapshot_metrics),
+                history: populate_history_port(history_metrics),
+            },
+            port_weights,
+            state: Default::default(),
+            snapshot: Default::default(),
+            history: Default::default(),
+        }
+    }
+
     fn need_snapshot_metrics(&self) -> bool {
         self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
     }
@@ -115,7 +141,7 @@ impl AsModel for ExclusiveGateway {
         if self.need_snapshot_metrics() {
             self.snapshot.last_job = Some((
                 self.ports_out.flow_paths[port_number].clone(),
-                incoming_message.message.clone(),
+                incoming_message.content.clone(),
                 self.state.global_time,
             ));
         }
@@ -125,7 +151,7 @@ impl AsModel for ExclusiveGateway {
         // State changes
         outgoing_messages.push(ModelMessage {
             port_name: self.ports_out.flow_paths[port_number].clone(),
-            message: incoming_message.message,
+            content: incoming_message.content,
         });
         Ok(outgoing_messages)
     }

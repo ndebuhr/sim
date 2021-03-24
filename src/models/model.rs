@@ -24,6 +24,10 @@ pub struct Model {
 }
 
 impl Model {
+    pub fn new(id: String, inner: ModelType) -> Self {
+        Self { id, inner }
+    }
+
     pub fn id(&self) -> &str {
         self.id.as_str()
     }

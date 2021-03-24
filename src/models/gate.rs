@@ -6,6 +6,7 @@ use super::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::UniformRNG;
 use crate::utils::error::SimulationError;
+use crate::utils::{populate_history_port, populate_snapshot_port};
 
 /// The gate model passes or blocks jobs, when it is in the open or closed
 /// state, respectively. The gate can be opened and closed throughout the
@@ -111,6 +112,33 @@ impl Default for Metrics {
 }
 
 impl Gate {
+    pub fn new(
+        job_in_port: String,
+        activation_port: String,
+        deactivation_port: String,
+        job_out_port: String,
+        snapshot_metrics: bool,
+        history_metrics: bool,
+    ) -> Self {
+        Self {
+            ports_in: PortsIn {
+                job: job_in_port,
+                activation: activation_port,
+                deactivation: deactivation_port,
+                snapshot: populate_snapshot_port(snapshot_metrics),
+                history: populate_history_port(history_metrics),
+            },
+            ports_out: PortsOut {
+                job: job_out_port,
+                snapshot: populate_snapshot_port(snapshot_metrics),
+                history: populate_history_port(history_metrics),
+            },
+            state: Default::default(),
+            snapshot: Default::default(),
+            history: Default::default(),
+        }
+    }
+
     fn need_snapshot_metrics(&self) -> bool {
         self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
     }
@@ -165,13 +193,13 @@ impl AsModel for Gate {
                 // Possible metrics updates
                 if self.need_snapshot_metrics() {
                     self.snapshot.last_received =
-                        Some((incoming_message.message.clone(), self.state.global_time));
+                        Some((incoming_message.content.clone(), self.state.global_time));
                 }
                 if self.need_historical_metrics() {
                     self.history.push(self.snapshot.clone());
                 }
                 // Execution
-                self.state.jobs.push(incoming_message.message);
+                self.state.jobs.push(incoming_message.content);
                 match self.state.phase {
                     Phase::Closed => self.state.event_list.push(ScheduledEvent {
                         time: 0.0,
@@ -228,7 +256,7 @@ impl AsModel for Gate {
                     // Execution
                     outgoing_messages.push(ModelMessage {
                         port_name: self.ports_out.job.clone(),
-                        message: self.state.jobs.remove(0),
+                        content: self.state.jobs.remove(0),
                     });
                 }
             });

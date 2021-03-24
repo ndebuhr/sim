@@ -69,12 +69,12 @@ fn poisson_generator_processor_with_capacity() {
     let departures: Vec<(f64, String)> = message_records
         .iter()
         .filter(|message_record| message_record.target_id == "storage-01")
-        .map(|message_record| (message_record.time, message_record.message.clone()))
+        .map(|message_record| (message_record.time, message_record.content.clone()))
         .collect();
     let arrivals: Vec<(f64, String)> = message_records
         .iter()
         .filter(|message_record| message_record.target_id == "processor-01")
-        .map(|message_record| (message_record.time, message_record.message.clone()))
+        .map(|message_record| (message_record.time, message_record.content.clone()))
         .collect();
     // Response Times
     let response_times: Vec<f64> = departures
@@ -210,7 +210,7 @@ fn processor_from_queue_response_time_is_correct() {
                 }
                 Some(output) => {
                     assert![messages_set.len() == 1];
-                    assert![messages_set.first().unwrap().message == *output];
+                    assert![messages_set.first().unwrap().content == *output];
                     messages_set.first().unwrap().time
                 }
             }
@@ -932,7 +932,7 @@ fn ci_half_width_for_average_waiting_time() {
                 target_id: format!["processor-{}", processor_number],
                 target_port: String::from("history"),
                 time: web.get_global_time(),
-                message: String::from(""),
+                content: String::from(""),
             };
             web.simulation.inject_input(metrics_history_request);
             let messages: Vec<Message> = web.simulation.step().unwrap();
@@ -941,7 +941,7 @@ fn ci_half_width_for_average_waiting_time() {
                 .find(|message| message.source_port == "history")
                 .unwrap();
             let metrics_history: Vec<ProcessorMetrics> =
-                serde_json::from_str(&metrics_message.message).unwrap();
+                serde_json::from_str(&metrics_message.content).unwrap();
             let processor_waiting_times: Vec<f64> = metrics_history
                 .iter()
                 .map(|snapshot| &snapshot.last_service_start)
@@ -1224,7 +1224,7 @@ fn injection_initiated_stored_value_exchange() {
         target_id: String::from("storage-01"),
         target_port: String::from("store"),
         time: web.get_global_time(),
-        message: String::from("42"),
+        content: String::from("42"),
     };
     web.simulation.inject_input(stored_value);
     web.simulation.step().unwrap();
@@ -1234,7 +1234,7 @@ fn injection_initiated_stored_value_exchange() {
         target_id: String::from("storage-01"),
         target_port: String::from("read"),
         time: web.get_global_time(),
-        message: String::from(""),
+        content: String::from(""),
     };
     web.simulation.inject_input(transfer_request);
     web.simulation.step().unwrap();
@@ -1244,11 +1244,11 @@ fn injection_initiated_stored_value_exchange() {
         target_id: String::from("storage-02"),
         target_port: String::from("read"),
         time: web.get_global_time(),
-        message: String::from(""),
+        content: String::from(""),
     };
     web.simulation.inject_input(read_request);
     let messages: Vec<Message> = web.simulation.step().unwrap();
-    assert![messages[0].message == "42"];
+    assert![messages[0].content == "42"];
 }
 
 #[test]

@@ -7,6 +7,7 @@ use super::ModelMessage;
 use crate::input_modeling::random_variable::ContinuousRandomVariable;
 use crate::input_modeling::UniformRNG;
 use crate::utils::error::SimulationError;
+use crate::utils::{populate_history_port, populate_snapshot_port};
 
 /// The processor accepts jobs, processes them for a period of time, and then
 /// outputs a processed job. The processor can have a configurable queue, of
@@ -23,8 +24,6 @@ pub struct Processor {
     service_time: ContinuousRandomVariable,
     #[serde(default = "max_usize")]
     queue_capacity: usize,
-    #[serde(default)]
-    metrics_output: bool,
     ports_in: PortsIn,
     ports_out: PortsOut,
     #[serde(default)]
@@ -125,6 +124,33 @@ impl Default for Metrics {
 }
 
 impl Processor {
+    pub fn new(
+        service_time: ContinuousRandomVariable,
+        queue_capacity: usize,
+        job_port: String,
+        processed_job_port: String,
+        snapshot_metrics: bool,
+        history_metrics: bool,
+    ) -> Self {
+        Self {
+            service_time,
+            queue_capacity,
+            ports_in: PortsIn {
+                job: job_port,
+                snapshot: populate_snapshot_port(snapshot_metrics),
+                history: populate_history_port(history_metrics),
+            },
+            ports_out: PortsOut {
+                processed_job: processed_job_port,
+                snapshot: populate_snapshot_port(snapshot_metrics),
+                history: populate_history_port(history_metrics),
+            },
+            state: Default::default(),
+            snapshot: Default::default(),
+            history: Default::default(),
+        }
+    }
+
     fn need_snapshot_metrics(&self) -> bool {
         self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
     }
@@ -153,12 +179,12 @@ impl AsModel for Processor {
         let incoming_port: String = incoming_message.port_name;
         match &self.ports_in {
             PortsIn { job, .. } if *job == incoming_port => {
-                self.state.queue.push(incoming_message.message.clone());
+                self.state.queue.push(incoming_message.content.clone());
                 // Possible metrics updates
                 if self.need_snapshot_metrics() {
                     self.snapshot.queue_size = self.state.queue.len();
                     self.snapshot.last_arrival =
-                        Some((incoming_message.message, self.state.global_time));
+                        Some((incoming_message.content, self.state.global_time));
                 }
                 if self.need_historical_metrics() {
                     self.history.push(self.snapshot.clone());
@@ -194,7 +220,7 @@ impl AsModel for Processor {
                         .snapshot
                         .clone()
                         .ok_or_else(|| SimulationError::PortNotFound)?,
-                    message: serde_json::to_string(&self.snapshot)?,
+                    content: serde_json::to_string(&self.snapshot)?,
                 });
             }
             PortsIn { history, .. } if Some(incoming_port) == *history => {
@@ -204,7 +230,7 @@ impl AsModel for Processor {
                         .history
                         .clone()
                         .ok_or_else(|| SimulationError::PortNotFound)?,
-                    message: serde_json::to_string(&self.history)?,
+                    content: serde_json::to_string(&self.history)?,
                 });
             }
             _ => return Err(SimulationError::PortNotFound),
@@ -284,7 +310,7 @@ impl AsModel for Processor {
                         // Use just the job ID from the input message - transform job type
                         outgoing_messages.push(ModelMessage {
                             port_name: self.ports_out.processed_job.clone(),
-                            message: format![
+                            content: format![
                                 "{job_type} {job_id}",
                                 job_type = self.ports_out.processed_job,
                                 job_id = self

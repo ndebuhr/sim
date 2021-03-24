@@ -6,6 +6,7 @@ use super::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::UniformRNG;
 use crate::utils::error::SimulationError;
+use crate::utils::{populate_history_port, populate_snapshot_port};
 
 /// The storage model stores a value, and responds with it upon request.
 /// Values are stored and value requests are handled instantantaneously.
@@ -88,6 +89,31 @@ impl Default for Metrics {
 }
 
 impl Storage {
+    pub fn new(
+        store_port: String,
+        read_port: String,
+        stored_port: String,
+        snapshot_metrics: bool,
+        history_metrics: bool,
+    ) -> Self {
+        Self {
+            ports_in: PortsIn {
+                store: store_port,
+                read: read_port,
+                snapshot: populate_snapshot_port(snapshot_metrics),
+                history: populate_history_port(history_metrics),
+            },
+            ports_out: PortsOut {
+                stored: stored_port,
+                snapshot: populate_snapshot_port(snapshot_metrics),
+                history: populate_history_port(history_metrics),
+            },
+            state: Default::default(),
+            snapshot: Default::default(),
+            history: Default::default(),
+        }
+    }
+
     fn need_snapshot_metrics(&self) -> bool {
         self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
     }
@@ -119,13 +145,13 @@ impl AsModel for Storage {
                 // Possible metrics updates
                 if self.need_snapshot_metrics() {
                     self.snapshot.last_store =
-                        Some((incoming_message.message.clone(), self.state.global_time));
+                        Some((incoming_message.content.clone(), self.state.global_time));
                 }
                 if self.need_historical_metrics() {
                     self.history.push(self.snapshot.clone());
                 }
                 // State changes
-                self.state.job = Some(incoming_message.message);
+                self.state.job = Some(incoming_message.content);
             }
             PortsIn { read, .. } if read == incoming_port => {
                 // Deliberately not unwrapping here
@@ -143,7 +169,7 @@ impl AsModel for Storage {
                         // State changes
                         outgoing_messages.push(ModelMessage {
                             port_name: self.ports_out.stored.clone(),
-                            message: String::from(job),
+                            content: String::from(job),
                         });
                     }
                     None => {
@@ -158,7 +184,7 @@ impl AsModel for Storage {
                         // State changes
                         outgoing_messages.push(ModelMessage {
                             port_name: self.ports_out.stored.clone(),
-                            message: String::from(""),
+                            content: String::from(""),
                         });
                     }
                 }

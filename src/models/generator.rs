@@ -8,6 +8,7 @@ use crate::input_modeling::random_variable::ContinuousRandomVariable;
 use crate::input_modeling::Thinning;
 use crate::input_modeling::UniformRNG;
 use crate::utils::error::SimulationError;
+use crate::utils::{populate_history_port, populate_snapshot_port};
 
 /// The generator produces jobs based on a configured interarrival
 /// distribution. A normalized thinning function is used to enable
@@ -101,6 +102,31 @@ impl Default for Metrics {
 }
 
 impl Generator {
+    pub fn new(
+        message_interdeparture_time: ContinuousRandomVariable,
+        thinning: Option<Thinning>,
+        job_port: String,
+        snapshot_metrics: bool,
+        history_metrics: bool,
+    ) -> Self {
+        Self {
+            message_interdeparture_time,
+            thinning,
+            ports_in: PortsIn {
+                snapshot: populate_snapshot_port(snapshot_metrics),
+                history: populate_history_port(history_metrics),
+            },
+            ports_out: PortsOut {
+                job: job_port,
+                snapshot: populate_snapshot_port(snapshot_metrics),
+                history: populate_history_port(history_metrics),
+            },
+            state: Default::default(),
+            snapshot: Default::default(),
+            history: Default::default(),
+        }
+    }
+
     fn need_snapshot_metrics(&self) -> bool {
         self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
     }
@@ -184,7 +210,7 @@ impl AsModel for Generator {
                             ];
                             outgoing_messages.push(ModelMessage {
                                 port_name: self.ports_out.job.clone(),
-                                message: generated.clone(),
+                                content: generated.clone(),
                             });
                             // Possible metrics updates
                             if self.need_snapshot_metrics() {
