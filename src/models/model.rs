@@ -1,13 +1,14 @@
 use serde::{Serialize, Serializer};
-use serde::de::{self, Deserialize, Deserializer};
+use serde::de::{self, Deserialize, Deserializer, Visitor, MapAccess};
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::fmt;
 
 use super::ModelMessage;
 use crate::input_modeling::UniformRNG;
 use crate::utils::error::SimulationError;
 
-/// `Model` wraps `ModelType` and provides common ID functionality (a struct
+/// `Model` wraps `model_type` and provides common ID functionality (a struct
 /// field and associated accessor method).  The simulator requires all models
 /// to have an ID.
 pub struct Model {
@@ -42,9 +43,51 @@ impl Serialize for Model {
 }
 
 impl<'de> Deserialize<'de> for Model {
-    fn deserialize<D: Deserializer<'de>>(_: D) -> Result<Self, D::Error> {
-        Err(de::Error::missing_field("type"))
-        // deserializer.deserialize_struct(name: &'static str, fields: &'static [&'static str], visitor: V)
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct ModelVisitor;
+        impl<'de> Visitor<'de> for ModelVisitor {
+            type Value = Model;
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("Model")
+            }
+            fn visit_map<V>(self, mut map: V) -> Result<Model, V::Error>
+            where
+                V: MapAccess<'de>,
+            {
+                let mut id = None;
+                let mut model_type = None;
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        "id" => {
+                            if id.is_some() {
+                                return Err(de::Error::duplicate_field("id"));
+                            }
+                            id = Some(map.next_value()?);
+                        }
+                        "type" => {
+                            if model_type.is_some() {
+                                return Err(de::Error::duplicate_field("type"));
+                            }
+                            model_type = Some(map.next_value()?);
+                        }
+                        field => {
+                            println!("Unparsed field: {}", field);
+                        }
+                    }
+                }
+                let id = id.ok_or_else(|| de::Error::missing_field("id"))?;
+                let _model_type = model_type.ok_or_else(|| de::Error::missing_field("type"))?;
+                Ok(Model::new(id, Rc::new(RefCell::new(super::storage::Storage::new(
+                    String::from("store"),
+                    String::from("read"),
+                    String::from("stored"),
+                    false,
+                    false,
+                )))))
+            }
+        }
+        const FIELDS: &'static [&'static str] = &["id", "type"];
+        deserializer.deserialize_struct("Model", FIELDS, ModelVisitor)
     }
 }
 
