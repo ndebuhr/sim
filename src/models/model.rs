@@ -52,58 +52,55 @@ impl<'de> Deserialize<'de> for Model {
             #[serde(flatten)]
             extra: Value
         }
-        if let Ok(model_extra) = ModelExtra::deserialize(deserializer) {
-            println!("New Model {:?}", model_extra);
-            const VARIANTS: &'static [&'static str] = &[
-                &"Generator", &"ExclusiveGateway", &"Processor", &"Storage"
-            ];
-            match &model_extra.model_type[..] {
-                "Generator" => {
-                    if let Ok(generator) = serde_json::from_value::<super::Generator>(model_extra.extra) {
-                        Ok(Model::new(
-                            model_extra.id,
-                            Rc::new(RefCell::new(generator))
-                        ))
-                    } else {
-                        Err(de::Error::invalid_value(Unexpected::Other("Generator"), &"Generator"))
-                    }
-                },
-                "ExclusiveGateway" => {
-                    if let Ok(exclusive_gateway) = serde_json::from_value::<super::ExclusiveGateway>(model_extra.extra) {
-                        Ok(Model::new(
-                            model_extra.id,
-                            Rc::new(RefCell::new(exclusive_gateway))
-                        ))
-                    } else {
-                        Err(de::Error::invalid_value(Unexpected::Other("ExclusiveGateway"), &"ExclusiveGateway"))
-                    }
-                },
-                "Processor" => {
-                    if let Ok(processor) = serde_json::from_value::<super::Processor>(model_extra.extra) {
-                        Ok(Model::new(
-                            model_extra.id,
-                            Rc::new(RefCell::new(processor))
-                        ))
-                    } else {
-                        Err(de::Error::invalid_value(Unexpected::Other("Processor"), &"Processor"))
-                    }
-                },
-                "Storage" => {
-                    if let Ok(storage) = serde_json::from_value::<super::Storage>(model_extra.extra) {
-                        Ok(Model::new(
-                            model_extra.id,
-                            Rc::new(RefCell::new(storage))
-                        ))
-                    } else {
-                        Err(de::Error::invalid_value(Unexpected::Other("Storage"), &"Storage"))
-                    }
-                },
-                other => {
-                    Err(de::Error::unknown_variant(other, VARIANTS))
+        let model_extra = ModelExtra::deserialize(deserializer)?;
+        println!("New Model {:?}", model_extra);
+        const VARIANTS: &'static [&'static str] = &[
+            &"Generator", &"ExclusiveGateway", &"Processor", &"Storage"
+        ];
+        match &model_extra.model_type[..] {
+            "Generator" => {
+                if let Ok(generator) = serde_json::from_value::<super::Generator>(model_extra.extra) {
+                    Ok(Model::new(
+                        model_extra.id,
+                        Rc::new(RefCell::new(generator))
+                    ))
+                } else {
+                    Err(de::Error::invalid_value(Unexpected::Other("Generator"), &"Generator"))
                 }
+            },
+            "ExclusiveGateway" => {
+                if let Ok(exclusive_gateway) = serde_json::from_value::<super::ExclusiveGateway>(model_extra.extra) {
+                    Ok(Model::new(
+                        model_extra.id,
+                        Rc::new(RefCell::new(exclusive_gateway))
+                    ))
+                } else {
+                    Err(de::Error::invalid_value(Unexpected::Other("ExclusiveGateway"), &"ExclusiveGateway"))
+                }
+            },
+            "Processor" => {
+                if let Ok(processor) = serde_json::from_value::<super::Processor>(model_extra.extra) {
+                    Ok(Model::new(
+                        model_extra.id,
+                        Rc::new(RefCell::new(processor))
+                    ))
+                } else {
+                    Err(de::Error::invalid_value(Unexpected::Other("Processor"), &"Processor"))
+                }
+            },
+            "Storage" => {
+                if let Ok(storage) = serde_json::from_value::<super::Storage>(model_extra.extra) {
+                    Ok(Model::new(
+                        model_extra.id,
+                        Rc::new(RefCell::new(storage))
+                    ))
+                } else {
+                    Err(de::Error::invalid_value(Unexpected::Other("Storage"), &"Storage"))
+                }
+            },
+            other => {
+                Err(de::Error::unknown_variant(other, VARIANTS))
             }
-        } else {
-            Err(de::Error::invalid_value(Unexpected::Other("model_extra"), &"model parameters"))
         }
     }
 }
