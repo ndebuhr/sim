@@ -40,7 +40,7 @@ impl Serialize for Model {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut model = serializer.serialize_struct("Model", 2)?;
         model.serialize_field("id", &self.id)?;
-        model.serialize_field("type", self.get_type())?;
+        model.serialize_field("type", self.inner.borrow().get_type())?;
         model.end()
     }
 }
@@ -137,7 +137,7 @@ impl AsModel for Model {
 // #[enum_dispatch]
 pub trait AsModel {
     fn get_type(&self) -> &'static str {
-        "model"
+        ""
     }
     fn status(&self) -> String;
     fn events_ext(
