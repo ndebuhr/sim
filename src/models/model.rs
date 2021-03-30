@@ -1,8 +1,10 @@
-use serde::{Serialize, Serializer};
-use serde::de::{self, Deserialize, Deserializer, Visitor, MapAccess};
+use serde::{Serialize, Serializer, Deserialize, Deserializer};
+use serde::de::{self, Visitor, MapAccess};
+use serde_json::Value;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::fmt;
+use std::collections::HashMap;
 
 use super::ModelMessage;
 use crate::input_modeling::UniformRNG;
@@ -44,60 +46,29 @@ impl Serialize for Model {
 
 impl<'de> Deserialize<'de> for Model {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct Field(String);
-        impl<'de> Deserialize<'de> for Field {
-            fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Field, D::Error> {
-                struct FieldVisitor;
-                impl<'de> Visitor<'de> for FieldVisitor {
-                    type Value = Field;
-                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                        formatter.write_str("`id` or `type`")
-                    }
-                    fn visit_str<E>(self, value: &str) -> Result<Field, E>
-                    where
-                        E: de::Error,
-                    {
-                        match value {
-                            tag => Ok(Field(String::from(tag)))
-                        }
-                    }
-                }
-
-                deserializer.deserialize_identifier(FieldVisitor)
-            }
+        #[derive(Debug, Serialize, Deserialize)]
+        struct ModelExtra {
+            id: String,
+            #[serde(rename="type")]
+            model_type: String,
+            #[serde(flatten)]
+            extra: HashMap<String, Value>
         }
-        struct ModelVisitor;
-        impl<'de> Visitor<'de> for ModelVisitor {
-            type Value = Model;
-            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                formatter.write_str("Model")
-            }
-            fn visit_map<V>(self, mut map: V) -> Result<Model, V::Error>
-            where
-                V: MapAccess<'de>,
-            {
-                let mut id = None;
-                let mut model_type = None;
-                while let Some(key) = map.next_key()? {
-                    match key {
-                        Field(tag) => {
-                            println!("Unparsed field: {}", tag);
-                        }
-                    }
-                }
-                let id = id.ok_or_else(|| de::Error::missing_field("id"))?;
-                let _model_type = model_type.ok_or_else(|| de::Error::missing_field("type"))?;
-                Ok(Model::new(id, Rc::new(RefCell::new(super::storage::Storage::new(
+        if let Ok(model_extra) = ModelExtra::deserialize(deserializer) {
+            println!("New Model {:?}", model_extra);
+            Ok(Model::new(
+                model_extra.id,
+                Rc::new(RefCell::new(super::storage::Storage::new(
                     String::from("store"),
                     String::from("read"),
                     String::from("stored"),
                     false,
                     false,
-                )))))
-            }
+                )))
+            ))
+        } else {
+            Err(de::Error::missing_field("id"))
         }
-        const FIELDS: &'static [&'static str] = &["id", "type"];
-        deserializer.deserialize_struct("Model", FIELDS, ModelVisitor)
     }
 }
 
