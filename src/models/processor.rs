@@ -163,6 +163,10 @@ impl Processor {
 }
 
 impl AsModel for Processor {
+    fn get_type(&self) -> &'static str {
+        "Processor"
+    }
+
     fn status(&self) -> String {
         match self.state.phase {
             Phase::Active => String::from("Processing"),

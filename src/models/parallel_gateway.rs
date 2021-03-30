@@ -129,6 +129,10 @@ impl ParallelGateway {
 }
 
 impl AsModel for ParallelGateway {
+    fn get_type(&self) -> &'static str {
+        "ParallelGateway"
+    }
+    
     fn status(&self) -> String {
         String::from("Active")
     }

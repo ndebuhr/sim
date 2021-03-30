@@ -151,6 +151,10 @@ impl Gate {
 }
 
 impl AsModel for Gate {
+    fn get_type(&self) -> &'static str {
+        "Gate"
+    }
+
     fn status(&self) -> String {
         match self.state.phase {
             Phase::Open => String::from("Listening"),

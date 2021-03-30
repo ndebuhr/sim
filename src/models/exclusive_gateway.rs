@@ -126,6 +126,10 @@ impl ExclusiveGateway {
 }
 
 impl AsModel for ExclusiveGateway {
+    fn get_type(&self) -> &'static str {
+        "ExclusiveGateway"
+    }
+
     fn status(&self) -> String {
         String::from("Active")
     }

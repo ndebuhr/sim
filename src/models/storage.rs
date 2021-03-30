@@ -126,6 +126,10 @@ impl Storage {
 }
 
 impl AsModel for Storage {
+    fn get_type(&self) -> &'static str {
+        "Storage"
+    }
+
     fn status(&self) -> String {
         match &self.state.job {
             Some(stored) => format!["Storing {}", stored],

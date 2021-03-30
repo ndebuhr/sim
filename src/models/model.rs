@@ -1,6 +1,6 @@
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
+use serde::ser::SerializeStruct;
 use serde::de::{self, Unexpected};
-use serde_json::Value;
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -38,21 +38,16 @@ impl Clone for Model {
 
 impl Serialize for Model {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.id)
+        let mut model = serializer.serialize_struct("Model", 2)?;
+        model.serialize_field("id", &self.id)?;
+        model.serialize_field("type", self.get_type())?;
+        model.end()
     }
 }
 
 impl<'de> Deserialize<'de> for Model {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        #[derive(Debug, Serialize, Deserialize)]
-        struct ModelExtra {
-            id: String,
-            #[serde(rename="type")]
-            model_type: String,
-            #[serde(flatten)]
-            extra: Value
-        }
-        let model_extra = ModelExtra::deserialize(deserializer)?;
+        let model_extra = super::ModelExtra::deserialize(deserializer)?;
         println!("New Model {:?}", model_extra);
         const VARIANTS: &'static [&'static str] = &[
             &"Generator", &"ExclusiveGateway", &"Processor", &"Storage"
@@ -141,6 +136,9 @@ impl AsModel for Model {
 /// facilitation of simulation reasoning, reporting, and debugging.
 // #[enum_dispatch]
 pub trait AsModel {
+    fn get_type(&self) -> &'static str {
+        "model"
+    }
     fn status(&self) -> String;
     fn events_ext(
         &mut self,

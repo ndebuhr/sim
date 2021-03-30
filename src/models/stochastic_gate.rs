@@ -139,6 +139,10 @@ impl StochasticGate {
 }
 
 impl AsModel for StochasticGate {
+    fn get_type(&self) -> &'static str {
+        "StochasticGate"
+    }
+
     fn status(&self) -> String {
         match self.state.phase {
             Phase::Open => String::from("Pass"),

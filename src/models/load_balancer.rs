@@ -123,6 +123,10 @@ impl LoadBalancer {
 }
 
 impl AsModel for LoadBalancer {
+    fn get_type(&self) -> &'static str {
+        "LoadBalancer"
+    }
+    
     fn status(&self) -> String {
         format!["Listening for {}s", self.ports_in.job]
     }

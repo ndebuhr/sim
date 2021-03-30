@@ -139,6 +139,10 @@ impl Generator {
 }
 
 impl AsModel for Generator {
+    fn get_type(&self) -> &'static str {
+        "Generator"
+    }
+
     fn status(&self) -> String {
         format!["Generating {}s", self.ports_out.job]
     }
