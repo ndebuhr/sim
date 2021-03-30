@@ -1,25 +1,15 @@
-// use enum_dispatch::enum_dispatch;
 use serde::{Serialize, Serializer};
 use serde::de::{self, Deserialize, Deserializer};
 use std::rc::Rc;
 use std::cell::RefCell;
 
-// use super::ExclusiveGateway;
-// use super::Gate;
-// use super::Generator;
-// use super::LoadBalancer;
 use super::ModelMessage;
-// use super::ParallelGateway;
-// use super::Processor;
-// use super::StochasticGate;
-// use super::Storage;
 use crate::input_modeling::UniformRNG;
 use crate::utils::error::SimulationError;
 
 /// `Model` wraps `ModelType` and provides common ID functionality (a struct
 /// field and associated accessor method).  The simulator requires all models
 /// to have an ID.
-//#[derive(/*Debug, Clone, Serialize, Deserialize*/)]
 pub struct Model {
     id: String,
     inner: Rc<RefCell<dyn AsModel>>,
@@ -86,22 +76,6 @@ impl AsModel for Model {
         self.inner.borrow_mut().until_next_event()
     }
 }
-
-/// `ModelType` is an enum encompassing all the available model types. Each
-/// variant holds a concrete type that implements AsModel.
-// #[enum_dispatch(AsModel)]
-// #[derive(Serialize, Deserialize, Clone, Debug)]
-// #[serde(tag = "type")]
-// pub enum ModelType {
-//     ExclusiveGateway,
-//     Gate,
-//     Generator,
-//     LoadBalancer,
-//     ParallelGateway,
-//     Processor,
-//     StochasticGate,
-//     Storage,
-// }
 
 /// The `AsModel` trait defines everything required for a model to operate
 /// within the discrete event simulation.  The simulator formalism (Discrete
