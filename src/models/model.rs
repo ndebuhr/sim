@@ -1,10 +1,8 @@
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use serde::de::{self, Visitor, MapAccess};
+use serde::de::{self, Unexpected};
 use serde_json::Value;
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::fmt;
-use std::collections::HashMap;
 
 use super::ModelMessage;
 use crate::input_modeling::UniformRNG;
@@ -52,22 +50,60 @@ impl<'de> Deserialize<'de> for Model {
             #[serde(rename="type")]
             model_type: String,
             #[serde(flatten)]
-            extra: HashMap<String, Value>
+            extra: Value
         }
         if let Ok(model_extra) = ModelExtra::deserialize(deserializer) {
             println!("New Model {:?}", model_extra);
-            Ok(Model::new(
-                model_extra.id,
-                Rc::new(RefCell::new(super::storage::Storage::new(
-                    String::from("store"),
-                    String::from("read"),
-                    String::from("stored"),
-                    false,
-                    false,
-                )))
-            ))
+            const VARIANTS: &'static [&'static str] = &[
+                &"Generator", &"ExclusiveGateway", &"Processor", &"Storage"
+            ];
+            match &model_extra.model_type[..] {
+                "Generator" => {
+                    if let Ok(generator) = serde_json::from_value::<super::Generator>(model_extra.extra) {
+                        Ok(Model::new(
+                            model_extra.id,
+                            Rc::new(RefCell::new(generator))
+                        ))
+                    } else {
+                        Err(de::Error::invalid_value(Unexpected::Other("Generator"), &"Generator"))
+                    }
+                },
+                "ExclusiveGateway" => {
+                    if let Ok(exclusive_gateway) = serde_json::from_value::<super::ExclusiveGateway>(model_extra.extra) {
+                        Ok(Model::new(
+                            model_extra.id,
+                            Rc::new(RefCell::new(exclusive_gateway))
+                        ))
+                    } else {
+                        Err(de::Error::invalid_value(Unexpected::Other("ExclusiveGateway"), &"ExclusiveGateway"))
+                    }
+                },
+                "Processor" => {
+                    if let Ok(processor) = serde_json::from_value::<super::Processor>(model_extra.extra) {
+                        Ok(Model::new(
+                            model_extra.id,
+                            Rc::new(RefCell::new(processor))
+                        ))
+                    } else {
+                        Err(de::Error::invalid_value(Unexpected::Other("Processor"), &"Processor"))
+                    }
+                },
+                "Storage" => {
+                    if let Ok(storage) = serde_json::from_value::<super::Storage>(model_extra.extra) {
+                        Ok(Model::new(
+                            model_extra.id,
+                            Rc::new(RefCell::new(storage))
+                        ))
+                    } else {
+                        Err(de::Error::invalid_value(Unexpected::Other("Storage"), &"Storage"))
+                    }
+                },
+                other => {
+                    Err(de::Error::unknown_variant(other, VARIANTS))
+                }
+            }
         } else {
-            Err(de::Error::missing_field("id"))
+            Err(de::Error::invalid_value(Unexpected::Other("model_extra"), &"model parameters"))
         }
     }
 }
