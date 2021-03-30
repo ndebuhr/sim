@@ -6,6 +6,9 @@ use sim::models::*;
 use sim::output_analysis::*;
 use sim::simulator::*;
 
+use std::rc::Rc;
+use std::cell::RefCell;
+
 #[derive(Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ProcessorMetrics {
@@ -29,34 +32,34 @@ fn poisson_generator_processor_with_capacity() {
     let models = [
         Model::new(
             String::from("generator-01"),
-            ModelType::Generator(Generator::new(
+            Rc::new(RefCell::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 0.5 },
                 None,
                 String::from("job"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("processor-01"),
-            ModelType::Processor(Processor::new(
+            Rc::new(RefCell::new(Processor::new(
                 ContinuousRandomVariable::Exp { lambda: 0.333333 },
                 14,
                 String::from("job"),
                 String::from("processed"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("storage-01"),
-            ModelType::Storage(Storage::new(
+            Rc::new(RefCell::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
                 false,
                 false,
-            )),
+            ))),
         ),
     ];
     let connectors = [
@@ -516,23 +519,23 @@ fn step_until_activities() {
     let models = [
         Model::new(
             String::from("generator-01"),
-            ModelType::Generator(Generator::new(
+            Rc::new(RefCell::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 0.5 },
                 None,
                 String::from("job"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("storage-01"),
-            ModelType::Storage(Storage::new(
+            Rc::new(RefCell::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
                 false,
                 false,
-            )),
+            ))),
         ),
     ];
     let connectors = [Connector::new(
@@ -616,34 +619,34 @@ fn non_stationary_generation() {
     let models = [
         Model::new(
             String::from("generator-01"),
-            ModelType::Generator(Generator::new(
+            Rc::new(RefCell::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 0.0957 },
                 None,
                 String::from("job"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("processor-01"),
-            ModelType::Processor(Processor::new(
+            Rc::new(RefCell::new(Processor::new(
                 ContinuousRandomVariable::Exp { lambda: 0.1659 },
                 14,
                 String::from("job"),
                 String::from("processed"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("storage-01"),
-            ModelType::Storage(Storage::new(
+            Rc::new(RefCell::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
                 false,
                 false,
-            )),
+            ))),
         ),
     ];
     let connectors = [
@@ -696,17 +699,17 @@ fn exclusive_gateway_proportions_chi_square() {
     let models = [
         Model::new(
             String::from("generator-01"),
-            ModelType::Generator(Generator::new(
+            Rc::new(RefCell::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 5.0 },
                 None,
                 String::from("job"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("exclusive-01"),
-            ModelType::ExclusiveGateway(ExclusiveGateway::new(
+            Rc::new(RefCell::new(ExclusiveGateway::new(
                 vec![String::from("in")],
                 vec![
                     String::from("s01"),
@@ -718,37 +721,37 @@ fn exclusive_gateway_proportions_chi_square() {
                 },
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("storage-01"),
-            ModelType::Storage(Storage::new(
+            Rc::new(RefCell::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("storage-02"),
-            ModelType::Storage(Storage::new(
+            Rc::new(RefCell::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("storage-03"),
-            ModelType::Storage(Storage::new(
+            Rc::new(RefCell::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
                 false,
                 false,
-            )),
+            ))),
         ),
     ];
     let connectors = [
@@ -1046,54 +1049,54 @@ fn gate_blocking_proportions() {
     let models = [
         Model::new(
             String::from("generator-01"),
-            ModelType::Generator(Generator::new(
+            Rc::new(RefCell::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 10.0 },
                 None,
                 String::from("job"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("generator-02"),
-            ModelType::Generator(Generator::new(
+            Rc::new(RefCell::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 10.0 },
                 None,
                 String::from("job"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("generator-03"),
-            ModelType::Generator(Generator::new(
+            Rc::new(RefCell::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 1.0 },
                 None,
                 String::from("job"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("gate-01"),
-            ModelType::Gate(Gate::new(
+            Rc::new(RefCell::new(Gate::new(
                 String::from("job"),
                 String::from("activation"),
                 String::from("deactivation"),
                 String::from("job"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("storage-01"),
-            ModelType::Storage(Storage::new(
+            Rc::new(RefCell::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
                 false,
                 false,
-            )),
+            ))),
         ),
     ];
     let connectors = [
@@ -1167,17 +1170,17 @@ fn load_balancer_round_robin_outputs() {
     let models = [
         Model::new(
             String::from("generator-01"),
-            ModelType::Generator(Generator::new(
+            Rc::new(RefCell::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 0.01 },
                 None,
                 String::from("job"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("load-balancer-01"),
-            ModelType::LoadBalancer(LoadBalancer::new(
+            Rc::new(RefCell::new(LoadBalancer::new(
                 String::from("request"),
                 vec![
                     String::from("server-1"),
@@ -1186,37 +1189,37 @@ fn load_balancer_round_robin_outputs() {
                 ],
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("storage-01"),
-            ModelType::Storage(Storage::new(
+            Rc::new(RefCell::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("storage-02"),
-            ModelType::Storage(Storage::new(
+            Rc::new(RefCell::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("storage-03"),
-            ModelType::Storage(Storage::new(
+            Rc::new(RefCell::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
                 false,
                 false,
-            )),
+            ))),
         ),
     ];
     let connectors = [
@@ -1278,23 +1281,23 @@ fn injection_initiated_stored_value_exchange() {
     let models = [
         Model::new(
             String::from("storage-01"),
-            ModelType::Storage(Storage::new(
+            Rc::new(RefCell::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("storage-02"),
-            ModelType::Storage(Storage::new(
+            Rc::new(RefCell::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
                 false,
                 false,
-            )),
+            ))),
         ),
     ];
     let connectors = [
@@ -1352,17 +1355,17 @@ fn parallel_gateway_splits_and_joins() {
     let models = [
         Model::new(
             String::from("generator-01"),
-            ModelType::Generator(Generator::new(
+            Rc::new(RefCell::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 5.0 },
                 None,
                 String::from("job"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("parallel-01"),
-            ModelType::ParallelGateway(ParallelGateway::new(
+            Rc::new(RefCell::new(ParallelGateway::new(
                 vec![String::from("in")],
                 vec![
                     String::from("alpha"),
@@ -1371,11 +1374,11 @@ fn parallel_gateway_splits_and_joins() {
                 ],
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("parallel-02"),
-            ModelType::ParallelGateway(ParallelGateway::new(
+            Rc::new(RefCell::new(ParallelGateway::new(
                 vec![
                     String::from("alpha"),
                     String::from("beta"),
@@ -1384,17 +1387,17 @@ fn parallel_gateway_splits_and_joins() {
                 vec![String::from("out")],
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("storage-01"),
-            ModelType::Storage(Storage::new(
+            Rc::new(RefCell::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
                 false,
                 false,
-            )),
+            ))),
         ),
     ];
     let connectors = [
@@ -1463,17 +1466,17 @@ fn match_status_reporting() {
     let models = [
         Model::new(
             String::from("generator-01"),
-            ModelType::Generator(Generator::new(
+            Rc::new(RefCell::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 5.0 },
                 None,
                 String::from("job"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("load-balancer-01"),
-            ModelType::LoadBalancer(LoadBalancer::new(
+            Rc::new(RefCell::new(LoadBalancer::new(
                 String::from("request"),
                 vec![
                     String::from("alpha"),
@@ -1482,7 +1485,7 @@ fn match_status_reporting() {
                 ],
                 false,
                 false,
-            )),
+            ))),
         ),
     ];
     let connectors = [];
@@ -1496,33 +1499,33 @@ fn stochastic_gate_blocking() {
     let models = [
         Model::new(
             String::from("generator-01"),
-            ModelType::Generator(Generator::new(
+            Rc::new(RefCell::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 5.0 },
                 None,
                 String::from("job"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("stochastic-gate-01"),
-            ModelType::StochasticGate(StochasticGate::new(
+            Rc::new(RefCell::new(StochasticGate::new(
                 BooleanRandomVariable::Bernoulli { p: 0.2 },
                 String::from("job"),
                 String::from("job"),
                 false,
                 false,
-            )),
+            ))),
         ),
         Model::new(
             String::from("storage-01"),
-            ModelType::Storage(Storage::new(
+            Rc::new(RefCell::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
                 false,
                 false,
-            )),
+            ))),
         ),
     ];
     let connectors = [

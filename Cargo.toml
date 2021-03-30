@@ -22,7 +22,7 @@ crate-type = ["cdylib", "rlib"]
 default = ["console_error_panic_hook"]
 
 [dependencies]
-enum_dispatch = "0.3"
+# enum_dispatch = "0.3"
 getrandom = { version = "0.2", features = ["js"] }
 js-sys = "0.3"
 num-traits = "0.2"
