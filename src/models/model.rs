@@ -44,6 +44,28 @@ impl Serialize for Model {
 
 impl<'de> Deserialize<'de> for Model {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct Field(String);
+        impl<'de> Deserialize<'de> for Field {
+            fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Field, D::Error> {
+                struct FieldVisitor;
+                impl<'de> Visitor<'de> for FieldVisitor {
+                    type Value = Field;
+                    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                        formatter.write_str("`id` or `type`")
+                    }
+                    fn visit_str<E>(self, value: &str) -> Result<Field, E>
+                    where
+                        E: de::Error,
+                    {
+                        match value {
+                            tag => Ok(Field(String::from(tag)))
+                        }
+                    }
+                }
+
+                deserializer.deserialize_identifier(FieldVisitor)
+            }
+        }
         struct ModelVisitor;
         impl<'de> Visitor<'de> for ModelVisitor {
             type Value = Model;
@@ -58,20 +80,8 @@ impl<'de> Deserialize<'de> for Model {
                 let mut model_type = None;
                 while let Some(key) = map.next_key()? {
                     match key {
-                        "id" => {
-                            if id.is_some() {
-                                return Err(de::Error::duplicate_field("id"));
-                            }
-                            id = Some(map.next_value()?);
-                        }
-                        "type" => {
-                            if model_type.is_some() {
-                                return Err(de::Error::duplicate_field("type"));
-                            }
-                            model_type = Some(map.next_value()?);
-                        }
-                        field => {
-                            println!("Unparsed field: {}", field);
+                        Field(tag) => {
+                            println!("Unparsed field: {}", tag);
                         }
                     }
                 }
