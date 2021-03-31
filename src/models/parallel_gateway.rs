@@ -133,6 +133,10 @@ impl AsModel for ParallelGateway {
         "ParallelGateway"
     }
     
+    fn serialize(&self) -> serde_json::Value {
+        serde_json::to_value(self).unwrap_or(serde_json::Value::Null)
+    }
+    
     fn status(&self) -> String {
         String::from("Active")
     }

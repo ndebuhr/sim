@@ -129,6 +129,10 @@ impl AsModel for Storage {
     fn get_type(&self) -> &'static str {
         "Storage"
     }
+    
+    fn serialize(&self) -> serde_json::Value {
+        serde_json::to_value(self).unwrap_or(serde_json::Value::Null)
+    }
 
     fn status(&self) -> String {
         match &self.state.job {

@@ -1,8 +1,10 @@
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use serde::ser::SerializeStruct;
+use serde::ser::SerializeMap;
+use serde_json::Value;
 use serde::de::{self, Unexpected};
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 use super::ModelMessage;
 use crate::input_modeling::UniformRNG;
@@ -38,9 +40,15 @@ impl Clone for Model {
 
 impl Serialize for Model {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut model = serializer.serialize_struct("Model", 2)?;
-        model.serialize_field("id", &self.id)?;
-        model.serialize_field("type", self.inner.borrow().get_type())?;
+        let extra_fields: serde_json::Value = self.inner.borrow().serialize();
+        let mut model = serializer.serialize_map(None)?;
+        model.serialize_entry("id", &self.id)?;
+        model.serialize_entry("type", self.inner.borrow().get_type())?;
+        if let serde_json::Value::Object(map) = extra_fields {
+            for (key, value) in map.iter() {
+                model.serialize_entry(&key, &value)?;
+            }
+        }
         model.end()
     }
 }
@@ -138,6 +146,9 @@ impl AsModel for Model {
 pub trait AsModel {
     fn get_type(&self) -> &'static str {
         ""
+    }
+    fn serialize(&self) -> serde_json::Value {
+        serde_json::Value::Null
     }
     fn status(&self) -> String;
     fn events_ext(

@@ -166,6 +166,10 @@ impl AsModel for Processor {
     fn get_type(&self) -> &'static str {
         "Processor"
     }
+    
+    fn serialize(&self) -> serde_json::Value {
+        serde_json::to_value(self).unwrap_or(serde_json::Value::Null)
+    }
 
     fn status(&self) -> String {
         match self.state.phase {

@@ -155,6 +155,10 @@ impl AsModel for Gate {
         "Gate"
     }
 
+    fn serialize(&self) -> serde_json::Value {
+        serde_json::to_value(self).unwrap_or(serde_json::Value::Null)
+    }
+    
     fn status(&self) -> String {
         match self.state.phase {
             Phase::Open => String::from("Listening"),

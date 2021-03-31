@@ -143,6 +143,10 @@ impl AsModel for Generator {
         "Generator"
     }
 
+    fn serialize(&self) -> serde_json::Value {
+        serde_json::to_value(self).unwrap_or(serde_json::Value::Null)
+    }
+    
     fn status(&self) -> String {
         format!["Generating {}s", self.ports_out.job]
     }
