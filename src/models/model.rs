@@ -1,6 +1,6 @@
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::ser::SerializeMap;
-use serde::de::{self, Unexpected};
+use serde::de;
 
 use super::ModelMessage;
 use crate::input_modeling::UniformRNG;
@@ -68,41 +68,31 @@ impl<'de> Deserialize<'de> for Model {
         match &model_repr.model_type[..] {
             "Generator" => {
                 let generator = serde_yaml::from_value::<super::Generator>(model_repr.extra).map_err(de::Error::custom)?;
-                let model = Model::new(
+                Ok(Model::new(
                     model_repr.id,
                     Box::new(generator)
-                );
-                Ok(model)
+                ))
             },
             "ExclusiveGateway" => {
-                if let Ok(exclusive_gateway) = serde_yaml::from_value::<super::ExclusiveGateway>(model_repr.extra) {
-                    Ok(Model::new(
-                        model_repr.id,
-                        Box::new(exclusive_gateway)
-                    ))
-                } else {
-                    Err(de::Error::invalid_value(Unexpected::Other("ExclusiveGateway"), &"ExclusiveGateway"))
-                }
+                let exclusive_gateway = serde_yaml::from_value::<super::ExclusiveGateway>(model_repr.extra).map_err(de::Error::custom)?;
+                Ok(Model::new(
+                    model_repr.id,
+                    Box::new(exclusive_gateway)
+                ))
             },
             "Processor" => {
-                if let Ok(processor) = serde_yaml::from_value::<super::Processor>(model_repr.extra) {
-                    Ok(Model::new(
-                        model_repr.id,
-                        Box::new(processor)
-                    ))
-                } else {
-                    Err(de::Error::invalid_value(Unexpected::Other("Processor"), &"Processor"))
-                }
+                let processor = serde_yaml::from_value::<super::Processor>(model_repr.extra).map_err(de::Error::custom)?;
+                Ok(Model::new(
+                    model_repr.id,
+                    Box::new(processor)
+                ))
             },
             "Storage" => {
-                if let Ok(storage) = serde_yaml::from_value::<super::Storage>(model_repr.extra) {
-                    Ok(Model::new(
-                        model_repr.id,
-                        Box::new(storage)
-                    ))
-                } else {
-                    Err(de::Error::invalid_value(Unexpected::Other("Storage"), &"Storage"))
-                }
+                let storage = serde_yaml::from_value::<super::Storage>(model_repr.extra).map_err(de::Error::custom)?;
+                Ok(Model::new(
+                    model_repr.id,
+                    Box::new(storage)
+                ))
             },
             other => {
                 Err(de::Error::unknown_variant(other, VARIANTS))
