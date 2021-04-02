@@ -68,15 +68,12 @@ impl<'de> Deserialize<'de> for Model {
         ];
         match &model_extra.model_type[..] {
             "Generator" => {
-                if let Ok(generator) = serde_json::from_value::<super::Generator>(model_extra.extra) {
-                    let model = Model::new(
-                        model_extra.id,
-                        Box::new(generator)
-                    );
-                    Ok(model)
-                } else {
-                    Err(de::Error::invalid_value(Unexpected::Other("Generator"), &"Generator"))
-                }
+                let generator = serde_json::from_value::<super::Generator>(model_extra.extra).map_err(de::Error::custom)?;
+                let model = Model::new(
+                    model_extra.id,
+                    Box::new(generator)
+                );
+                Ok(model)
             },
             "ExclusiveGateway" => {
                 if let Ok(exclusive_gateway) = serde_json::from_value::<super::ExclusiveGateway>(model_extra.extra) {
