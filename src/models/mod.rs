@@ -25,7 +25,7 @@ pub use self::processor::Processor;
 pub use self::stochastic_gate::StochasticGate;
 pub use self::storage::Storage;
 
-pub use self::model_repr::ModelExtra;
+pub use self::model_repr::ModelRepr;
 
 #[derive(Debug, Clone)]
 pub struct ModelMessage {

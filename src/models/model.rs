@@ -46,11 +46,11 @@ impl Clone for Box<dyn AsModel> {
 
 impl Serialize for Model {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let extra_fields: serde_json::Value = self.inner.serialize();
+        let extra_fields: serde_yaml::Value = self.inner.serialize();
         let mut model = serializer.serialize_map(None)?;
         model.serialize_entry("id", &self.id)?;
         model.serialize_entry("type", self.inner.get_type())?;
-        if let serde_json::Value::Object(map) = extra_fields {
+        if let serde_yaml::Value::Mapping(map) = extra_fields {
             for (key, value) in map.iter() {
                 model.serialize_entry(&key, &value)?;
             }
@@ -61,24 +61,23 @@ impl Serialize for Model {
 
 impl<'de> Deserialize<'de> for Model {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let model_extra = super::ModelExtra::deserialize(deserializer)?;
-        println!("New Model {:?}", model_extra);
+        let model_repr = super::ModelRepr::deserialize(deserializer)?;
         const VARIANTS: &'static [&'static str] = &[
             &"Generator", &"ExclusiveGateway", &"Processor", &"Storage"
         ];
-        match &model_extra.model_type[..] {
+        match &model_repr.model_type[..] {
             "Generator" => {
-                let generator = serde_json::from_value::<super::Generator>(model_extra.extra).map_err(de::Error::custom)?;
+                let generator = serde_yaml::from_value::<super::Generator>(model_repr.extra).map_err(de::Error::custom)?;
                 let model = Model::new(
-                    model_extra.id,
+                    model_repr.id,
                     Box::new(generator)
                 );
                 Ok(model)
             },
             "ExclusiveGateway" => {
-                if let Ok(exclusive_gateway) = serde_json::from_value::<super::ExclusiveGateway>(model_extra.extra) {
+                if let Ok(exclusive_gateway) = serde_yaml::from_value::<super::ExclusiveGateway>(model_repr.extra) {
                     Ok(Model::new(
-                        model_extra.id,
+                        model_repr.id,
                         Box::new(exclusive_gateway)
                     ))
                 } else {
@@ -86,9 +85,9 @@ impl<'de> Deserialize<'de> for Model {
                 }
             },
             "Processor" => {
-                if let Ok(processor) = serde_json::from_value::<super::Processor>(model_extra.extra) {
+                if let Ok(processor) = serde_yaml::from_value::<super::Processor>(model_repr.extra) {
                     Ok(Model::new(
-                        model_extra.id,
+                        model_repr.id,
                         Box::new(processor)
                     ))
                 } else {
@@ -96,9 +95,9 @@ impl<'de> Deserialize<'de> for Model {
                 }
             },
             "Storage" => {
-                if let Ok(storage) = serde_json::from_value::<super::Storage>(model_extra.extra) {
+                if let Ok(storage) = serde_yaml::from_value::<super::Storage>(model_repr.extra) {
                     Ok(Model::new(
-                        model_extra.id,
+                        model_repr.id,
                         Box::new(storage)
                     ))
                 } else {
@@ -151,8 +150,8 @@ pub trait AsModel: ModelClone {
     fn get_type(&self) -> &'static str {
         ""
     }
-    fn serialize(&self) -> serde_json::Value {
-        serde_json::Value::Null
+    fn serialize(&self) -> serde_yaml::Value {
+        serde_yaml::Value::Null
     }
     fn status(&self) -> String;
     fn events_ext(

@@ -143,8 +143,8 @@ impl AsModel for StochasticGate {
         "StochasticGate"
     }
 
-    fn serialize(&self) -> serde_json::Value {
-        serde_json::to_value(self).unwrap_or(serde_json::Value::Null)
+    fn serialize(&self) -> serde_yaml::Value {
+        serde_yaml::to_value(self).unwrap_or(serde_yaml::Value::Null)
     }
 
     fn status(&self) -> String {
