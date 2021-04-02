@@ -2,7 +2,7 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::AsModel;
+use super::model_trait::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::random_variable::IndexRandomVariable;
 use crate::input_modeling::UniformRNG;

@@ -1,7 +1,7 @@
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::ser::SerializeMap;
-use serde::de;
 
+use super::model_trait::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::UniformRNG;
 use crate::utils::error::SimulationError;
@@ -25,25 +25,6 @@ impl Model {
     }
 }
 
-pub trait ModelClone {
-    fn clone_box(&self) -> Box<dyn AsModel>;
-}
-
-impl<T> ModelClone for T
-where
-    T: 'static + AsModel + Clone,
-{
-    fn clone_box(&self) -> Box<dyn AsModel> {
-        Box::new(self.clone())
-    }
-}
-
-impl Clone for Box<dyn AsModel> {
-    fn clone(&self) -> Box<dyn AsModel> {
-        self.clone_box()
-    }
-}
-
 impl Serialize for Model {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let extra_fields: serde_yaml::Value = self.inner.serialize();
@@ -62,42 +43,8 @@ impl Serialize for Model {
 impl<'de> Deserialize<'de> for Model {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let model_repr = super::ModelRepr::deserialize(deserializer)?;
-        const VARIANTS: &'static [&'static str] = &[
-            &"Generator", &"ExclusiveGateway", &"Processor", &"Storage"
-        ];
-        match &model_repr.model_type[..] {
-            "Generator" => {
-                let generator = serde_yaml::from_value::<super::Generator>(model_repr.extra).map_err(de::Error::custom)?;
-                Ok(Model::new(
-                    model_repr.id,
-                    Box::new(generator)
-                ))
-            },
-            "ExclusiveGateway" => {
-                let exclusive_gateway = serde_yaml::from_value::<super::ExclusiveGateway>(model_repr.extra).map_err(de::Error::custom)?;
-                Ok(Model::new(
-                    model_repr.id,
-                    Box::new(exclusive_gateway)
-                ))
-            },
-            "Processor" => {
-                let processor = serde_yaml::from_value::<super::Processor>(model_repr.extra).map_err(de::Error::custom)?;
-                Ok(Model::new(
-                    model_repr.id,
-                    Box::new(processor)
-                ))
-            },
-            "Storage" => {
-                let storage = serde_yaml::from_value::<super::Storage>(model_repr.extra).map_err(de::Error::custom)?;
-                Ok(Model::new(
-                    model_repr.id,
-                    Box::new(storage)
-                ))
-            },
-            other => {
-                Err(de::Error::unknown_variant(other, VARIANTS))
-            }
-        }
+        let concrete_model = super::model_factory::create::<D>(&model_repr.model_type[..], model_repr.extra)?;
+        Ok(Model::new(model_repr.id, concrete_model))
     }
 }
 
@@ -128,31 +75,4 @@ impl AsModel for Model {
     fn until_next_event(&self) -> f64 {
         self.inner.until_next_event()
     }
-}
-
-/// The `AsModel` trait defines everything required for a model to operate
-/// within the discrete event simulation.  The simulator formalism (Discrete
-/// Event System Specification) requires `events_ext`, `events_int`,
-/// `time_advance`, and `until_next_event`.  The additional `status` is for
-/// facilitation of simulation reasoning, reporting, and debugging.
-// #[enum_dispatch]
-pub trait AsModel: ModelClone {
-    fn get_type(&self) -> &'static str {
-        ""
-    }
-    fn serialize(&self) -> serde_yaml::Value {
-        serde_yaml::Value::Null
-    }
-    fn status(&self) -> String;
-    fn events_ext(
-        &mut self,
-        uniform_rng: &mut UniformRNG,
-        incoming_message: ModelMessage,
-    ) -> Result<Vec<ModelMessage>, SimulationError>;
-    fn events_int(
-        &mut self,
-        uniform_rng: &mut UniformRNG,
-    ) -> Result<Vec<ModelMessage>, SimulationError>;
-    fn time_advance(&mut self, time_delta: f64);
-    fn until_next_event(&self) -> f64;
 }
