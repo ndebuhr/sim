@@ -22,6 +22,7 @@ crate-type = ["cdylib", "rlib"]
 default = ["console_error_panic_hook"]
 
 [dependencies]
+lazy_static = "1.4.0"
 getrandom = { version = "0.2", features = ["js"] }
 js-sys = "0.3"
 num-traits = "0.2"

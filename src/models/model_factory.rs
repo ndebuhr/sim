@@ -1,6 +1,15 @@
 use serde::de;
 use serde::Deserializer;
 use super::model_trait::AsModel;
+use std::collections::HashMap;
+use std::sync::Mutex;
+
+use lazy_static::lazy_static;
+
+pub type ModelConstructor = fn(serde_yaml::Value) -> Option<Box<dyn AsModel>>;
+lazy_static! {
+    static ref CONSTRUCTORS: Mutex<HashMap<String, ModelConstructor>> = Mutex::new(HashMap::new());
+}
 
 pub fn create<'de, D: Deserializer<'de>>(model_type: &str, extra_fields: serde_yaml::Value) -> Result<Box<dyn AsModel>, D::Error> {
     const VARIANTS: &'static [&'static str] = &[
