@@ -16,115 +16,18 @@
 
 use std::f64::INFINITY;
 
-use js_sys::Array;
 use serde::{Deserialize, Serialize};
-use wasm_bindgen::prelude::*;
 
 use crate::input_modeling::UniformRNG;
 use crate::models::{AsModel, Model, ModelMessage};
-use crate::utils;
 use crate::utils::error::SimulationError;
+use crate::utils::set_panic_hook;
 
-/// Connectors are configured to connect models through their ports.  During
-/// simulation, models exchange messages (as per the Discrete Event System
-/// Specification) via these connectors.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Connector {
-    id: String,
-    #[serde(rename = "sourceID")]
-    source_id: String,
-    #[serde(rename = "targetID")]
-    target_id: String,
-    source_port: String,
-    target_port: String,
-}
+pub mod coupling;
+pub mod web;
 
-impl Connector {
-    pub fn new(
-        id: String,
-        source_id: String,
-        target_id: String,
-        source_port: String,
-        target_port: String,
-    ) -> Self {
-        Self {
-            id,
-            source_id,
-            target_id,
-            source_port,
-            target_port,
-        }
-    }
-}
-
-/// Messages are the mechanism of information exchange for models in a
-/// a simulation.  The message must contain origin information (source model
-/// ID and source model port), destination information (target model ID and
-/// target model port), and the text/content of the message.
-#[wasm_bindgen]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Message {
-    source_id: String,
-    source_port: String,
-    target_id: String,
-    target_port: String,
-    time: f64,
-    content: String,
-}
-
-impl Message {
-    /// This constructor method builds a `Message`, which is passed between
-    /// simulation models
-    pub fn new(
-        source_id: String,
-        source_port: String,
-        target_id: String,
-        target_port: String,
-        time: f64,
-        content: String,
-    ) -> Self {
-        Self {
-            source_id,
-            source_port,
-            target_id,
-            target_port,
-            time,
-            content,
-        }
-    }
-
-    /// This accessor method returns the model ID of a message source.
-    pub fn source_id(&self) -> &str {
-        &self.source_id
-    }
-
-    /// This accessor method returns the source port of a message.
-    pub fn source_port(&self) -> &str {
-        &self.source_port
-    }
-
-    /// This accessor method returns the model ID of a message target.
-    pub fn target_id(&self) -> &str {
-        &self.target_id
-    }
-
-    /// This accessor method returns the target port of a message.
-    pub fn target_port(&self) -> &str {
-        &self.target_port
-    }
-
-    /// This accessor method returns the transmission time of a message.
-    pub fn time(&self) -> &f64 {
-        &self.time
-    }
-
-    /// This accessor method returns the content of a message.
-    pub fn content(&self) -> &str {
-        &self.content
-    }
-}
+pub use self::coupling::{Connector, Message};
+pub use self::web::WebSimulation;
 
 /// The `Simulation` struct is the core of sim, and includes everything
 /// needed to run a simulation - models, connectors, and a random number
@@ -145,7 +48,7 @@ impl Simulation {
     /// This constructor method creates a simulation from a supplied
     /// configuration (models and connectors).
     pub fn post(models: Vec<Model>, connectors: Vec<Connector>) -> Self {
-        utils::set_panic_hook();
+        set_panic_hook();
         Self {
             models,
             connectors,
@@ -219,8 +122,8 @@ impl Simulation {
         self.connectors
             .iter()
             .filter_map(|connector| {
-                if connector.source_id == source_id && connector.source_port == source_port {
-                    Some(connector.target_id.to_string())
+                if connector.source_id() == source_id && connector.source_port() == source_port {
+                    Some(connector.target_id().to_string())
                 } else {
                     None
                 }
@@ -235,8 +138,8 @@ impl Simulation {
         self.connectors
             .iter()
             .filter_map(|connector| {
-                if connector.source_id == source_id && connector.source_port == source_port {
-                    Some(connector.target_port.to_string())
+                if connector.source_id() == source_id && connector.source_port() == source_port {
+                    Some(connector.target_port().to_string())
                 } else {
                     None
                 }
@@ -269,10 +172,10 @@ impl Simulation {
                     let model_messages: Vec<ModelMessage> = messages
                         .iter()
                         .filter_map(|message| {
-                            if message.target_id == self.models[model_index].id() {
+                            if message.target_id() == self.models[model_index].id() {
                                 Some(ModelMessage {
-                                    port_name: message.target_port.clone(),
-                                    content: message.content.clone(),
+                                    port_name: message.target_port().to_string(),
+                                    content: message.content().to_string(),
                                 })
                             } else {
                                 None
@@ -300,16 +203,14 @@ impl Simulation {
                                     );
                                     target_ids.iter().zip(target_ports.iter()).for_each(
                                         |(target_id, target_port)| {
-                                            next_messages.push(Message {
-                                                source_id: self.models[model_index]
-                                                    .id()
-                                                    .to_string(),
-                                                source_port: outgoing_message.port_name.clone(),
-                                                target_id: target_id.clone(),
-                                                target_port: target_port.clone(),
-                                                time: self.global_time,
-                                                content: outgoing_message.content.clone(),
-                                            });
+                                            next_messages.push(Message::new(
+                                                self.models[model_index].id().to_string(),
+                                                outgoing_message.port_name.clone(),
+                                                target_id.clone(),
+                                                target_port.clone(),
+                                                self.global_time,
+                                                outgoing_message.content.clone(),
+                                            ));
                                         },
                                     );
                                 });
@@ -349,14 +250,14 @@ impl Simulation {
                         );
                         target_ids.iter().zip(target_ports.iter()).for_each(
                             |(target_id, target_port)| {
-                                next_messages.push(Message {
-                                    source_id: self.models[model_index].id().to_string(),
-                                    source_port: outgoing_message.port_name.clone(),
-                                    target_id: target_id.clone(),
-                                    target_port: target_port.clone(),
-                                    time: self.global_time,
-                                    content: outgoing_message.content.clone(),
-                                });
+                                next_messages.push(Message::new(
+                                    self.models[model_index].id().to_string(),
+                                    outgoing_message.port_name.clone(),
+                                    target_id.clone(),
+                                    target_port.clone(),
+                                    self.global_time,
+                                    outgoing_message.content.clone(),
+                                ));
                             },
                         );
                     });
@@ -397,200 +298,5 @@ impl Simulation {
             })
             .find(|result| result.is_err())
             .unwrap_or(Ok(message_records))
-    }
-}
-
-/// The `WebSimulation` provides JS/WASM-compatible interfaces to the core
-/// `Simulation` struct.  For additional insight on these methods, refer to
-/// the associated `Simulation` methods.  Errors are unwrapped, instead of
-/// returned, in the `WebSimulation` methods.
-#[wasm_bindgen]
-#[derive(Default, Serialize, Deserialize)]
-pub struct WebSimulation {
-    simulation: Simulation,
-}
-
-#[wasm_bindgen]
-impl WebSimulation {
-    /// A JS/WASM interface for `Simulation.post`, which uses JSON
-    /// representations of the simulation models and connectors.
-    pub fn post_json(models: &str, connectors: &str) -> Self {
-        utils::set_panic_hook();
-        Self {
-            simulation: Simulation {
-                models: serde_json::from_str(models).unwrap(),
-                connectors: serde_json::from_str(connectors).unwrap(),
-                ..Simulation::default()
-            },
-        }
-    }
-
-    /// A JS/WASM interface for `Simulation.put`, which uses JSON
-    /// representations of the simulation models and connectors.
-    pub fn put_json(&mut self, models: &str, connectors: &str) {
-        self.simulation.models = serde_json::from_str(models).unwrap();
-        self.simulation.connectors = serde_json::from_str(connectors).unwrap();
-    }
-
-    /// Get a JSON representation of the full `Simulation` configuration.
-    pub fn get_json(&self) -> String {
-        serde_json::to_string_pretty(&self.simulation).unwrap()
-    }
-
-    /// A JS/WASM interface for `Simulation.post`, which uses YAML
-    /// representations of the simulation models and connectors.
-    pub fn post_yaml(models: &str, connectors: &str) -> WebSimulation {
-        utils::set_panic_hook();
-        Self {
-            simulation: Simulation {
-                models: serde_yaml::from_str(models).unwrap(),
-                connectors: serde_yaml::from_str(connectors).unwrap(),
-                ..Simulation::default()
-            },
-        }
-    }
-
-    /// A JS/WASM interface for `Simulation.put`, which uses YAML
-    /// representations of the simulation models and connectors.
-    pub fn put_yaml(&mut self, models: &str, connectors: &str) {
-        self.simulation.models = serde_yaml::from_str(models).unwrap();
-        self.simulation.connectors = serde_yaml::from_str(connectors).unwrap();
-    }
-
-    /// Get a YAML representation of the full `Simulation` configuration.
-    pub fn get_yaml(&self) -> String {
-        serde_yaml::to_string(&self.simulation).unwrap()
-    }
-
-    /// A JS/WASM interface for `Simulation.get_messages`, which converts the
-    /// messages to a JavaScript Array.
-    pub fn get_messages_js(&self) -> Array {
-        // Workaround for https://github.com/rustwasm/wasm-bindgen/issues/111
-        self.simulation
-            .get_messages()
-            .clone()
-            .into_iter()
-            .map(JsValue::from)
-            .collect()
-    }
-
-    /// A JS/WASM interface for `Simulation.get_messages`, which converts the
-    /// messages to a JSON string.
-    pub fn get_messages_json(&self) -> String {
-        serde_json::to_string(&self.simulation.get_messages()).unwrap()
-    }
-
-    /// A JS/WASM interface for `Simulation.get_messages`, which converts the
-    /// messages to a YAML string.
-    pub fn get_messages_yaml(&self) -> String {
-        serde_yaml::to_string(&self.simulation.get_messages()).unwrap()
-    }
-
-    /// An interface to `Simulation.get_global_time`.
-    pub fn get_global_time(&self) -> f64 {
-        self.simulation.get_global_time()
-    }
-
-    /// An interface to `Simulation.status`.
-    pub fn status(&self, model_id: &str) -> String {
-        self.simulation.status(model_id).unwrap()
-    }
-
-    /// An interface to `Simulation.reset`.
-    pub fn reset(&mut self) {
-        self.simulation.reset();
-    }
-
-    /// An interface to `Simulation.reset_messages`.
-    pub fn reset_messages(&mut self) {
-        self.simulation.reset_messages();
-    }
-
-    /// An interface to `Simulation.reset_global_time`
-    pub fn reset_global_time(&mut self) {
-        self.simulation.reset_global_time();
-    }
-
-    /// A JS/WASM interface for `Simulation.inject_input`, which uses a JSON
-    /// representation of the injected messages.
-    pub fn inject_input_json(&mut self, message: &str) {
-        self.simulation
-            .inject_input(serde_json::from_str(message).unwrap());
-    }
-
-    /// A JS/WASM interface for `Simulation.inject_input`, which uses a YAML
-    /// representation of the injected messages.
-    pub fn inject_input_yaml(&mut self, message: &str) {
-        self.simulation
-            .inject_input(serde_yaml::from_str(message).unwrap());
-    }
-
-    /// A JS/WASM interface for `Simulation.step`, which converts the
-    /// returned messages to a JavaScript Array.
-    pub fn step_js(&mut self) -> Array {
-        self.simulation
-            .step()
-            .unwrap()
-            .into_iter()
-            .map(JsValue::from)
-            .collect()
-    }
-
-    /// A JS/WASM interface for `Simulation.step`, which converts the
-    /// returned messages to a JSON string.
-    pub fn step_json(&mut self) -> String {
-        serde_json::to_string(&self.simulation.step().unwrap()).unwrap()
-    }
-
-    /// A JS/WASM interface for `Simulation.step`, which converts the
-    /// returned messages to a YAML string.
-    pub fn step_yaml(&mut self) -> String {
-        serde_yaml::to_string(&self.simulation.step().unwrap()).unwrap()
-    }
-
-    /// A JS/WASM interface for `Simulation.step_until`, which converts the
-    /// returned messages to a JavaScript Array.
-    pub fn step_until_js(&mut self, until: f64) -> Array {
-        self.simulation
-            .step_until(until)
-            .unwrap()
-            .into_iter()
-            .map(JsValue::from)
-            .collect()
-    }
-
-    /// A JS/WASM interface for `Simulation.step_until`, which converts the
-    /// returned messages to a JSON string.
-    pub fn step_until_json(&mut self, until: f64) -> String {
-        serde_json::to_string(&self.simulation.step_until(until).unwrap()).unwrap()
-    }
-
-    /// A JS/WASM interface for `Simulation.step_until`, which converts the
-    /// returned messages to a YAML string.
-    pub fn step_until_yaml(&mut self, until: f64) -> String {
-        serde_yaml::to_string(&self.simulation.step_until(until).unwrap()).unwrap()
-    }
-
-    /// A JS/WASM interface for `Simulation.step_n`, which converts the
-    /// returned messages to a JavaScript Array.
-    pub fn step_n_js(&mut self, n: usize) -> Array {
-        self.simulation
-            .step_n(n)
-            .unwrap()
-            .into_iter()
-            .map(JsValue::from)
-            .collect()
-    }
-
-    /// A JS/WASM interface for `Simulation.step_n`, which converts the
-    /// returned messages to a JSON string.
-    pub fn step_n_json(&mut self, n: usize) -> String {
-        serde_json::to_string(&self.simulation.step_n(n).unwrap()).unwrap()
-    }
-
-    /// A JS/WASM interface for `Simulation.step_n`, which converts the
-    /// returned messages to a YAML string.
-    pub fn step_n_yaml(&mut self, n: usize) -> String {
-        serde_yaml::to_string(&self.simulation.step_n(n).unwrap()).unwrap()
     }
 }
