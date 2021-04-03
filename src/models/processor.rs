@@ -61,8 +61,6 @@ struct State {
     until_job_completion: f64,
     queue: Vec<String>,
     phase: Phase,
-    #[serde(default)]
-    global_time: f64,
 }
 
 impl Default for State {
@@ -76,7 +74,6 @@ impl Default for State {
             until_job_completion: INFINITY,
             queue: Vec::new(),
             phase: Phase::Passive,
-            global_time: 0.0,
         }
     }
 }
@@ -174,6 +171,7 @@ impl AsModel for Processor {
         &mut self,
         _uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
+        global_time: f64,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let incoming_port: String = incoming_message.port_name;
@@ -183,8 +181,7 @@ impl AsModel for Processor {
                 // Possible metrics updates
                 if self.need_snapshot_metrics() {
                     self.snapshot.queue_size = self.state.queue.len();
-                    self.snapshot.last_arrival =
-                        Some((incoming_message.content, self.state.global_time));
+                    self.snapshot.last_arrival = Some((incoming_message.content, global_time));
                 }
                 if self.need_historical_metrics() {
                     self.history.push(self.snapshot.clone());
@@ -241,6 +238,7 @@ impl AsModel for Processor {
     fn events_int(
         &mut self,
         uniform_rng: &mut UniformRNG,
+        global_time: f64,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let events = self.state.event_list.clone();
@@ -284,7 +282,7 @@ impl AsModel for Processor {
                                     .first()
                                     .ok_or_else(|| SimulationError::InvalidModelState)?
                                     .to_string(),
-                                self.state.global_time,
+                                global_time,
                             ));
                             self.snapshot.is_utilized = true;
                         }
@@ -304,7 +302,7 @@ impl AsModel for Processor {
                                     .first()
                                     .ok_or_else(|| SimulationError::InvalidModelState)?
                                     .to_string(),
-                                self.state.global_time,
+                                global_time,
                             ));
                         }
                         // Use just the job ID from the input message - transform job type
@@ -351,7 +349,6 @@ impl AsModel for Processor {
             .for_each(|scheduled_event| {
                 scheduled_event.time -= time_delta;
             });
-        self.state.global_time += time_delta;
     }
 
     fn until_next_event(&self) -> f64 {

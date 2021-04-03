@@ -47,8 +47,6 @@ struct State {
     event_list: Vec<ScheduledEvent>,
     jobs: Vec<String>,
     phase: Phase,
-    #[serde(default)]
-    global_time: f64,
 }
 
 impl Default for State {
@@ -61,7 +59,6 @@ impl Default for State {
             event_list: vec![initalization_event],
             jobs: Vec::new(),
             phase: Phase::Open,
-            global_time: 0.0,
         }
     }
 }
@@ -150,6 +147,7 @@ impl AsModel for StochasticGate {
         &mut self,
         uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
+        _global_time: f64,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let incoming_port: &str = &incoming_message.port_name;
         match &self.ports_in {
@@ -176,6 +174,7 @@ impl AsModel for StochasticGate {
     fn events_int(
         &mut self,
         _uniform_rng: &mut UniformRNG,
+        global_time: f64,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let events = self.state.event_list.clone();
@@ -194,8 +193,7 @@ impl AsModel for StochasticGate {
                 Event::DropJob => {
                     // Possible metrics updates
                     if self.need_snapshot_metrics() {
-                        self.snapshot.last_block =
-                            Some((self.state.jobs[0].clone(), self.state.global_time));
+                        self.snapshot.last_block = Some((self.state.jobs[0].clone(), global_time));
                     }
                     if self.need_historical_metrics() {
                         self.history.push(self.snapshot.clone());
@@ -206,8 +204,7 @@ impl AsModel for StochasticGate {
                 Event::SendJob => {
                     // Possible metrics updates
                     if self.need_snapshot_metrics() {
-                        self.snapshot.last_pass =
-                            Some((self.state.jobs[0].clone(), self.state.global_time));
+                        self.snapshot.last_pass = Some((self.state.jobs[0].clone(), global_time));
                     }
                     if self.need_historical_metrics() {
                         self.history.push(self.snapshot.clone());
@@ -229,7 +226,6 @@ impl AsModel for StochasticGate {
             .for_each(|scheduled_event| {
                 scheduled_event.time -= time_delta;
             });
-        self.state.global_time += time_delta;
     }
 
     fn until_next_event(&self) -> f64 {

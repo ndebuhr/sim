@@ -43,8 +43,6 @@ struct PortsOut {
 struct State {
     event_list: Vec<ScheduledEvent>,
     job: Option<String>,
-    #[serde(default)]
-    global_time: f64,
 }
 
 impl Default for State {
@@ -56,7 +54,6 @@ impl Default for State {
         State {
             event_list: vec![initalization_event],
             job: None,
-            global_time: 0.0,
         }
     }
 }
@@ -137,6 +134,7 @@ impl AsModel for Storage {
         &mut self,
         _uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
+        global_time: f64,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let incoming_port: &str = &incoming_message.port_name;
@@ -145,7 +143,7 @@ impl AsModel for Storage {
                 // Possible metrics updates
                 if self.need_snapshot_metrics() {
                     self.snapshot.last_store =
-                        Some((incoming_message.content.clone(), self.state.global_time));
+                        Some((incoming_message.content.clone(), global_time));
                 }
                 if self.need_historical_metrics() {
                     self.history.push(self.snapshot.clone());
@@ -160,8 +158,7 @@ impl AsModel for Storage {
                     Some(job) => {
                         // Possible metrics updates
                         if self.need_snapshot_metrics() {
-                            self.snapshot.last_read =
-                                Some((String::from(job), self.state.global_time));
+                            self.snapshot.last_read = Some((String::from(job), global_time));
                         }
                         if self.need_historical_metrics() {
                             self.history.push(self.snapshot.clone());
@@ -175,8 +172,7 @@ impl AsModel for Storage {
                     None => {
                         // Possible metrics updates
                         if self.need_snapshot_metrics() {
-                            self.snapshot.last_read =
-                                Some((String::from(""), self.state.global_time));
+                            self.snapshot.last_read = Some((String::from(""), global_time));
                         }
                         if self.need_historical_metrics() {
                             self.history.push(self.snapshot.clone());
@@ -197,6 +193,7 @@ impl AsModel for Storage {
     fn events_int(
         &mut self,
         _uniform_rng: &mut UniformRNG,
+        _global_time: f64,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         // Currently, there is no events_int behavior except the initialization
         let events = self.state.event_list.clone();
@@ -223,7 +220,6 @@ impl AsModel for Storage {
             .for_each(|scheduled_event| {
                 scheduled_event.time -= time_delta;
             });
-        self.state.global_time += time_delta;
     }
 
     fn until_next_event(&self) -> f64 {

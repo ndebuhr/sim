@@ -48,8 +48,6 @@ struct PortsOut {
 #[serde(rename_all = "camelCase")]
 struct State {
     event_list: Vec<ScheduledEvent>,
-    #[serde(default)]
-    global_time: f64,
 }
 
 impl Default for State {
@@ -60,7 +58,6 @@ impl Default for State {
         };
         State {
             event_list: vec![initalization_event],
-            global_time: 0.0,
         }
     }
 }
@@ -134,6 +131,7 @@ impl AsModel for ExclusiveGateway {
         &mut self,
         uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
+        global_time: f64,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let port_number = self.port_weights.random_variate(uniform_rng)?;
@@ -142,7 +140,7 @@ impl AsModel for ExclusiveGateway {
             self.snapshot.last_job = Some((
                 self.ports_out.flow_paths[port_number].clone(),
                 incoming_message.content.clone(),
-                self.state.global_time,
+                global_time,
             ));
         }
         if self.need_historical_metrics() {
@@ -159,6 +157,7 @@ impl AsModel for ExclusiveGateway {
     fn events_int(
         &mut self,
         _uniform_rng: &mut UniformRNG,
+        _global_time: f64,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let events = self.state.event_list.clone();
         self.state.event_list = self
@@ -184,7 +183,6 @@ impl AsModel for ExclusiveGateway {
             .for_each(|scheduled_event| {
                 scheduled_event.time -= time_delta;
             });
-        self.state.global_time += time_delta;
     }
 
     fn until_next_event(&self) -> f64 {

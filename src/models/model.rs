@@ -42,15 +42,18 @@ impl AsModel for Model {
         &mut self,
         uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
+        global_time: f64,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.inner.events_ext(uniform_rng, incoming_message)
+        self.inner
+            .events_ext(uniform_rng, incoming_message, global_time)
     }
 
     fn events_int(
         &mut self,
         uniform_rng: &mut UniformRNG,
+        global_time: f64,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.inner.events_int(uniform_rng)
+        self.inner.events_int(uniform_rng, global_time)
     }
 
     fn time_advance(&mut self, time_delta: f64) {
@@ -90,10 +93,12 @@ pub trait AsModel {
         &mut self,
         uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
+        global_time: f64,
     ) -> Result<Vec<ModelMessage>, SimulationError>;
     fn events_int(
         &mut self,
         uniform_rng: &mut UniformRNG,
+        global_time: f64,
     ) -> Result<Vec<ModelMessage>, SimulationError>;
     fn time_advance(&mut self, time_delta: f64);
     fn until_next_event(&self) -> f64;

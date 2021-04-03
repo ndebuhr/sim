@@ -260,6 +260,7 @@ impl Simulation {
     /// output.
     pub fn step(&mut self) -> Result<Vec<Message>, SimulationError> {
         let messages = self.messages.clone();
+        let global_time = self.get_global_time();
         let mut next_messages: Vec<Message> = Vec::new();
         // Process external events and gather associated messages
         if !messages.is_empty() {
@@ -282,7 +283,11 @@ impl Simulation {
                         .iter()
                         .map(|model_message| -> Result<(), SimulationError> {
                             self.models[model_index]
-                                .events_ext(&mut self.uniform_rng, model_message.clone())?
+                                .events_ext(
+                                    &mut self.uniform_rng,
+                                    model_message.clone(),
+                                    global_time,
+                                )?
                                 .iter()
                                 .for_each(|outgoing_message| {
                                     let target_ids = self.get_message_target_ids(
@@ -331,7 +336,7 @@ impl Simulation {
         let errors: Result<Vec<()>, SimulationError> = (0..self.models.len())
             .map(|model_index| -> Result<(), SimulationError> {
                 self.models[model_index]
-                    .events_int(&mut self.uniform_rng)?
+                    .events_int(&mut self.uniform_rng, global_time)?
                     .iter()
                     .for_each(|outgoing_message| {
                         let target_ids = self.get_message_target_ids(

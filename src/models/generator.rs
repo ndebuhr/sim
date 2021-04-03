@@ -55,8 +55,6 @@ struct State {
     event_list: Vec<ScheduledEvent>,
     until_message_interdeparture: f64,
     job_counter: usize,
-    #[serde(default)]
-    global_time: f64,
 }
 
 impl Default for State {
@@ -69,7 +67,6 @@ impl Default for State {
             event_list: vec![initalization_event],
             until_message_interdeparture: INFINITY,
             job_counter: 0,
-            global_time: 0.0,
         }
     }
 }
@@ -147,6 +144,7 @@ impl AsModel for Generator {
         &mut self,
         _uniform_rng: &mut UniformRNG,
         _incoming_message: ModelMessage,
+        _global_time: f64,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         Ok(Vec::new())
     }
@@ -154,6 +152,7 @@ impl AsModel for Generator {
     fn events_int(
         &mut self,
         uniform_rng: &mut UniformRNG,
+        global_time: f64,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let events = self.state.event_list.clone();
@@ -185,8 +184,7 @@ impl AsModel for Generator {
                                 event: Event::BeginGeneration,
                             });
                             if let Some(thinning) = self.thinning.clone() {
-                                let thinning_threshold =
-                                    thinning.evaluate(self.state.global_time)?;
+                                let thinning_threshold = thinning.evaluate(global_time)?;
                                 let uniform_rn = uniform_rng.rn();
                                 if uniform_rn < thinning_threshold {
                                     self.state.event_list.push(ScheduledEvent {
@@ -214,8 +212,7 @@ impl AsModel for Generator {
                             });
                             // Possible metrics updates
                             if self.need_snapshot_metrics() {
-                                self.snapshot.last_generation =
-                                    Some((generated, self.state.global_time));
+                                self.snapshot.last_generation = Some((generated, global_time));
                             }
                             if self.need_historical_metrics() {
                                 self.history.push(self.snapshot.clone());
@@ -236,7 +233,6 @@ impl AsModel for Generator {
             .for_each(|scheduled_event| {
                 scheduled_event.time -= time_delta;
             });
-        self.state.global_time += time_delta;
     }
 
     fn until_next_event(&self) -> f64 {

@@ -49,8 +49,6 @@ struct State {
     event_list: Vec<ScheduledEvent>,
     jobs: Vec<String>,
     phase: Phase,
-    #[serde(default)]
-    global_time: f64,
 }
 
 impl Default for State {
@@ -63,7 +61,6 @@ impl Default for State {
             event_list: vec![initalization_event],
             jobs: Vec::new(),
             phase: Phase::Open,
-            global_time: 0.0,
         }
     }
 }
@@ -162,13 +159,14 @@ impl AsModel for Gate {
         &mut self,
         _uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
+        global_time: f64,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let incoming_port: &str = &incoming_message.port_name;
         match &self.ports_in {
             PortsIn { activation, .. } if activation == incoming_port => {
                 // Possible metrics updates
                 if self.need_snapshot_metrics() {
-                    self.snapshot.last_activation = Some(self.state.global_time);
+                    self.snapshot.last_activation = Some(global_time);
                     self.snapshot.is_open = Some(true);
                 }
                 if self.need_historical_metrics() {
@@ -180,7 +178,7 @@ impl AsModel for Gate {
             PortsIn { deactivation, .. } if deactivation == incoming_port => {
                 // Possible metrics updates
                 if self.need_snapshot_metrics() {
-                    self.snapshot.last_deactivation = Some(self.state.global_time);
+                    self.snapshot.last_deactivation = Some(global_time);
                     self.snapshot.is_open = Some(false);
                 }
                 if self.need_historical_metrics() {
@@ -193,7 +191,7 @@ impl AsModel for Gate {
                 // Possible metrics updates
                 if self.need_snapshot_metrics() {
                     self.snapshot.last_received =
-                        Some((incoming_message.content.clone(), self.state.global_time));
+                        Some((incoming_message.content.clone(), global_time));
                 }
                 if self.need_historical_metrics() {
                     self.history.push(self.snapshot.clone());
@@ -219,6 +217,7 @@ impl AsModel for Gate {
     fn events_int(
         &mut self,
         _uniform_rng: &mut UniformRNG,
+        _global_time: f64,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let events = self.state.event_list.clone();
@@ -270,7 +269,6 @@ impl AsModel for Gate {
             .for_each(|scheduled_event| {
                 scheduled_event.time -= time_delta;
             });
-        self.state.global_time += time_delta;
     }
 
     fn until_next_event(&self) -> f64 {

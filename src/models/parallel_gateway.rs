@@ -47,8 +47,6 @@ struct PortsOut {
 struct State {
     event_list: Vec<ScheduledEvent>,
     collections: HashMap<String, usize>,
-    #[serde(default)]
-    global_time: f64,
 }
 
 impl Default for State {
@@ -60,7 +58,6 @@ impl Default for State {
         State {
             event_list: vec![initalization_event],
             collections: HashMap::new(),
-            global_time: 0.0,
         }
     }
 }
@@ -137,11 +134,11 @@ impl AsModel for ParallelGateway {
         &mut self,
         _uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
+        global_time: f64,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         // Possible metrics updates
         if self.need_snapshot_metrics() {
-            self.snapshot.last_arrival =
-                Some((incoming_message.content.clone(), self.state.global_time));
+            self.snapshot.last_arrival = Some((incoming_message.content.clone(), global_time));
         }
         if self.need_historical_metrics() {
             self.history.push(self.snapshot.clone());
@@ -165,6 +162,7 @@ impl AsModel for ParallelGateway {
     fn events_int(
         &mut self,
         _uniform_rng: &mut UniformRNG,
+        global_time: f64,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let events = self.state.event_list.clone();
@@ -200,7 +198,7 @@ impl AsModel for ParallelGateway {
                         // Possible metrics updates
                         if self.need_snapshot_metrics() {
                             self.snapshot.last_departure =
-                                Some((completed_collection, self.state.global_time));
+                                Some((completed_collection, global_time));
                         }
                         if self.need_historical_metrics() {
                             self.history.push(self.snapshot.clone());
