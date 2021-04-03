@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::random_variable::ContinuousRandomVariable;
-use crate::input_modeling::UniformRNG;
+use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 use crate::utils::{populate_history_port, populate_snapshot_port};
 
@@ -169,9 +169,8 @@ impl AsModel for Processor {
 
     fn events_ext(
         &mut self,
-        _uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
-        global_time: f64,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let incoming_port: String = incoming_message.port_name;
@@ -181,7 +180,8 @@ impl AsModel for Processor {
                 // Possible metrics updates
                 if self.need_snapshot_metrics() {
                     self.snapshot.queue_size = self.state.queue.len();
-                    self.snapshot.last_arrival = Some((incoming_message.content, global_time));
+                    self.snapshot.last_arrival =
+                        Some((incoming_message.content, services.global_time()));
                 }
                 if self.need_historical_metrics() {
                     self.history.push(self.snapshot.clone());
@@ -237,8 +237,7 @@ impl AsModel for Processor {
 
     fn events_int(
         &mut self,
-        uniform_rng: &mut UniformRNG,
-        global_time: f64,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let events = self.state.event_list.clone();
@@ -273,7 +272,7 @@ impl AsModel for Processor {
                     }
                     Event::BeginProcessing => {
                         self.state.until_job_completion =
-                            self.service_time.random_variate(uniform_rng)?;
+                            self.service_time.random_variate(services.uniform_rng())?;
                         self.state.phase = Phase::Active;
                         if self.need_snapshot_metrics() {
                             self.snapshot.last_service_start = Some((
@@ -282,7 +281,7 @@ impl AsModel for Processor {
                                     .first()
                                     .ok_or_else(|| SimulationError::InvalidModelState)?
                                     .to_string(),
-                                global_time,
+                                services.global_time(),
                             ));
                             self.snapshot.is_utilized = true;
                         }
@@ -302,7 +301,7 @@ impl AsModel for Processor {
                                     .first()
                                     .ok_or_else(|| SimulationError::InvalidModelState)?
                                     .to_string(),
-                                global_time,
+                                services.global_time(),
                             ));
                         }
                         // Use just the job ID from the input message - transform job type

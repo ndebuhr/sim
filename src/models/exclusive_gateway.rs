@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::random_variable::IndexRandomVariable;
-use crate::input_modeling::UniformRNG;
+use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 use crate::utils::{populate_history_port, populate_snapshot_port};
 
@@ -129,18 +129,17 @@ impl AsModel for ExclusiveGateway {
 
     fn events_ext(
         &mut self,
-        uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
-        global_time: f64,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
-        let port_number = self.port_weights.random_variate(uniform_rng)?;
+        let port_number = self.port_weights.random_variate(services.uniform_rng())?;
         // Possible metrics updates
         if self.need_snapshot_metrics() {
             self.snapshot.last_job = Some((
                 self.ports_out.flow_paths[port_number].clone(),
                 incoming_message.content.clone(),
-                global_time,
+                services.global_time(),
             ));
         }
         if self.need_historical_metrics() {
@@ -156,8 +155,7 @@ impl AsModel for ExclusiveGateway {
 
     fn events_int(
         &mut self,
-        _uniform_rng: &mut UniformRNG,
-        _global_time: f64,
+        _services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let events = self.state.event_list.clone();
         self.state.event_list = self

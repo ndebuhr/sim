@@ -10,7 +10,7 @@ use super::ParallelGateway;
 use super::Processor;
 use super::StochasticGate;
 use super::Storage;
-use crate::input_modeling::UniformRNG;
+use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 
 /// `Model` wraps `ModelType` and provides common ID functionality (a struct
@@ -40,20 +40,17 @@ impl AsModel for Model {
 
     fn events_ext(
         &mut self,
-        uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
-        global_time: f64,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.inner
-            .events_ext(uniform_rng, incoming_message, global_time)
+        self.inner.events_ext(incoming_message, services)
     }
 
     fn events_int(
         &mut self,
-        uniform_rng: &mut UniformRNG,
-        global_time: f64,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.inner.events_int(uniform_rng, global_time)
+        self.inner.events_int(services)
     }
 
     fn time_advance(&mut self, time_delta: f64) {
@@ -91,15 +88,11 @@ pub trait AsModel {
     fn status(&self) -> String;
     fn events_ext(
         &mut self,
-        uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
-        global_time: f64,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError>;
-    fn events_int(
-        &mut self,
-        uniform_rng: &mut UniformRNG,
-        global_time: f64,
-    ) -> Result<Vec<ModelMessage>, SimulationError>;
+    fn events_int(&mut self, services: &mut Services)
+        -> Result<Vec<ModelMessage>, SimulationError>;
     fn time_advance(&mut self, time_delta: f64);
     fn until_next_event(&self) -> f64;
 }

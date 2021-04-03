@@ -6,7 +6,7 @@ use super::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::random_variable::ContinuousRandomVariable;
 use crate::input_modeling::Thinning;
-use crate::input_modeling::UniformRNG;
+use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 use crate::utils::{populate_history_port, populate_snapshot_port};
 
@@ -142,17 +142,15 @@ impl AsModel for Generator {
 
     fn events_ext(
         &mut self,
-        _uniform_rng: &mut UniformRNG,
         _incoming_message: ModelMessage,
-        _global_time: f64,
+        _services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         Ok(Vec::new())
     }
 
     fn events_int(
         &mut self,
-        uniform_rng: &mut UniformRNG,
-        global_time: f64,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let events = self.state.event_list.clone();
@@ -178,14 +176,15 @@ impl AsModel for Generator {
                         Event::BeginGeneration => {
                             self.state.until_message_interdeparture = self
                                 .message_interdeparture_time
-                                .random_variate(uniform_rng)?;
+                                .random_variate(services.uniform_rng())?;
                             self.state.event_list.push(ScheduledEvent {
                                 time: self.state.until_message_interdeparture,
                                 event: Event::BeginGeneration,
                             });
                             if let Some(thinning) = self.thinning.clone() {
-                                let thinning_threshold = thinning.evaluate(global_time)?;
-                                let uniform_rn = uniform_rng.rn();
+                                let thinning_threshold =
+                                    thinning.evaluate(services.global_time())?;
+                                let uniform_rn = services.uniform_rng().rn();
                                 if uniform_rn < thinning_threshold {
                                     self.state.event_list.push(ScheduledEvent {
                                         time: self.state.until_message_interdeparture,
@@ -212,7 +211,8 @@ impl AsModel for Generator {
                             });
                             // Possible metrics updates
                             if self.need_snapshot_metrics() {
-                                self.snapshot.last_generation = Some((generated, global_time));
+                                self.snapshot.last_generation =
+                                    Some((generated, services.global_time()));
                             }
                             if self.need_historical_metrics() {
                                 self.history.push(self.snapshot.clone());

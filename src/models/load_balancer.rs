@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AsModel;
 use super::ModelMessage;
-use crate::input_modeling::UniformRNG;
+use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 use crate::utils::{populate_history_port, populate_snapshot_port};
 
@@ -126,9 +126,8 @@ impl AsModel for LoadBalancer {
 
     fn events_ext(
         &mut self,
-        _uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
-        _global_time: f64,
+        _services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         self.state.jobs.push(incoming_message.content);
         self.state.event_list.push(ScheduledEvent {
@@ -140,8 +139,7 @@ impl AsModel for LoadBalancer {
 
     fn events_int(
         &mut self,
-        _uniform_rng: &mut UniformRNG,
-        global_time: f64,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let events = self.state.event_list.clone();
@@ -163,7 +161,7 @@ impl AsModel for LoadBalancer {
                         self.snapshot.last_job = Some((
                             self.ports_out.flow_paths[self.state.next_port_out].clone(),
                             self.state.jobs[0].clone(),
-                            global_time,
+                            services.global_time(),
                         ));
                     }
                     if self.need_historical_metrics() {

@@ -18,15 +18,16 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use crate::input_modeling::UniformRNG;
 use crate::models::{AsModel, Model, ModelMessage};
 use crate::utils::error::SimulationError;
 use crate::utils::set_panic_hook;
 
 pub mod coupling;
+pub mod services;
 pub mod web;
 
 pub use self::coupling::{Connector, Message};
+pub use self::services::Services;
 pub use self::web::WebSimulation;
 
 /// The `Simulation` struct is the core of sim, and includes everything
@@ -39,9 +40,7 @@ pub struct Simulation {
     models: Vec<Model>,
     connectors: Vec<Connector>,
     messages: Vec<Message>,
-    global_time: f64,
-    #[serde(skip_serializing)]
-    uniform_rng: UniformRNG,
+    services: Services,
 }
 
 impl Simulation {
@@ -75,7 +74,7 @@ impl Simulation {
 
     /// An accessor method for the simulation global time.
     pub fn get_global_time(&self) -> f64 {
-        self.global_time
+        self.services.global_time()
     }
 
     /// This method provides a mechanism for getting the status of any model
@@ -106,7 +105,7 @@ impl Simulation {
 
     /// Reset the simulation global time to 0.0.
     pub fn reset_global_time(&mut self) {
-        self.global_time = 0.0;
+        self.services.set_global_time(0.0);
     }
 
     /// This method provides a convenient foundation for operating on the
@@ -163,7 +162,6 @@ impl Simulation {
     /// output.
     pub fn step(&mut self) -> Result<Vec<Message>, SimulationError> {
         let messages = self.messages.clone();
-        let global_time = self.get_global_time();
         let mut next_messages: Vec<Message> = Vec::new();
         // Process external events and gather associated messages
         if !messages.is_empty() {
@@ -186,11 +184,7 @@ impl Simulation {
                         .iter()
                         .map(|model_message| -> Result<(), SimulationError> {
                             self.models[model_index]
-                                .events_ext(
-                                    &mut self.uniform_rng,
-                                    model_message.clone(),
-                                    global_time,
-                                )?
+                                .events_ext(model_message.clone(), &mut self.services)?
                                 .iter()
                                 .for_each(|outgoing_message| {
                                     let target_ids = self.get_message_target_ids(
@@ -208,7 +202,7 @@ impl Simulation {
                                                 outgoing_message.port_name.clone(),
                                                 target_id.clone(),
                                                 target_port.clone(),
-                                                self.global_time,
+                                                self.services.global_time(),
                                                 outgoing_message.content.clone(),
                                             ));
                                         },
@@ -233,11 +227,12 @@ impl Simulation {
         self.models().iter_mut().for_each(|model| {
             model.time_advance(until_next_event);
         });
-        self.global_time += until_next_event;
+        self.services
+            .set_global_time(self.services.global_time() + until_next_event);
         let errors: Result<Vec<()>, SimulationError> = (0..self.models.len())
             .map(|model_index| -> Result<(), SimulationError> {
                 self.models[model_index]
-                    .events_int(&mut self.uniform_rng, global_time)?
+                    .events_int(&mut self.services)?
                     .iter()
                     .for_each(|outgoing_message| {
                         let target_ids = self.get_message_target_ids(
@@ -255,7 +250,7 @@ impl Simulation {
                                     outgoing_message.port_name.clone(),
                                     target_id.clone(),
                                     target_port.clone(),
-                                    self.global_time,
+                                    self.services.global_time(),
                                     outgoing_message.content.clone(),
                                 ));
                             },
@@ -276,7 +271,7 @@ impl Simulation {
         let mut message_records: Vec<Message> = Vec::new();
         loop {
             self.step()?;
-            if self.global_time < until {
+            if self.services.global_time() < until {
                 message_records.extend(self.get_messages().clone());
             } else {
                 break;

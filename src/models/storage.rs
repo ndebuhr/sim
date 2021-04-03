@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::AsModel;
 use super::ModelMessage;
-use crate::input_modeling::UniformRNG;
+use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 use crate::utils::{populate_history_port, populate_snapshot_port};
 
@@ -132,9 +132,8 @@ impl AsModel for Storage {
 
     fn events_ext(
         &mut self,
-        _uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
-        global_time: f64,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let incoming_port: &str = &incoming_message.port_name;
@@ -143,7 +142,7 @@ impl AsModel for Storage {
                 // Possible metrics updates
                 if self.need_snapshot_metrics() {
                     self.snapshot.last_store =
-                        Some((incoming_message.content.clone(), global_time));
+                        Some((incoming_message.content.clone(), services.global_time()));
                 }
                 if self.need_historical_metrics() {
                     self.history.push(self.snapshot.clone());
@@ -158,7 +157,8 @@ impl AsModel for Storage {
                     Some(job) => {
                         // Possible metrics updates
                         if self.need_snapshot_metrics() {
-                            self.snapshot.last_read = Some((String::from(job), global_time));
+                            self.snapshot.last_read =
+                                Some((String::from(job), services.global_time()));
                         }
                         if self.need_historical_metrics() {
                             self.history.push(self.snapshot.clone());
@@ -172,7 +172,8 @@ impl AsModel for Storage {
                     None => {
                         // Possible metrics updates
                         if self.need_snapshot_metrics() {
-                            self.snapshot.last_read = Some((String::from(""), global_time));
+                            self.snapshot.last_read =
+                                Some((String::from(""), services.global_time()));
                         }
                         if self.need_historical_metrics() {
                             self.history.push(self.snapshot.clone());
@@ -192,8 +193,7 @@ impl AsModel for Storage {
 
     fn events_int(
         &mut self,
-        _uniform_rng: &mut UniformRNG,
-        _global_time: f64,
+        _services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         // Currently, there is no events_int behavior except the initialization
         let events = self.state.event_list.clone();
