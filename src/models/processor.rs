@@ -153,7 +153,7 @@ impl Processor {
 
     pub fn from_value(value: serde_yaml::Value) -> Option<Box<dyn AsModel>> {
         match serde_yaml::from_value::<Self>(value) {
-            Ok(processor) => Some(Box::new(processor)),
+            Ok(model) => Some(Box::new(model)),
             Err(_) => None
         }
     }

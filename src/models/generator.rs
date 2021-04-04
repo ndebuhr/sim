@@ -129,7 +129,7 @@ impl Generator {
     
     pub fn from_value(value: serde_yaml::Value) -> Option<Box<dyn AsModel>> {
         match serde_yaml::from_value::<Self>(value) {
-            Ok(generator) => Some(Box::new(generator)),
+            Ok(model) => Some(Box::new(model)),
             Err(_) => None
         }
     }

@@ -116,7 +116,7 @@ impl ExclusiveGateway {
 
     pub fn from_value(value: serde_yaml::Value) -> Option<Box<dyn AsModel>> {
         match serde_yaml::from_value::<Self>(value) {
-            Ok(exclusive_gateway) => Some(Box::new(exclusive_gateway)),
+            Ok(model) => Some(Box::new(model)),
             Err(_) => None
         }
     }
