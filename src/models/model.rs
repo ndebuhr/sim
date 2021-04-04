@@ -52,7 +52,7 @@ impl AsModel for Model {
     fn status(&self) -> String {
         self.inner.status()
     }
-
+    
     fn events_ext(
         &mut self,
         uniform_rng: &mut UniformRNG,

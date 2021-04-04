@@ -5,13 +5,6 @@ use std::collections::HashMap;
 
 use lazy_static::lazy_static;
 
-fn generator_new(value: serde_yaml::Value) -> Option<Box<dyn AsModel>> {
-    match serde_yaml::from_value::<super::Generator>(value) {
-        Ok(generator) => Some(Box::new(generator)),
-        Err(_) => None
-    }
-}
-
 fn exclusive_gateway_new(value: serde_yaml::Value) -> Option<Box<dyn AsModel>> {
     match serde_yaml::from_value::<super::ExclusiveGateway>(value) {
         Ok(exclusive_gateway) => Some(Box::new(exclusive_gateway)),
@@ -39,7 +32,7 @@ pub type ModelConstructor = fn(serde_yaml::Value) -> Option<Box<dyn AsModel>>;
 lazy_static! {
     static ref CONSTRUCTORS: Mutex<HashMap<&'static str, ModelConstructor>> = {
         let mut m = HashMap::new();
-        m.insert("Generator", generator_new as ModelConstructor);
+        m.insert("Generator", super::Generator::from_value as ModelConstructor);
         m.insert("ExclusiveGateway", exclusive_gateway_new as ModelConstructor);
         m.insert("Processor", processor_new as ModelConstructor);
         m.insert("Storage", storage_new as ModelConstructor);
