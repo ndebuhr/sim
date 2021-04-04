@@ -5,27 +5,6 @@ use std::collections::HashMap;
 
 use lazy_static::lazy_static;
 
-fn exclusive_gateway_new(value: serde_yaml::Value) -> Option<Box<dyn AsModel>> {
-    match serde_yaml::from_value::<super::ExclusiveGateway>(value) {
-        Ok(exclusive_gateway) => Some(Box::new(exclusive_gateway)),
-        Err(_) => None
-    }
-}
-
-fn processor_new(value: serde_yaml::Value) -> Option<Box<dyn AsModel>> {
-    match serde_yaml::from_value::<super::Processor>(value) {
-        Ok(processor) => Some(Box::new(processor)),
-        Err(_) => None
-    }
-}
-
-fn storage_new(value: serde_yaml::Value) -> Option<Box<dyn AsModel>> {
-    match serde_yaml::from_value::<super::Storage>(value) {
-        Ok(storage) => Some(Box::new(storage)),
-        Err(_) => None
-    }
-}
-
 use std::sync::Mutex;
 
 pub type ModelConstructor = fn(serde_yaml::Value) -> Option<Box<dyn AsModel>>;
@@ -33,9 +12,9 @@ lazy_static! {
     static ref CONSTRUCTORS: Mutex<HashMap<&'static str, ModelConstructor>> = {
         let mut m = HashMap::new();
         m.insert("Generator", super::Generator::from_value as ModelConstructor);
-        m.insert("ExclusiveGateway", exclusive_gateway_new as ModelConstructor);
-        m.insert("Processor", processor_new as ModelConstructor);
-        m.insert("Storage", storage_new as ModelConstructor);
+        m.insert("ExclusiveGateway", super::ExclusiveGateway::from_value as ModelConstructor);
+        m.insert("Processor", super::Processor::from_value as ModelConstructor);
+        m.insert("Storage", super::Storage::from_value as ModelConstructor);
         Mutex::new(m)
     };
     static ref VARIANTS: Vec<&'static str> = {
