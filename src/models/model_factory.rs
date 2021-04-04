@@ -33,23 +33,29 @@ fn storage_new(value: serde_yaml::Value) -> Option<Box<dyn AsModel>> {
     }
 }
 
+use std::sync::Mutex;
+
 pub type ModelConstructor = fn(serde_yaml::Value) -> Option<Box<dyn AsModel>>;
 lazy_static! {
-    static ref CONSTRUCTORS: HashMap<&'static str, ModelConstructor> = {
+    static ref CONSTRUCTORS: Mutex<HashMap<&'static str, ModelConstructor>> = {
         let mut m = HashMap::new();
         m.insert("Generator", generator_new as ModelConstructor);
         m.insert("ExclusiveGateway", exclusive_gateway_new as ModelConstructor);
         m.insert("Processor", processor_new as ModelConstructor);
         m.insert("Storage", storage_new as ModelConstructor);
-        m
+        Mutex::new(m)
     };
     static ref VARIANTS: Vec<&'static str> = {
-        CONSTRUCTORS.iter().map(|(k, _)| k).map(|&x| x).collect::<Vec<_>>()
+        CONSTRUCTORS.lock().unwrap().iter().map(|(k, _)| k).map(|&x| x).collect::<Vec<_>>()
     };
 }
 
+pub fn register(model_type: &'static str, model_constructor: ModelConstructor) {
+    CONSTRUCTORS.lock().unwrap().insert(model_type, model_constructor);
+}
+
 pub fn create<'de, D: Deserializer<'de>>(model_type: &str, extra_fields: serde_yaml::Value) -> Result<Box<dyn AsModel>, D::Error> {
-    match CONSTRUCTORS.get(model_type) {
+    match CONSTRUCTORS.lock().unwrap().get(model_type) {
         Some(constructor) => {
             match constructor(extra_fields) {
                 Some(model) => Ok(model),
