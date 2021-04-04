@@ -15,6 +15,10 @@ lazy_static! {
         m.insert("ExclusiveGateway", super::ExclusiveGateway::from_value as ModelConstructor);
         m.insert("Processor", super::Processor::from_value as ModelConstructor);
         m.insert("Storage", super::Storage::from_value as ModelConstructor);
+        m.insert("Gate", super::Gate::from_value as ModelConstructor);
+        m.insert("LoadBalancer", super::LoadBalancer::from_value as ModelConstructor);
+        m.insert("ParallelGateway", super::ParallelGateway::from_value as ModelConstructor);
+        m.insert("StochasticGate", super::StochasticGate::from_value as ModelConstructor);
         Mutex::new(m)
     };
     static ref VARIANTS: Vec<&'static str> = {

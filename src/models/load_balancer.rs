@@ -110,6 +110,13 @@ impl LoadBalancer {
             history: Default::default(),
         }
     }
+    
+    pub fn from_value(value: serde_yaml::Value) -> Option<Box<dyn AsModel>> {
+        match serde_yaml::from_value::<Self>(value) {
+            Ok(model) => Some(Box::new(model)),
+            Err(_) => None
+        }
+    }
 
     fn need_snapshot_metrics(&self) -> bool {
         self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
