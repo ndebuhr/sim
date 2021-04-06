@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::model_trait::AsModel;
 use super::ModelMessage;
-use crate::input_modeling::UniformRNG;
+use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 use crate::utils::{populate_history_port, populate_snapshot_port};
 
@@ -44,8 +44,6 @@ struct State {
     event_list: Vec<ScheduledEvent>,
     jobs: Vec<String>,
     next_port_out: usize,
-    #[serde(default)]
-    global_time: f64,
 }
 
 impl Default for State {
@@ -58,7 +56,6 @@ impl Default for State {
             event_list: vec![initalization_event],
             jobs: Vec::new(),
             next_port_out: 0,
-            global_time: 0.0,
         }
     }
 }
@@ -144,8 +141,8 @@ impl AsModel for LoadBalancer {
 
     fn events_ext(
         &mut self,
-        _uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
+        _services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         self.state.jobs.push(incoming_message.content);
         self.state.event_list.push(ScheduledEvent {
@@ -157,7 +154,7 @@ impl AsModel for LoadBalancer {
 
     fn events_int(
         &mut self,
-        _uniform_rng: &mut UniformRNG,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let events = self.state.event_list.clone();
@@ -179,7 +176,7 @@ impl AsModel for LoadBalancer {
                         self.snapshot.last_job = Some((
                             self.ports_out.flow_paths[self.state.next_port_out].clone(),
                             self.state.jobs[0].clone(),
-                            self.state.global_time,
+                            services.global_time(),
                         ));
                     }
                     if self.need_historical_metrics() {
@@ -204,7 +201,6 @@ impl AsModel for LoadBalancer {
             .for_each(|scheduled_event| {
                 scheduled_event.time -= time_delta;
             });
-        self.state.global_time += time_delta;
     }
 
     fn until_next_event(&self) -> f64 {

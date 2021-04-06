@@ -3,7 +3,7 @@ use serde::ser::SerializeMap;
 
 use super::model_trait::AsModel;
 use super::ModelMessage;
-use crate::input_modeling::UniformRNG;
+use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 
 /// `Model` wraps `model_type` and provides common ID functionality (a struct
@@ -55,17 +55,17 @@ impl AsModel for Model {
     
     fn events_ext(
         &mut self,
-        uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.inner.events_ext(uniform_rng, incoming_message)
+        self.inner.events_ext(incoming_message, services)
     }
 
     fn events_int(
         &mut self,
-        uniform_rng: &mut UniformRNG,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.inner.events_int(uniform_rng)
+        self.inner.events_int(services)
     }
 
     fn time_advance(&mut self, time_delta: f64) {

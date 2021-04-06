@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::model_trait::AsModel;
 use super::ModelMessage;
 use crate::input_modeling::random_variable::ContinuousRandomVariable;
-use crate::input_modeling::UniformRNG;
+use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 use crate::utils::{populate_history_port, populate_snapshot_port};
 
@@ -61,8 +61,6 @@ struct State {
     until_job_completion: f64,
     queue: Vec<String>,
     phase: Phase,
-    #[serde(default)]
-    global_time: f64,
 }
 
 impl Default for State {
@@ -76,7 +74,6 @@ impl Default for State {
             until_job_completion: INFINITY,
             queue: Vec::new(),
             phase: Phase::Passive,
-            global_time: 0.0,
         }
     }
 }
@@ -187,8 +184,8 @@ impl AsModel for Processor {
 
     fn events_ext(
         &mut self,
-        _uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let incoming_port: String = incoming_message.port_name;
@@ -199,7 +196,7 @@ impl AsModel for Processor {
                 if self.need_snapshot_metrics() {
                     self.snapshot.queue_size = self.state.queue.len();
                     self.snapshot.last_arrival =
-                        Some((incoming_message.content, self.state.global_time));
+                        Some((incoming_message.content, services.global_time()));
                 }
                 if self.need_historical_metrics() {
                     self.history.push(self.snapshot.clone());
@@ -255,7 +252,7 @@ impl AsModel for Processor {
 
     fn events_int(
         &mut self,
-        uniform_rng: &mut UniformRNG,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
         let events = self.state.event_list.clone();
@@ -290,7 +287,7 @@ impl AsModel for Processor {
                     }
                     Event::BeginProcessing => {
                         self.state.until_job_completion =
-                            self.service_time.random_variate(uniform_rng)?;
+                            self.service_time.random_variate(services.uniform_rng())?;
                         self.state.phase = Phase::Active;
                         if self.need_snapshot_metrics() {
                             self.snapshot.last_service_start = Some((
@@ -299,7 +296,7 @@ impl AsModel for Processor {
                                     .first()
                                     .ok_or_else(|| SimulationError::InvalidModelState)?
                                     .to_string(),
-                                self.state.global_time,
+                                services.global_time(),
                             ));
                             self.snapshot.is_utilized = true;
                         }
@@ -319,7 +316,7 @@ impl AsModel for Processor {
                                     .first()
                                     .ok_or_else(|| SimulationError::InvalidModelState)?
                                     .to_string(),
-                                self.state.global_time,
+                                services.global_time(),
                             ));
                         }
                         // Use just the job ID from the input message - transform job type
@@ -366,7 +363,6 @@ impl AsModel for Processor {
             .for_each(|scheduled_event| {
                 scheduled_event.time -= time_delta;
             });
-        self.state.global_time += time_delta;
     }
 
     fn until_next_event(&self) -> f64 {

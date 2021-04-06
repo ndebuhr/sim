@@ -1,5 +1,5 @@
 use super::ModelMessage;
-use crate::input_modeling::UniformRNG;
+use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 
 pub trait ModelClone {
@@ -37,13 +37,11 @@ pub trait AsModel: ModelClone {
     fn status(&self) -> String;
     fn events_ext(
         &mut self,
-        uniform_rng: &mut UniformRNG,
         incoming_message: ModelMessage,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError>;
-    fn events_int(
-        &mut self,
-        uniform_rng: &mut UniformRNG,
-    ) -> Result<Vec<ModelMessage>, SimulationError>;
+    fn events_int(&mut self, services: &mut Services)
+        -> Result<Vec<ModelMessage>, SimulationError>;
     fn time_advance(&mut self, time_delta: f64);
     fn until_next_event(&self) -> f64;
 }
