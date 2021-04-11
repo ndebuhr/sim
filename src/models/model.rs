@@ -1,7 +1,7 @@
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::ser::SerializeMap;
 
-use super::model_trait::AsModel;
+use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
 use crate::simulator::Services;
 use crate::utils::error::SimulationError;
@@ -47,6 +47,8 @@ impl<'de> Deserialize<'de> for Model {
         Ok(Model::new(model_repr.id, concrete_model))
     }
 }
+
+impl SerializableModel for Model {}
 
 impl AsModel for Model {
     fn status(&self) -> String {

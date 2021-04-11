@@ -2,12 +2,14 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model_trait::AsModel;
+use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
 use crate::input_modeling::random_variable::ContinuousRandomVariable;
 use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 use crate::utils::{populate_history_port, populate_snapshot_port};
+
+use sim_derive::SerializableModel;
 
 /// The processor accepts jobs, processes them for a period of time, and then
 /// outputs a processed job. The processor can have a configurable queue, of
@@ -18,7 +20,7 @@ use crate::utils::{populate_history_port, populate_snapshot_port};
 /// job. For non-stochastic behavior, a random variable distribution with a
 /// single point can be used - in which case, every job takes exactly the
 /// specified amount of time to process.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SerializableModel)]
 #[serde(rename_all = "camelCase")]
 pub struct Processor {
     service_time: ContinuousRandomVariable,
@@ -148,13 +150,6 @@ impl Processor {
         }
     }
 
-    pub fn from_value(value: serde_yaml::Value) -> Option<Box<dyn AsModel>> {
-        match serde_yaml::from_value::<Self>(value) {
-            Ok(model) => Some(Box::new(model)),
-            Err(_) => None
-        }
-    }
-
     fn need_snapshot_metrics(&self) -> bool {
         self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
     }
@@ -167,14 +162,6 @@ impl Processor {
 }
 
 impl AsModel for Processor {
-    fn get_type(&self) -> &'static str {
-        "Processor"
-    }
-    
-    fn serialize(&self) -> serde_yaml::Value {
-        serde_yaml::to_value(self).unwrap_or(serde_yaml::Value::Null)
-    }
-
     fn status(&self) -> String {
         match self.state.phase {
             Phase::Active => String::from("Processing"),

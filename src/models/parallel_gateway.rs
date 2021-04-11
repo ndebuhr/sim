@@ -3,17 +3,19 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model_trait::AsModel;
+use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
 use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 use crate::utils::{populate_history_port, populate_snapshot_port};
 
+use sim_derive::SerializableModel;
+
 /// The parallel gateway splits a job across multiple processing paths. The
 /// job is duplicated across every one of the processing paths. In addition
 /// to splitting the process, a second parallel gateway can be used to join
 /// the split paths. The parallel gateway is a BPMN concept.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SerializableModel)]
 #[serde(rename_all = "camelCase")]
 pub struct ParallelGateway {
     ports_in: PortsIn,
@@ -113,13 +115,6 @@ impl ParallelGateway {
             history: Default::default(),
         }
     }
-    
-    pub fn from_value(value: serde_yaml::Value) -> Option<Box<dyn AsModel>> {
-        match serde_yaml::from_value::<Self>(value) {
-            Ok(model) => Some(Box::new(model)),
-            Err(_) => None
-        }
-    }
 
     fn need_snapshot_metrics(&self) -> bool {
         self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
@@ -133,14 +128,6 @@ impl ParallelGateway {
 }
 
 impl AsModel for ParallelGateway {
-    fn get_type(&self) -> &'static str {
-        "ParallelGateway"
-    }
-    
-    fn serialize(&self) -> serde_yaml::Value {
-        serde_yaml::to_value(self).unwrap_or(serde_yaml::Value::Null)
-    }
-    
     fn status(&self) -> String {
         String::from("Active")
     }

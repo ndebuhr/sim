@@ -2,15 +2,17 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model_trait::AsModel;
+use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
 use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 use crate::utils::{populate_history_port, populate_snapshot_port};
 
+use sim_derive::SerializableModel;
+
 /// The load balancer routes jobs to a set of possible process paths, using a
 /// round robin strategy. There is no stochastic behavior in this model.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SerializableModel)]
 #[serde(rename_all = "camelCase")]
 pub struct LoadBalancer {
     ports_in: PortsIn,
@@ -107,13 +109,6 @@ impl LoadBalancer {
             history: Default::default(),
         }
     }
-    
-    pub fn from_value(value: serde_yaml::Value) -> Option<Box<dyn AsModel>> {
-        match serde_yaml::from_value::<Self>(value) {
-            Ok(model) => Some(Box::new(model)),
-            Err(_) => None
-        }
-    }
 
     fn need_snapshot_metrics(&self) -> bool {
         self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
@@ -127,14 +122,6 @@ impl LoadBalancer {
 }
 
 impl AsModel for LoadBalancer {
-    fn get_type(&self) -> &'static str {
-        "LoadBalancer"
-    }
-    
-    fn serialize(&self) -> serde_yaml::Value {
-        serde_yaml::to_value(self).unwrap_or(serde_yaml::Value::Null)
-    }
-    
     fn status(&self) -> String {
         format!["Listening for {}s", self.ports_in.job]
     }

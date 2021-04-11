@@ -2,19 +2,21 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model_trait::AsModel;
+use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
 use crate::input_modeling::random_variable::IndexRandomVariable;
 use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 use crate::utils::{populate_history_port, populate_snapshot_port};
 
+use sim_derive::SerializableModel;
+
 /// The exclusive gateway splits a process flow into a set of possible paths.
 /// The process will only follow one of the possible paths. Path selection is
 /// determined by Weighted Index distribution random variates, so this atomic
 /// model exhibits stochastic behavior. The exclusive gateway is a BPMN
 /// concept.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SerializableModel)]
 #[serde(rename_all = "camelCase")]
 pub struct ExclusiveGateway {
     ports_in: PortsIn,
@@ -111,13 +113,6 @@ impl ExclusiveGateway {
         }
     }
 
-    pub fn from_value(value: serde_yaml::Value) -> Option<Box<dyn AsModel>> {
-        match serde_yaml::from_value::<Self>(value) {
-            Ok(model) => Some(Box::new(model)),
-            Err(_) => None
-        }
-    }
-
     fn need_snapshot_metrics(&self) -> bool {
         self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
     }
@@ -130,14 +125,6 @@ impl ExclusiveGateway {
 }
 
 impl AsModel for ExclusiveGateway {
-    fn get_type(&self) -> &'static str {
-        "ExclusiveGateway"
-    }
-
-    fn serialize(&self) -> serde_yaml::Value {
-        serde_yaml::to_value(self).unwrap_or(serde_yaml::Value::Null)
-    }
-
     fn status(&self) -> String {
         String::from("Active")
     }

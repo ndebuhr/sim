@@ -2,18 +2,20 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model_trait::AsModel;
+use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
 use crate::input_modeling::random_variable::BooleanRandomVariable;
 use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 use crate::utils::{populate_history_port, populate_snapshot_port};
 
+use sim_derive::SerializableModel;
+
 /// The stochastic gate blocks (drops) or passes jobs, based on a specified
 /// Bernoulli distribution. If the Bernoulli random variate is a 0, the job
 /// will be dropped. If the Bernoulli random variate is a 1, the job will be
 /// passed.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SerializableModel)]
 #[serde(rename_all = "camelCase")]
 pub struct StochasticGate {
     pass_distribution: BooleanRandomVariable,
@@ -124,13 +126,6 @@ impl StochasticGate {
         }
     }
 
-    pub fn from_value(value: serde_yaml::Value) -> Option<Box<dyn AsModel>> {
-        match serde_yaml::from_value::<Self>(value) {
-            Ok(model) => Some(Box::new(model)),
-            Err(_) => None
-        }
-    }
-
     fn need_snapshot_metrics(&self) -> bool {
         self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
     }
@@ -143,14 +138,6 @@ impl StochasticGate {
 }
 
 impl AsModel for StochasticGate {
-    fn get_type(&self) -> &'static str {
-        "StochasticGate"
-    }
-
-    fn serialize(&self) -> serde_yaml::Value {
-        serde_yaml::to_value(self).unwrap_or(serde_yaml::Value::Null)
-    }
-
     fn status(&self) -> String {
         match self.state.phase {
             Phase::Open => String::from("Pass"),

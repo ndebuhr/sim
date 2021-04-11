@@ -2,11 +2,13 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model_trait::AsModel;
+use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
 use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 use crate::utils::{populate_history_port, populate_snapshot_port};
+
+use sim_derive::SerializableModel;
 
 /// The gate model passes or blocks jobs, when it is in the open or closed
 /// state, respectively. The gate can be opened and closed throughout the
@@ -14,7 +16,7 @@ use crate::utils::{populate_history_port, populate_snapshot_port};
 /// passing/blocking is based purely on the state of the model at that time
 /// in the simulation. A blocked job is a dropped job - it is not stored,
 /// queued, or redirected.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SerializableModel)]
 #[serde(rename_all = "camelCase")]
 pub struct Gate {
     ports_in: PortsIn,
@@ -136,13 +138,6 @@ impl Gate {
         }
     }
 
-    pub fn from_value(value: serde_yaml::Value) -> Option<Box<dyn AsModel>> {
-        match serde_yaml::from_value::<Self>(value) {
-            Ok(model) => Some(Box::new(model)),
-            Err(_) => None
-        }
-    }
-
     fn need_snapshot_metrics(&self) -> bool {
         self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
     }
@@ -155,14 +150,6 @@ impl Gate {
 }
 
 impl AsModel for Gate {
-    fn get_type(&self) -> &'static str {
-        "Gate"
-    }
-
-    fn serialize(&self) -> serde_yaml::Value {
-        serde_yaml::to_value(self).unwrap_or(serde_yaml::Value::Null)
-    }
-    
     fn status(&self) -> String {
         match self.state.phase {
             Phase::Open => String::from("Listening"),

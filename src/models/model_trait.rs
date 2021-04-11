@@ -21,19 +21,22 @@ impl Clone for Box<dyn AsModel> {
     }
 }
 
+pub trait SerializableModel {
+    fn get_type(&self) -> &'static str {
+        "Model"
+    }
+    fn serialize(&self) -> serde_yaml::Value {
+        serde_yaml::Value::Null
+    }
+}
+
 /// The `AsModel` trait defines everything required for a model to operate
 /// within the discrete event simulation.  The simulator formalism (Discrete
 /// Event System Specification) requires `events_ext`, `events_int`,
 /// `time_advance`, and `until_next_event`.  The additional `status` is for
 /// facilitation of simulation reasoning, reporting, and debugging.
 // #[enum_dispatch]
-pub trait AsModel: ModelClone {
-    fn get_type(&self) -> &'static str {
-        ""
-    }
-    fn serialize(&self) -> serde_yaml::Value {
-        serde_yaml::Value::Null
-    }
+pub trait AsModel: ModelClone + SerializableModel {
     fn status(&self) -> String;
     fn events_ext(
         &mut self,
