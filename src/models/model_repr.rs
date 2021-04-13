@@ -1,10 +1,10 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ModelRepr {
     pub id: String,
-    #[serde(rename="type")]
+    #[serde(rename = "type")]
     pub model_type: String,
     #[serde(flatten)]
-    pub extra: serde_yaml::Value
+    pub extra: serde_yaml::Value,
 }

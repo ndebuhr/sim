@@ -1,5 +1,5 @@
-use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::ser::SerializeMap;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
@@ -43,7 +43,8 @@ impl Serialize for Model {
 impl<'de> Deserialize<'de> for Model {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let model_repr = super::ModelRepr::deserialize(deserializer)?;
-        let concrete_model = super::model_factory::create::<D>(&model_repr.model_type[..], model_repr.extra)?;
+        let concrete_model =
+            super::model_factory::create::<D>(&model_repr.model_type[..], model_repr.extra)?;
         Ok(Model::new(model_repr.id, concrete_model))
     }
 }
@@ -54,7 +55,7 @@ impl AsModel for Model {
     fn status(&self) -> String {
         self.inner.status()
     }
-    
+
     fn events_ext(
         &mut self,
         incoming_message: ModelMessage,

@@ -13,8 +13,8 @@ pub mod processor;
 pub mod stochastic_gate;
 pub mod storage;
 
-pub mod model_repr;
 pub mod model_factory;
+pub mod model_repr;
 pub mod model_trait;
 
 pub use self::exclusive_gateway::ExclusiveGateway;
