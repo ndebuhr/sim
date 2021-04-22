@@ -4,7 +4,7 @@ extern crate syn;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{parse_macro_input, Ident, DeriveInput};
 
 #[proc_macro_derive(SerializableModel)]
 pub fn model(item: TokenStream) -> TokenStream {
@@ -27,6 +27,18 @@ pub fn model(item: TokenStream) -> TokenStream {
                 serde_yaml::to_value(self).unwrap_or(serde_yaml::Value::Null)
             }
         }
+    };
+    tokens.into()
+}
+
+#[proc_macro]
+pub fn register(item: TokenStream) -> TokenStream {
+    let name = parse_macro_input!(item as Ident);
+    let tokens = quote! {
+        sim::models::model_factory::register(
+            stringify!(#name),
+            #name::from_value as sim::models::model_factory::ModelConstructor
+        );
     };
     tokens.into()
 }
