@@ -4,7 +4,7 @@ extern crate syn;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Ident, DeriveInput};
+use syn::{parse_macro_input, DeriveInput, Ident};
 
 #[proc_macro_derive(SerializableModel)]
 pub fn model(item: TokenStream) -> TokenStream {
