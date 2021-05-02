@@ -444,7 +444,7 @@ fn simulation_serialization_deserialization_round_trip() {
   sourcePort: "processed job"
   targetPort: "store"
 "#;
-    let models: Vec<Model> = serde_yaml::from_str(s_models).unwrap();
+    let models: Vec<Model<ModelType>> = serde_yaml::from_str(s_models).unwrap();
     let connectors: Vec<Connector> = serde_yaml::from_str(s_connectors).unwrap();
     WebSimulation::post_yaml(
         &serde_yaml::to_string(&models).unwrap(),

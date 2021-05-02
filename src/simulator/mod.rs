@@ -17,6 +17,7 @@
 use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
+use smart_default::SmartDefault;
 
 use crate::models::{AsModel, Model, ModelMessage};
 use crate::utils::error::SimulationError;
@@ -34,29 +35,34 @@ pub use self::web::WebSimulation;
 /// needed to run a simulation - models, connectors, and a random number
 /// generator.  State information, specifically global time and active
 /// messages are additionally retained in the struct.
-#[derive(Clone, Default, Serialize, Deserialize)]
+///
+/// The provided `M` type will normally be some sort of enum
+/// encompassing all the possible types of models - if you're only interested
+/// in stock ones, simply use `crate::models::ModelType`.
+#[derive(Clone, SmartDefault, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Simulation {
-    models: Vec<Model>,
+pub struct Simulation<M: AsModel> {
+    models: Vec<Model<M>>,
     connectors: Vec<Connector>,
     messages: Vec<Message>,
     services: Services,
 }
 
-impl Simulation {
+impl<M: AsModel> Simulation<M> {
     /// This constructor method creates a simulation from a supplied
     /// configuration (models and connectors).
-    pub fn post(models: Vec<Model>, connectors: Vec<Connector>) -> Self {
+    pub fn post(models: Vec<Model<M>>, connectors: Vec<Connector>) -> Self {
         set_panic_hook();
         Self {
             models,
             connectors,
-            ..Self::default()
+            messages: vec![],
+            services: Services::default(),
         }
     }
 
     /// This method sets the models and connectors of an existing simulation.
-    pub fn put(&mut self, models: Vec<Model>, connectors: Vec<Connector>) {
+    pub fn put(&mut self, models: Vec<Model<M>>, connectors: Vec<Connector>) {
         self.models = models;
         self.connectors = connectors;
     }
@@ -110,8 +116,12 @@ impl Simulation {
 
     /// This method provides a convenient foundation for operating on the
     /// full set of models in the simulation.
-    pub fn models(&mut self) -> Vec<&mut Model> {
-        self.models.iter_mut().collect()
+    pub fn models(&mut self) -> impl Iterator<Item = &Model<M>> {
+        self.models.iter()
+    }
+
+    pub fn models_mut(&mut self) -> impl Iterator<Item = &mut Model<M>> {
+        self.models.iter_mut()
     }
 
     /// This method constructs a list of target IDs for a given source model
@@ -218,13 +228,13 @@ impl Simulation {
         // Process internal events and gather associated messages
         let until_next_event: f64;
         if self.messages.is_empty() {
-            until_next_event = self.models().iter().fold(INFINITY, |min, model| {
+            until_next_event = self.models().fold(INFINITY, |min, model| {
                 f64::min(min, model.until_next_event())
             });
         } else {
             until_next_event = 0.0;
         }
-        self.models().iter_mut().for_each(|model| {
+        self.models_mut().for_each(|model| {
             model.time_advance(until_next_event);
         });
         self.services

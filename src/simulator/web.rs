@@ -1,5 +1,8 @@
+use crate::models::ModelType;
+use crate::simulator::{Model, Services};
 use js_sys::Array;
 use serde::{Deserialize, Serialize};
+use smart_default::SmartDefault;
 use wasm_bindgen::prelude::*;
 
 use crate::utils::set_panic_hook;
@@ -11,9 +14,10 @@ use super::Simulation;
 /// the associated `Simulation` methods.  Errors are unwrapped, instead of
 /// returned, in the `WebSimulation` methods.
 #[wasm_bindgen]
-#[derive(Default, Serialize, Deserialize)]
+#[derive(SmartDefault, Serialize, Deserialize)]
 pub struct WebSimulation {
-    simulation: Simulation,
+    #[default(_code = "Simulation::default()")]
+    simulation: Simulation<ModelType>,
 }
 
 #[wasm_bindgen]
@@ -26,7 +30,8 @@ impl WebSimulation {
             simulation: Simulation {
                 models: serde_json::from_str(models).unwrap(),
                 connectors: serde_json::from_str(connectors).unwrap(),
-                ..Simulation::default()
+                messages: vec![],
+                services: Services::default(),
             },
         }
     }
@@ -51,7 +56,8 @@ impl WebSimulation {
             simulation: Simulation {
                 models: serde_yaml::from_str(models).unwrap(),
                 connectors: serde_yaml::from_str(connectors).unwrap(),
-                ..Simulation::default()
+                messages: vec![],
+                services: Services::default(),
             },
         }
     }

@@ -17,14 +17,14 @@ use crate::utils::error::SimulationError;
 /// field and associated accessor method).  The simulator requires all models
 /// to have an ID.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Model {
+pub struct Model<M: AsModel> {
     id: String,
     #[serde(flatten)]
-    inner: ModelType,
+    inner: M,
 }
 
-impl Model {
-    pub fn new(id: String, inner: ModelType) -> Self {
+impl<M: AsModel> Model<M> {
+    pub fn new(id: String, inner: M) -> Self {
         Self { id, inner }
     }
 
@@ -33,7 +33,7 @@ impl Model {
     }
 }
 
-impl AsModel for Model {
+impl<M: AsModel> AsModel for Model<M> {
     fn status(&self) -> String {
         self.inner.status()
     }
