@@ -20,3 +20,5 @@ pub mod models;
 pub mod output_analysis;
 pub mod simulator;
 mod utils;
+
+pub use utils::error::SimulationError;

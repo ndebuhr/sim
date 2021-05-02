@@ -1,5 +1,5 @@
 use crate::models::ModelType;
-use crate::simulator::{Model, Services};
+use crate::simulator::Services;
 use js_sys::Array;
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
