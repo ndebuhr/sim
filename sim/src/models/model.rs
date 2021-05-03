@@ -13,6 +13,8 @@ use super::Storage;
 use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 
+pub use sim_proc::AsModel;
+
 /// `Model` wraps `ModelType` and provides common ID functionality (a struct
 /// field and associated accessor method).  The simulator requires all models
 /// to have an ID.

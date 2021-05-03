@@ -35,61 +35,13 @@ fn custom_models() {
     }
 
     // Create a new enum that implements AsModel and includes the custom model.
-    #[derive(Deserialize, Serialize, Clone, Debug)]
+    #[derive(Deserialize, Serialize, Clone, Debug, AsModel)]
     enum ModelType {
         // Built-in models
         Gate(Gate),
         Generator(Generator),
         // Crate user's models
         CustomModel(CustomModel),
-    }
-
-    // We could probably write a macro to generate this boilerplate. We can't
-    // use enum_dispatch since this is across a crate boundary.
-    impl AsModel for ModelType {
-        fn status(&self) -> String {
-            match self {
-                Self::Gate(gate) => gate.status(),
-                Self::Generator(gen) => gen.status(),
-                Self::CustomModel(m) => m.status(),
-            }
-        }
-
-        fn events_ext(
-            &mut self,
-            msg: ModelMessage,
-            svc: &mut Services,
-        ) -> Result<Vec<ModelMessage>, SimulationError> {
-            match self {
-                Self::Gate(gate) => gate.events_ext(msg, svc),
-                Self::Generator(gen) => gen.events_ext(msg, svc),
-                Self::CustomModel(m) => m.events_ext(msg, svc),
-            }
-        }
-
-        fn events_int(&mut self, svc: &mut Services) -> Result<Vec<ModelMessage>, SimulationError> {
-            match self {
-                Self::Gate(gate) => gate.events_int(svc),
-                Self::Generator(gen) => gen.events_int(svc),
-                Self::CustomModel(m) => m.events_int(svc),
-            }
-        }
-
-        fn time_advance(&mut self, time: f64) {
-            match self {
-                Self::Gate(gate) => gate.time_advance(time),
-                Self::Generator(gen) => gen.time_advance(time),
-                Self::CustomModel(m) => m.time_advance(time),
-            }
-        }
-
-        fn until_next_event(&self) -> f64 {
-            match self {
-                Self::Gate(gate) => gate.until_next_event(),
-                Self::Generator(gen) => gen.until_next_event(),
-                Self::CustomModel(m) => m.until_next_event(),
-            }
-        }
     }
 
     let models = [

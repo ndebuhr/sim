@@ -1,4 +1,6 @@
 /target
+sim/target
+sim_proc/target
 **/*.rs.bk
 Cargo.lock
 bin/
