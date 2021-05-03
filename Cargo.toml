@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "sim",
+    "sim_proc",
 ]
 
 [profile.release]
