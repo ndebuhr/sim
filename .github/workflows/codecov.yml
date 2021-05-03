@@ -25,7 +25,7 @@ jobs:
     - name: Build (wasm-pack)
       run: |
         curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-        wasm-pack build
+        wasm-pack build sim
     - name: Push Coverage Data (codecov)
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

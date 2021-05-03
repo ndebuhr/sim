@@ -49,7 +49,7 @@ jobs:
     - name: Run Tests (wasm-pack)
       run: |
         cargo install --git https://github.com/rustwasm/wasm-pack.git
-        wasm-pack test --headless --chrome --firefox
+        wasm-pack test --headless --chrome --firefox sim
 
   rustfmt:
     name: Rustfmt
