@@ -14,8 +14,6 @@ pub fn as_model_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 }
 
 fn derive_impl(input: ItemEnum) -> TokenStream {
-    use syn::{Fields, Ident, Path, Type};
-
     let name = input.ident;
     // Tuples of (enum_variant_name, enum_variant_field).
     let variants: Vec<_> = input.variants.into_iter().map(|v| v.ident).collect();
