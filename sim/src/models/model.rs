@@ -1,4 +1,3 @@
-use enum_dispatch::enum_dispatch;
 use serde::{Deserialize, Serialize};
 
 use super::ExclusiveGateway;
@@ -66,18 +65,17 @@ impl<M: AsModel> AsModel for Model<M> {
 
 /// `ModelType` is an enum encompassing all the available model types. Each
 /// variant holds a concrete type that implements AsModel.
-#[enum_dispatch(AsModel)]
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, AsModel)]
 #[serde(tag = "type")]
 pub enum ModelType {
-    ExclusiveGateway,
-    Gate,
-    Generator,
-    LoadBalancer,
-    ParallelGateway,
-    Processor,
-    StochasticGate,
-    Storage,
+    ExclusiveGateway(ExclusiveGateway),
+    Gate(Gate),
+    Generator(Generator),
+    LoadBalancer(LoadBalancer),
+    ParallelGateway(ParallelGateway),
+    Processor(Processor),
+    StochasticGate(StochasticGate),
+    Storage(Storage),
 }
 
 /// The `AsModel` trait defines everything required for a model to operate
@@ -85,7 +83,6 @@ pub enum ModelType {
 /// Event System Specification) requires `events_ext`, `events_int`,
 /// `time_advance`, and `until_next_event`.  The additional `status` is for
 /// facilitation of simulation reasoning, reporting, and debugging.
-#[enum_dispatch]
 pub trait AsModel {
     fn status(&self) -> String;
     fn events_ext(
