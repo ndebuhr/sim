@@ -61,11 +61,12 @@ pub fn create<'de, D: Deserializer<'de>>(
     model_type: &str,
     extra_fields: serde_yaml::Value,
 ) -> Result<Box<dyn AsModel>, D::Error> {
-    match CONSTRUCTORS.lock().unwrap().get(model_type) {
-        Some(constructor) => match constructor(extra_fields) {
-            Some(model) => Ok(model),
-            None => Err(de::Error::unknown_variant(model_type, &VARIANTS)),
-        },
+    let model = match CONSTRUCTORS.lock().unwrap().get(model_type) {
+        Some(constructor) => constructor(extra_fields),
+        None => None,
+    };
+    match model {
+        Some(model) => Ok(model),
         None => Err(de::Error::unknown_variant(model_type, &VARIANTS)),
     }
 }
