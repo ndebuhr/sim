@@ -13,15 +13,22 @@ pub mod processor;
 pub mod stochastic_gate;
 pub mod storage;
 
+pub mod model_factory;
+pub mod model_repr;
+pub mod model_trait;
+
 pub use self::exclusive_gateway::ExclusiveGateway;
 pub use self::gate::Gate;
 pub use self::generator::Generator;
 pub use self::load_balancer::LoadBalancer;
-pub use self::model::{AsModel, Model, ModelType};
+pub use self::model::Model;
+pub use self::model_trait::AsModel;
 pub use self::parallel_gateway::ParallelGateway;
 pub use self::processor::Processor;
 pub use self::stochastic_gate::StochasticGate;
 pub use self::storage::Storage;
+
+pub use self::model_repr::ModelRepr;
 
 #[derive(Debug, Clone)]
 pub struct ModelMessage {

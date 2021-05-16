@@ -2,13 +2,15 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::AsModel;
+use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
 use crate::input_modeling::random_variable::ContinuousRandomVariable;
 use crate::input_modeling::Thinning;
 use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 use crate::utils::{populate_history_port, populate_snapshot_port};
+
+use sim_derive::SerializableModel;
 
 /// The generator produces jobs based on a configured interarrival
 /// distribution. A normalized thinning function is used to enable
@@ -18,7 +20,7 @@ use crate::utils::{populate_history_port, populate_snapshot_port};
 /// produce jobs through perpetuity, and the generator does not receive
 /// messages or otherwise change behavior throughout a simulation (except
 /// through the thinning function).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SerializableModel)]
 #[serde(rename_all = "camelCase")]
 pub struct Generator {
     // Time between job generations

@@ -22,7 +22,7 @@ crate-type = ["cdylib", "rlib"]
 default = ["console_error_panic_hook"]
 
 [dependencies]
-enum_dispatch = "0.3"
+lazy_static = "1.4.0"
 getrandom = { version = "0.2", features = ["js"] }
 js-sys = "0.3"
 num-traits = "0.2"
@@ -35,6 +35,7 @@ serde_yaml = "0.8"
 thiserror = "1.0"
 wasm-bindgen = "0.2.63"
 web-sys = { version = "0.3", features = [ "console" ] }
+sim_derive = { path = "sim_derive" }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
@@ -55,3 +56,8 @@ wasm-bindgen-test = "0.3.13"
 [profile.release]
 # Tell `rustc` to optimize for small code size.
 opt-level = "s"
+
+[workspace]
+members = [
+    "sim_derive",
+]

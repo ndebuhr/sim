@@ -16,7 +16,7 @@ fn poisson_generator_processor_with_capacity() {
     let models = [
         Model::new(
             String::from("generator-01"),
-            ModelType::Generator(Generator::new(
+            Box::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 0.5 },
                 None,
                 String::from("job"),
@@ -26,7 +26,7 @@ fn poisson_generator_processor_with_capacity() {
         ),
         Model::new(
             String::from("processor-01"),
-            ModelType::Processor(Processor::new(
+            Box::new(Processor::new(
                 ContinuousRandomVariable::Exp { lambda: 0.333333 },
                 14,
                 String::from("job"),
@@ -37,7 +37,7 @@ fn poisson_generator_processor_with_capacity() {
         ),
         Model::new(
             String::from("storage-01"),
-            ModelType::Storage(Storage::new(
+            Box::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
@@ -123,7 +123,7 @@ fn step_until_activities() {
     let models = [
         Model::new(
             String::from("generator-01"),
-            ModelType::Generator(Generator::new(
+            Box::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 0.5 },
                 None,
                 String::from("job"),
@@ -133,7 +133,7 @@ fn step_until_activities() {
         ),
         Model::new(
             String::from("storage-01"),
-            ModelType::Storage(Storage::new(
+            Box::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
@@ -173,7 +173,7 @@ fn non_stationary_generation() {
     let models = [
         Model::new(
             String::from("generator-01"),
-            ModelType::Generator(Generator::new(
+            Box::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 0.0957 },
                 None,
                 String::from("job"),
@@ -183,7 +183,7 @@ fn non_stationary_generation() {
         ),
         Model::new(
             String::from("processor-01"),
-            ModelType::Processor(Processor::new(
+            Box::new(Processor::new(
                 ContinuousRandomVariable::Exp { lambda: 0.1659 },
                 14,
                 String::from("job"),
@@ -194,7 +194,7 @@ fn non_stationary_generation() {
         ),
         Model::new(
             String::from("storage-01"),
-            ModelType::Storage(Storage::new(
+            Box::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
@@ -253,7 +253,7 @@ fn exclusive_gateway_proportions_chi_square() {
     let models = [
         Model::new(
             String::from("generator-01"),
-            ModelType::Generator(Generator::new(
+            Box::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 5.0 },
                 None,
                 String::from("job"),
@@ -263,7 +263,7 @@ fn exclusive_gateway_proportions_chi_square() {
         ),
         Model::new(
             String::from("exclusive-01"),
-            ModelType::ExclusiveGateway(ExclusiveGateway::new(
+            Box::new(ExclusiveGateway::new(
                 vec![String::from("in")],
                 vec![
                     String::from("s01"),
@@ -279,7 +279,7 @@ fn exclusive_gateway_proportions_chi_square() {
         ),
         Model::new(
             String::from("storage-01"),
-            ModelType::Storage(Storage::new(
+            Box::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
@@ -289,7 +289,7 @@ fn exclusive_gateway_proportions_chi_square() {
         ),
         Model::new(
             String::from("storage-02"),
-            ModelType::Storage(Storage::new(
+            Box::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
@@ -299,7 +299,7 @@ fn exclusive_gateway_proportions_chi_square() {
         ),
         Model::new(
             String::from("storage-03"),
-            ModelType::Storage(Storage::new(
+            Box::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
@@ -380,7 +380,7 @@ fn gate_blocking_proportions() {
     let models = [
         Model::new(
             String::from("generator-01"),
-            ModelType::Generator(Generator::new(
+            Box::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 10.0 },
                 None,
                 String::from("job"),
@@ -390,7 +390,7 @@ fn gate_blocking_proportions() {
         ),
         Model::new(
             String::from("generator-02"),
-            ModelType::Generator(Generator::new(
+            Box::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 10.0 },
                 None,
                 String::from("job"),
@@ -400,7 +400,7 @@ fn gate_blocking_proportions() {
         ),
         Model::new(
             String::from("generator-03"),
-            ModelType::Generator(Generator::new(
+            Box::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 1.0 },
                 None,
                 String::from("job"),
@@ -410,7 +410,7 @@ fn gate_blocking_proportions() {
         ),
         Model::new(
             String::from("gate-01"),
-            ModelType::Gate(Gate::new(
+            Box::new(Gate::new(
                 String::from("job"),
                 String::from("activation"),
                 String::from("deactivation"),
@@ -421,7 +421,7 @@ fn gate_blocking_proportions() {
         ),
         Model::new(
             String::from("storage-01"),
-            ModelType::Storage(Storage::new(
+            Box::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
@@ -501,7 +501,7 @@ fn load_balancer_round_robin_outputs() {
     let models = [
         Model::new(
             String::from("generator-01"),
-            ModelType::Generator(Generator::new(
+            Box::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 0.01 },
                 None,
                 String::from("job"),
@@ -511,7 +511,7 @@ fn load_balancer_round_robin_outputs() {
         ),
         Model::new(
             String::from("load-balancer-01"),
-            ModelType::LoadBalancer(LoadBalancer::new(
+            Box::new(LoadBalancer::new(
                 String::from("request"),
                 vec![
                     String::from("server-1"),
@@ -524,7 +524,7 @@ fn load_balancer_round_robin_outputs() {
         ),
         Model::new(
             String::from("storage-01"),
-            ModelType::Storage(Storage::new(
+            Box::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
@@ -534,7 +534,7 @@ fn load_balancer_round_robin_outputs() {
         ),
         Model::new(
             String::from("storage-02"),
-            ModelType::Storage(Storage::new(
+            Box::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
@@ -544,7 +544,7 @@ fn load_balancer_round_robin_outputs() {
         ),
         Model::new(
             String::from("storage-03"),
-            ModelType::Storage(Storage::new(
+            Box::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
@@ -612,7 +612,7 @@ fn injection_initiated_stored_value_exchange() {
     let models = [
         Model::new(
             String::from("storage-01"),
-            ModelType::Storage(Storage::new(
+            Box::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
@@ -622,7 +622,7 @@ fn injection_initiated_stored_value_exchange() {
         ),
         Model::new(
             String::from("storage-02"),
-            ModelType::Storage(Storage::new(
+            Box::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
@@ -686,7 +686,7 @@ fn parallel_gateway_splits_and_joins() {
     let models = [
         Model::new(
             String::from("generator-01"),
-            ModelType::Generator(Generator::new(
+            Box::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 5.0 },
                 None,
                 String::from("job"),
@@ -696,7 +696,7 @@ fn parallel_gateway_splits_and_joins() {
         ),
         Model::new(
             String::from("parallel-01"),
-            ModelType::ParallelGateway(ParallelGateway::new(
+            Box::new(ParallelGateway::new(
                 vec![String::from("in")],
                 vec![
                     String::from("alpha"),
@@ -709,7 +709,7 @@ fn parallel_gateway_splits_and_joins() {
         ),
         Model::new(
             String::from("parallel-02"),
-            ModelType::ParallelGateway(ParallelGateway::new(
+            Box::new(ParallelGateway::new(
                 vec![
                     String::from("alpha"),
                     String::from("beta"),
@@ -722,7 +722,7 @@ fn parallel_gateway_splits_and_joins() {
         ),
         Model::new(
             String::from("storage-01"),
-            ModelType::Storage(Storage::new(
+            Box::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
@@ -797,7 +797,7 @@ fn match_status_reporting() {
     let models = [
         Model::new(
             String::from("generator-01"),
-            ModelType::Generator(Generator::new(
+            Box::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 5.0 },
                 None,
                 String::from("job"),
@@ -807,7 +807,7 @@ fn match_status_reporting() {
         ),
         Model::new(
             String::from("load-balancer-01"),
-            ModelType::LoadBalancer(LoadBalancer::new(
+            Box::new(LoadBalancer::new(
                 String::from("request"),
                 vec![
                     String::from("alpha"),
@@ -830,7 +830,7 @@ fn stochastic_gate_blocking() {
     let models = [
         Model::new(
             String::from("generator-01"),
-            ModelType::Generator(Generator::new(
+            Box::new(Generator::new(
                 ContinuousRandomVariable::Exp { lambda: 5.0 },
                 None,
                 String::from("job"),
@@ -840,7 +840,7 @@ fn stochastic_gate_blocking() {
         ),
         Model::new(
             String::from("stochastic-gate-01"),
-            ModelType::StochasticGate(StochasticGate::new(
+            Box::new(StochasticGate::new(
                 BooleanRandomVariable::Bernoulli { p: 0.2 },
                 String::from("job"),
                 String::from("job"),
@@ -850,7 +850,7 @@ fn stochastic_gate_blocking() {
         ),
         Model::new(
             String::from("storage-01"),
-            ModelType::Storage(Storage::new(
+            Box::new(Storage::new(
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),

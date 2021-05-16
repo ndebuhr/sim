@@ -2,12 +2,14 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::AsModel;
+use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
 use crate::input_modeling::random_variable::ContinuousRandomVariable;
 use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 use crate::utils::{populate_history_port, populate_snapshot_port};
+
+use sim_derive::SerializableModel;
 
 /// The processor accepts jobs, processes them for a period of time, and then
 /// outputs a processed job. The processor can have a configurable queue, of
@@ -18,7 +20,7 @@ use crate::utils::{populate_history_port, populate_snapshot_port};
 /// job. For non-stochastic behavior, a random variable distribution with a
 /// single point can be used - in which case, every job takes exactly the
 /// specified amount of time to process.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SerializableModel)]
 #[serde(rename_all = "camelCase")]
 pub struct Processor {
     service_time: ContinuousRandomVariable,

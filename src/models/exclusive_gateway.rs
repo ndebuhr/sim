@@ -2,19 +2,21 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::AsModel;
+use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
 use crate::input_modeling::random_variable::IndexRandomVariable;
 use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 use crate::utils::{populate_history_port, populate_snapshot_port};
 
+use sim_derive::SerializableModel;
+
 /// The exclusive gateway splits a process flow into a set of possible paths.
 /// The process will only follow one of the possible paths. Path selection is
 /// determined by Weighted Index distribution random variates, so this atomic
 /// model exhibits stochastic behavior. The exclusive gateway is a BPMN
 /// concept.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SerializableModel)]
 #[serde(rename_all = "camelCase")]
 pub struct ExclusiveGateway {
     ports_in: PortsIn,

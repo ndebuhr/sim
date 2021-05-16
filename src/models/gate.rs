@@ -2,11 +2,13 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::AsModel;
+use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
 use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 use crate::utils::{populate_history_port, populate_snapshot_port};
+
+use sim_derive::SerializableModel;
 
 /// The gate model passes or blocks jobs, when it is in the open or closed
 /// state, respectively. The gate can be opened and closed throughout the
@@ -14,7 +16,7 @@ use crate::utils::{populate_history_port, populate_snapshot_port};
 /// passing/blocking is based purely on the state of the model at that time
 /// in the simulation. A blocked job is a dropped job - it is not stored,
 /// queued, or redirected.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SerializableModel)]
 #[serde(rename_all = "camelCase")]
 pub struct Gate {
     ports_in: PortsIn,

@@ -2,15 +2,17 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::AsModel;
+use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
 use crate::simulator::Services;
 use crate::utils::error::SimulationError;
 use crate::utils::{populate_history_port, populate_snapshot_port};
 
+use sim_derive::SerializableModel;
+
 /// The storage model stores a value, and responds with it upon request.
 /// Values are stored and value requests are handled instantantaneously.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SerializableModel)]
 #[serde(rename_all = "camelCase")]
 pub struct Storage {
     ports_in: PortsIn,
