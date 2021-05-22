@@ -64,7 +64,7 @@ impl Default for State {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 enum Phase {
     Idle,    // Doing nothing
     Pass,    // Passing a job from input to output
@@ -174,7 +174,11 @@ impl ExclusiveGateway {
 
 impl AsModel for ExclusiveGateway {
     fn status(&self) -> String {
-        String::from("Active")
+        match self.state.phase {
+            Phase::Idle => String::from("Idle"),
+            Phase::Pass => format!["Passing {}", self.state.jobs[0].content],
+            Phase::Respond => String::from("Fetching records"),
+        }
     }
 
     fn events_ext(
@@ -196,8 +200,10 @@ impl AsModel for ExclusiveGateway {
             && self.store_records
         {
             self.store_job(incoming_message, services)?;
-        } else {
+        } else if self.ports_in.records == incoming_message.port_name {
             self.records_request()?;
+        } else {
+            return Err(SimulationError::InvalidModelState);
         }
         Ok(Vec::new())
     }
@@ -206,12 +212,12 @@ impl AsModel for ExclusiveGateway {
         &mut self,
         _services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        if let Phase::Pass = self.state.phase {
+        if Phase::Pass == self.state.phase {
             self.send_jobs()
-        } else if let Phase::Respond = self.state.phase {
+        } else if Phase::Respond == self.state.phase {
             self.send_records()
         } else {
-            Ok(Vec::new())
+            Err(SimulationError::InvalidModelState)
         }
     }
 
