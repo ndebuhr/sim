@@ -66,6 +66,11 @@ pub fn populate_history_port(history_metrics: bool) -> Option<String> {
     }
 }
 
+/// Provides a centralized default name for records ports
+pub fn default_records_port_name() -> String {
+    String::from("records")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

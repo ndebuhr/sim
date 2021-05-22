@@ -274,7 +274,6 @@ fn exclusive_gateway_proportions_chi_square() {
                     weights: vec![6, 3, 1],
                 },
                 false,
-                false,
             )),
         ),
         Model::new(
@@ -368,7 +367,7 @@ fn exclusive_gateway_proportions_chi_square() {
             acc + (*per_class_observed as f64 - per_class_expected[index] as f64).powi(2)
                 / (per_class_expected[index] as f64)
         });
-    assert![outputs.iter().sum::<usize>() == 200];
+    assert_eq![outputs.iter().sum::<usize>(), 200];
     // 3 bins, 2 dof, 0.01 alpha
     let chi_square_critical = 9.21;
     assert![chi_square < chi_square_critical];
@@ -603,7 +602,7 @@ fn load_balancer_round_robin_outputs() {
             .count(),
     ];
     outputs.iter().for_each(|server_arrival_count| {
-        assert![*server_arrival_count == 3];
+        assert_eq![*server_arrival_count, 3];
     });
 }
 
@@ -678,7 +677,7 @@ fn injection_initiated_stored_value_exchange() {
     );
     simulation.inject_input(read_request);
     let messages: Vec<Message> = simulation.step().unwrap();
-    assert![messages[0].content() == "42"];
+    assert_eq![messages[0].content(), "42"];
 }
 
 #[test]
@@ -786,9 +785,9 @@ fn parallel_gateway_splits_and_joins() {
         .iter()
         .filter(|message_record| message_record.target_port() == "store")
         .count();
-    assert![alpha_passes == beta_passes];
-    assert![beta_passes == delta_passes];
-    assert![delta_passes == storage_passes];
+    assert_eq![alpha_passes, beta_passes];
+    assert_eq![beta_passes, delta_passes];
+    assert_eq![delta_passes, storage_passes];
     assert![storage_passes > 0];
 }
 
@@ -821,8 +820,14 @@ fn match_status_reporting() {
     ];
     let connectors = [];
     let simulation = Simulation::post(models.to_vec(), connectors.to_vec());
-    assert![simulation.status("generator-01").unwrap() == "Generating jobs"];
-    assert![simulation.status("load-balancer-01").unwrap() == "Listening for requests"];
+    assert_eq![
+        simulation.status("generator-01").unwrap(),
+        "Generating jobs"
+    ];
+    assert_eq![
+        simulation.status("load-balancer-01").unwrap(),
+        "Listening for requests"
+    ];
 }
 
 #[test]

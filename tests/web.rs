@@ -117,7 +117,7 @@ fn processor_from_queue_response_time_is_correct() {
                 }
                 Some(output) => {
                     let first_message = messages_set.first().unwrap();
-                    assert![first_message.content() == output];
+                    assert_eq![first_message.content(), output];
                     *first_message.time()
                 }
             }
@@ -354,7 +354,7 @@ fn processor_network_no_job_loss() {
         .filter(|message_record| message_record.target_id() == "storage-0")
         .count();
     let expected = 3 * 10; // 10 jobs traversing three paths through network
-    assert!(storage_arrivals_count == expected);
+    assert_eq!(storage_arrivals_count, expected);
 }
 
 #[wasm_bindgen_test]
