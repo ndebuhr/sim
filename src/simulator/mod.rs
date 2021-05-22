@@ -231,31 +231,33 @@ impl Simulation {
             .set_global_time(self.services.global_time() + until_next_event);
         let errors: Result<Vec<()>, SimulationError> = (0..self.models.len())
             .map(|model_index| -> Result<(), SimulationError> {
-                self.models[model_index]
-                    .events_int(&mut self.services)?
-                    .iter()
-                    .for_each(|outgoing_message| {
-                        let target_ids = self.get_message_target_ids(
-                            &self.models[model_index].id(), // Outgoing message source model ID
-                            &outgoing_message.port_name,    // Outgoing message source model port
-                        );
-                        let target_ports = self.get_message_target_ports(
-                            &self.models[model_index].id(), // Outgoing message source model ID
-                            &outgoing_message.port_name,    // Outgoing message source model port
-                        );
-                        target_ids.iter().zip(target_ports.iter()).for_each(
-                            |(target_id, target_port)| {
-                                next_messages.push(Message::new(
-                                    self.models[model_index].id().to_string(),
-                                    outgoing_message.port_name.clone(),
-                                    target_id.clone(),
-                                    target_port.clone(),
-                                    self.services.global_time(),
-                                    outgoing_message.content.clone(),
-                                ));
-                            },
-                        );
-                    });
+                if self.models[model_index].until_next_event() == 0.0 {
+                    self.models[model_index]
+                        .events_int(&mut self.services)?
+                        .iter()
+                        .for_each(|outgoing_message| {
+                            let target_ids = self.get_message_target_ids(
+                                &self.models[model_index].id(), // Outgoing message source model ID
+                                &outgoing_message.port_name, // Outgoing message source model port
+                            );
+                            let target_ports = self.get_message_target_ports(
+                                &self.models[model_index].id(), // Outgoing message source model ID
+                                &outgoing_message.port_name, // Outgoing message source model port
+                            );
+                            target_ids.iter().zip(target_ports.iter()).for_each(
+                                |(target_id, target_port)| {
+                                    next_messages.push(Message::new(
+                                        self.models[model_index].id().to_string(),
+                                        outgoing_message.port_name.clone(),
+                                        target_id.clone(),
+                                        target_port.clone(),
+                                        self.services.global_time(),
+                                        outgoing_message.content.clone(),
+                                    ));
+                                },
+                            );
+                        });
+                }
                 Ok(())
             })
             .collect();
