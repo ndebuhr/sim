@@ -415,7 +415,6 @@ fn gate_blocking_proportions() {
                 String::from("deactivation"),
                 String::from("job"),
                 false,
-                false,
             )),
         ),
         Model::new(

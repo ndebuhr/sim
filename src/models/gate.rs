@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
 use crate::simulator::Services;
+use crate::utils::default_records_port_name;
 use crate::utils::error::SimulationError;
-use crate::utils::{populate_history_port, populate_snapshot_port};
 
 use sim_derive::SerializableModel;
 
@@ -22,11 +22,9 @@ pub struct Gate {
     ports_in: PortsIn,
     ports_out: PortsOut,
     #[serde(default)]
+    store_records: bool,
+    #[serde(default)]
     state: State,
-    #[serde(default)]
-    snapshot: Metrics,
-    #[serde(default)]
-    history: Vec<Metrics>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,80 +32,53 @@ struct PortsIn {
     job: String,
     activation: String,
     deactivation: String,
-    snapshot: Option<String>,
-    history: Option<String>,
+    #[serde(default = "default_records_port_name")]
+    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct PortsOut {
     job: String,
-    snapshot: Option<String>,
-    history: Option<String>,
+    #[serde(default = "default_records_port_name")]
+    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct State {
-    event_list: Vec<ScheduledEvent>,
-    jobs: Vec<String>,
     phase: Phase,
+    until_next_event: f64,
+    jobs: Vec<Job>,
+    records: Vec<Job>,
 }
 
 impl Default for State {
     fn default() -> Self {
-        let initalization_event = ScheduledEvent {
-            time: 0.0,
-            event: Event::Run,
-        };
-        State {
-            event_list: vec![initalization_event],
-            jobs: Vec::new(),
+        Self {
             phase: Phase::Open,
+            until_next_event: INFINITY,
+            jobs: Vec::new(),
+            records: Vec::new(),
         }
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct ScheduledEvent {
-    time: f64,
-    event: Event,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-enum Event {
-    Run,
-    DropJob,
-    SendJob,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 enum Phase {
     Open,
     Closed,
+    Pass,
+    RespondWhileOpen,
+    RespondWhileClosed,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Metrics {
-    last_received: Option<(String, f64)>,
-    last_activation: Option<f64>,
-    last_deactivation: Option<f64>,
-    pass_count: usize,
-    block_count: usize,
-    is_open: Option<bool>,
-}
-
-impl Default for Metrics {
-    fn default() -> Self {
-        Metrics {
-            last_received: None,
-            last_activation: None,
-            last_deactivation: None,
-            pass_count: 0,
-            block_count: 0,
-            is_open: None,
-        }
-    }
+struct Job {
+    arrival_port: String,
+    departure_port: String,
+    content: String,
+    time: f64,
 }
 
 impl Gate {
@@ -116,44 +87,136 @@ impl Gate {
         activation_port: String,
         deactivation_port: String,
         job_out_port: String,
-        snapshot_metrics: bool,
-        history_metrics: bool,
+        store_records: bool,
     ) -> Self {
         Self {
             ports_in: PortsIn {
                 job: job_in_port,
                 activation: activation_port,
                 deactivation: deactivation_port,
-                snapshot: populate_snapshot_port(snapshot_metrics),
-                history: populate_history_port(history_metrics),
+                records: default_records_port_name(),
             },
             ports_out: PortsOut {
                 job: job_out_port,
-                snapshot: populate_snapshot_port(snapshot_metrics),
-                history: populate_history_port(history_metrics),
+                records: default_records_port_name(),
             },
+            store_records,
             state: Default::default(),
-            snapshot: Default::default(),
-            history: Default::default(),
         }
     }
 
-    fn need_snapshot_metrics(&self) -> bool {
-        self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
+    fn activate(&mut self) -> Result<(), SimulationError> {
+        self.state.phase = Phase::Open;
+        self.state.until_next_event = INFINITY;
+        Ok(())
     }
 
-    fn need_historical_metrics(&self) -> bool {
-        self.need_snapshot_metrics()
-            && self.ports_in.history.is_some()
-            && self.ports_out.history.is_some()
+    fn deactivate(&mut self) -> Result<(), SimulationError> {
+        self.state.phase = Phase::Closed;
+        self.state.until_next_event = INFINITY;
+        Ok(())
+    }
+
+    fn pass_job(
+        &mut self,
+        incoming_message: &ModelMessage,
+        services: &mut Services,
+    ) -> Result<(), SimulationError> {
+        self.state.phase = Phase::Pass;
+        self.state.until_next_event = 0.0;
+        self.state.jobs.push(Job {
+            arrival_port: incoming_message.port_name.clone(),
+            departure_port: self.ports_out.job.clone(),
+            content: incoming_message.content.clone(),
+            time: services.global_time(),
+        });
+        Ok(())
+    }
+
+    fn store_job(
+        &mut self,
+        incoming_message: &ModelMessage,
+        services: &mut Services,
+    ) -> Result<(), SimulationError> {
+        self.state.phase = Phase::Pass;
+        self.state.until_next_event = 0.0;
+        self.state.jobs.push(Job {
+            arrival_port: incoming_message.port_name.clone(),
+            departure_port: self.ports_out.job.clone(),
+            content: incoming_message.content.clone(),
+            time: services.global_time(),
+        });
+        self.state.records.push(Job {
+            arrival_port: incoming_message.port_name.clone(),
+            departure_port: self.ports_out.job.clone(),
+            content: incoming_message.content.clone(),
+            time: services.global_time(),
+        });
+        Ok(())
+    }
+
+    fn drop_job(
+        &mut self,
+        _incoming_message: &ModelMessage,
+        _services: &mut Services,
+    ) -> Result<(), SimulationError> {
+        // Do nothing
+        Ok(())
+    }
+
+    fn records_request_while_open(&mut self) -> Result<(), SimulationError> {
+        self.state.phase = Phase::RespondWhileOpen;
+        self.state.until_next_event = 0.0;
+        Ok(())
+    }
+
+    fn records_request_while_closed(&mut self) -> Result<(), SimulationError> {
+        self.state.phase = Phase::RespondWhileClosed;
+        self.state.until_next_event = 0.0;
+        Ok(())
+    }
+
+    fn send_jobs(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+        self.state.phase = Phase::Open;
+        self.state.until_next_event = INFINITY;
+        Ok((0..self.state.jobs.len())
+            .map(|_| {
+                let job = self.state.jobs.remove(0);
+                ModelMessage {
+                    port_name: job.departure_port,
+                    content: job.content,
+                }
+            })
+            .collect())
+    }
+
+    fn send_records_while_open(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+        self.state.phase = Phase::Open;
+        self.state.until_next_event = INFINITY;
+        Ok(vec![ModelMessage {
+            port_name: self.ports_out.records.clone(),
+            content: serde_json::to_string(&self.state.records).unwrap(),
+        }])
+    }
+
+    fn send_records_while_closed(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+        self.state.phase = Phase::Closed;
+        self.state.until_next_event = INFINITY;
+        Ok(vec![ModelMessage {
+            port_name: self.ports_out.records.clone(),
+            content: serde_json::to_string(&self.state.records).unwrap(),
+        }])
     }
 }
 
 impl AsModel for Gate {
     fn status(&self) -> String {
         match self.state.phase {
-            Phase::Open => String::from("Listening"),
-            Phase::Closed => String::from("Blocked"),
+            Phase::Open => String::from("Open"),
+            Phase::Closed => String::from("Closed"),
+            Phase::Pass => format!["Passing {}", self.state.jobs[0].content],
+            Phase::RespondWhileOpen => String::from("Fetching records"),
+            Phase::RespondWhileClosed => String::from("Fetching records"),
         }
     }
 
@@ -162,55 +225,34 @@ impl AsModel for Gate {
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        let incoming_port: &str = &incoming_message.port_name;
-        match &self.ports_in {
-            PortsIn { activation, .. } if activation == incoming_port => {
-                // Possible metrics updates
-                if self.need_snapshot_metrics() {
-                    self.snapshot.last_activation = Some(services.global_time());
-                    self.snapshot.is_open = Some(true);
-                }
-                if self.need_historical_metrics() {
-                    self.history.push(self.snapshot.clone());
-                }
-                // Execution
-                self.state.phase = Phase::Open;
-            }
-            PortsIn { deactivation, .. } if deactivation == incoming_port => {
-                // Possible metrics updates
-                if self.need_snapshot_metrics() {
-                    self.snapshot.last_deactivation = Some(services.global_time());
-                    self.snapshot.is_open = Some(false);
-                }
-                if self.need_historical_metrics() {
-                    self.history.push(self.snapshot.clone());
-                }
-                // Execution
-                self.state.phase = Phase::Closed;
-            }
-            PortsIn { job, .. } if job == incoming_port => {
-                // Possible metrics updates
-                if self.need_snapshot_metrics() {
-                    self.snapshot.last_received =
-                        Some((incoming_message.content.clone(), services.global_time()));
-                }
-                if self.need_historical_metrics() {
-                    self.history.push(self.snapshot.clone());
-                }
-                // Execution
-                self.state.jobs.push(incoming_message.content.clone());
-                match self.state.phase {
-                    Phase::Closed => self.state.event_list.push(ScheduledEvent {
-                        time: 0.0,
-                        event: Event::DropJob,
-                    }),
-                    Phase::Open => self.state.event_list.push(ScheduledEvent {
-                        time: 0.0,
-                        event: Event::SendJob,
-                    }),
-                }
-            }
-            _ => return Err(SimulationError::PortNotFound),
+        if self.ports_in.activation == incoming_message.port_name {
+            self.activate()?;
+        } else if self.ports_in.deactivation == incoming_message.port_name {
+            self.deactivate()?;
+        } else if self.ports_in.job == incoming_message.port_name
+            && !(self.state.phase == Phase::Closed)
+            && !self.store_records
+        {
+            self.pass_job(incoming_message, services)?;
+        } else if self.ports_in.job == incoming_message.port_name
+            && !(self.state.phase == Phase::Closed)
+            && self.store_records
+        {
+            self.store_job(incoming_message, services)?;
+        } else if self.ports_in.job == incoming_message.port_name
+            && self.state.phase == Phase::Closed
+        {
+            self.drop_job(incoming_message, services)?;
+        } else if self.ports_in.records == incoming_message.port_name
+            && !(self.state.phase == Phase::Closed)
+        {
+            self.records_request_while_open()?;
+        } else if self.ports_in.records == incoming_message.port_name
+            && Phase::Closed == self.state.phase
+        {
+            self.records_request_while_closed()?;
+        } else {
+            return Err(SimulationError::InvalidModelState);
         }
         Ok(Vec::new())
     }
@@ -219,64 +261,22 @@ impl AsModel for Gate {
         &mut self,
         _services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
-        let events = self.state.event_list.clone();
-        self.state.event_list = self
-            .state
-            .event_list
-            .iter()
-            .filter(|scheduled_event| scheduled_event.time != 0.0)
-            .cloned()
-            .collect();
-        events
-            .iter()
-            .filter(|scheduled_event| scheduled_event.time == 0.0)
-            .for_each(|scheduled_event| match scheduled_event.event {
-                Event::Run => {}
-                Event::DropJob => {
-                    // Possible metrics updates
-                    if self.need_snapshot_metrics() {
-                        self.snapshot.block_count += 1;
-                    }
-                    if self.need_historical_metrics() {
-                        self.history.push(self.snapshot.clone());
-                    }
-                    // Execution
-                    self.state.jobs.remove(0);
-                }
-                Event::SendJob => {
-                    // Possible metrics updates
-                    if self.need_snapshot_metrics() {
-                        self.snapshot.pass_count += 1;
-                    }
-                    if self.need_historical_metrics() {
-                        self.history.push(self.snapshot.clone());
-                    }
-                    // Execution
-                    outgoing_messages.push(ModelMessage {
-                        port_name: self.ports_out.job.clone(),
-                        content: self.state.jobs.remove(0),
-                    });
-                }
-            });
-        Ok(outgoing_messages)
+        if ![Phase::RespondWhileOpen, Phase::RespondWhileClosed].contains(&self.state.phase) {
+            self.send_jobs()
+        } else if self.state.phase == Phase::RespondWhileOpen {
+            self.send_records_while_open()
+        } else if self.state.phase == Phase::RespondWhileClosed {
+            self.send_records_while_closed()
+        } else {
+            Err(SimulationError::InvalidModelState)
+        }
     }
 
     fn time_advance(&mut self, time_delta: f64) {
-        self.state
-            .event_list
-            .iter_mut()
-            .for_each(|scheduled_event| {
-                scheduled_event.time -= time_delta;
-            });
+        self.state.until_next_event -= time_delta;
     }
 
     fn until_next_event(&self) -> f64 {
-        self.state
-            .event_list
-            .iter()
-            .fold(INFINITY, |until_next_event, event| {
-                f64::min(until_next_event, event.time)
-            })
+        self.state.until_next_event
     }
 }
