@@ -45,7 +45,7 @@ lazy_static! {
             .unwrap()
             .iter()
             .map(|(k, _)| k)
-            .map(|&x| x)
+            .copied()
             .collect::<Vec<_>>()
     };
 }
