@@ -3,6 +3,7 @@
 //! specifies the requirements of any additional custom models, via the
 //! `Model` trait.
 
+pub mod batcher;
 pub mod exclusive_gateway;
 pub mod gate;
 pub mod generator;
@@ -17,6 +18,7 @@ pub mod model_factory;
 pub mod model_repr;
 pub mod model_trait;
 
+pub use self::batcher::Batcher;
 pub use self::exclusive_gateway::ExclusiveGateway;
 pub use self::gate::Gate;
 pub use self::generator::Generator;

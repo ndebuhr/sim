@@ -898,3 +898,73 @@ fn stochastic_gate_blocking() {
     assert![sample.confidence_interval_mean(0.01).unwrap().lower() < 0.2];
     assert![sample.confidence_interval_mean(0.01).unwrap().upper() > 0.2];
 }
+
+#[test]
+fn batch_sizing() {
+    let models = [
+        Model::new(
+            String::from("generator-01"),
+            Box::new(Generator::new(
+                ContinuousRandomVariable::Exp { lambda: 1.0 },
+                None,
+                String::from("job"),
+                false,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("batcher-01"),
+            Box::new(Batcher::new(
+                String::from("job"),
+                String::from("job"),
+                10.0, // 10 seconds max batching time
+                10,   // 10 jobs max batch size
+            )),
+        ),
+        Model::new(
+            String::from("storage-01"),
+            Box::new(Storage::new(
+                String::from("store"),
+                String::from("read"),
+                String::from("stored"),
+                false,
+                false,
+            )),
+        ),
+    ];
+    let connectors = [
+        Connector::new(
+            String::from("connector-01"),
+            String::from("generator-01"),
+            String::from("batcher-01"),
+            String::from("job"),
+            String::from("job"),
+        ),
+        Connector::new(
+            String::from("connector-02"),
+            String::from("batcher-01"),
+            String::from("storage-01"),
+            String::from("job"),
+            String::from("store"),
+        ),
+    ];
+    let mut simulation = Simulation::post(models.to_vec(), connectors.to_vec());
+    let mut batch_sizes: Vec<usize> = Vec::new();
+    for _ in 0..10000 {
+        let message_records: Vec<Message> = simulation.step().unwrap();
+        let batch_size = message_records
+            .iter()
+            .filter(|message_record| message_record.target_id() == "storage-01")
+            .count();
+        batch_sizes.push(batch_size);
+    }
+    // Partial batches should exist
+    let exists_partial_batch = batch_sizes.iter().any(|batch_size| *batch_size < 10);
+    // Full batches should exist
+    let exists_full_batch = batch_sizes.iter().any(|batch_size| *batch_size == 10);
+    // Batches larger than the max batch size should not exist
+    let exists_oversized_batch = batch_sizes.iter().any(|batch_size| *batch_size > 10);
+    assert![exists_partial_batch];
+    assert![exists_full_batch];
+    assert![!exists_oversized_batch];
+}
