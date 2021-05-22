@@ -134,7 +134,7 @@ impl AsModel for ParallelGateway {
 
     fn events_ext(
         &mut self,
-        incoming_message: ModelMessage,
+        incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         // Possible metrics updates
@@ -149,7 +149,7 @@ impl AsModel for ParallelGateway {
         let matching_collection = self
             .state
             .collections
-            .entry(incoming_message.content)
+            .entry(incoming_message.content.clone())
             .or_insert(0);
         *matching_collection += 1;
         if *matching_collection == self.ports_in.flow_paths.len() {

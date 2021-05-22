@@ -184,7 +184,7 @@ impl Simulation {
                         .iter()
                         .map(|model_message| -> Result<(), SimulationError> {
                             self.models[model_index]
-                                .events_ext(model_message.clone(), &mut self.services)?
+                                .events_ext(&model_message, &mut self.services)?
                                 .iter()
                                 .for_each(|outgoing_message| {
                                     let target_ids = self.get_message_target_ids(

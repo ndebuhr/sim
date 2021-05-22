@@ -40,7 +40,7 @@ pub trait AsModel: ModelClone + SerializableModel {
     fn status(&self) -> String;
     fn events_ext(
         &mut self,
-        incoming_message: ModelMessage,
+        incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError>;
     fn events_int(&mut self, services: &mut Services)

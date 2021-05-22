@@ -171,11 +171,11 @@ impl AsModel for Processor {
 
     fn events_ext(
         &mut self,
-        incoming_message: ModelMessage,
+        incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
-        let incoming_port: String = incoming_message.port_name;
+        let incoming_port: String = incoming_message.port_name.clone();
         match &self.ports_in {
             PortsIn { job, .. } if *job == incoming_port => {
                 self.state.queue.push(incoming_message.content.clone());
@@ -183,7 +183,7 @@ impl AsModel for Processor {
                 if self.need_snapshot_metrics() {
                     self.snapshot.queue_size = self.state.queue.len();
                     self.snapshot.last_arrival =
-                        Some((incoming_message.content, services.global_time()));
+                        Some((incoming_message.content.clone(), services.global_time()));
                 }
                 if self.need_historical_metrics() {
                     self.history.push(self.snapshot.clone());

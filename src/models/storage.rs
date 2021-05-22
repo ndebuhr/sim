@@ -134,7 +134,7 @@ impl AsModel for Storage {
 
     fn events_ext(
         &mut self,
-        incoming_message: ModelMessage,
+        incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
@@ -150,7 +150,7 @@ impl AsModel for Storage {
                     self.history.push(self.snapshot.clone());
                 }
                 // State changes
-                self.state.job = Some(incoming_message.content);
+                self.state.job = Some(incoming_message.content.clone());
             }
             PortsIn { read, .. } if read == incoming_port => {
                 // Deliberately not unwrapping here

@@ -131,7 +131,7 @@ impl AsModel for ExclusiveGateway {
 
     fn events_ext(
         &mut self,
-        incoming_message: ModelMessage,
+        incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
@@ -150,7 +150,7 @@ impl AsModel for ExclusiveGateway {
         // State changes
         outgoing_messages.push(ModelMessage {
             port_name: self.ports_out.flow_paths[port_number].clone(),
-            content: incoming_message.content,
+            content: incoming_message.content.clone(),
         });
         Ok(outgoing_messages)
     }

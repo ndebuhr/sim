@@ -147,7 +147,7 @@ impl AsModel for StochasticGate {
 
     fn events_ext(
         &mut self,
-        incoming_message: ModelMessage,
+        incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let incoming_port: &str = &incoming_message.port_name;
@@ -168,7 +168,7 @@ impl AsModel for StochasticGate {
                         event: Event::DropJob,
                     })
                 }
-                self.state.jobs.push(incoming_message.content);
+                self.state.jobs.push(incoming_message.content.clone());
             }
             _ => return Err(SimulationError::PortNotFound),
         }

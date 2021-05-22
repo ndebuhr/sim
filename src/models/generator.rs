@@ -144,7 +144,7 @@ impl AsModel for Generator {
 
     fn events_ext(
         &mut self,
-        _incoming_message: ModelMessage,
+        _incoming_message: &ModelMessage,
         _services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         Ok(Vec::new())

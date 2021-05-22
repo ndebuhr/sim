@@ -159,7 +159,7 @@ impl AsModel for Gate {
 
     fn events_ext(
         &mut self,
-        incoming_message: ModelMessage,
+        incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         let incoming_port: &str = &incoming_message.port_name;
@@ -198,7 +198,7 @@ impl AsModel for Gate {
                     self.history.push(self.snapshot.clone());
                 }
                 // Execution
-                self.state.jobs.push(incoming_message.content);
+                self.state.jobs.push(incoming_message.content.clone());
                 match self.state.phase {
                     Phase::Closed => self.state.event_list.push(ScheduledEvent {
                         time: 0.0,

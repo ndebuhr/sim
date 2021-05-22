@@ -128,10 +128,10 @@ impl AsModel for LoadBalancer {
 
     fn events_ext(
         &mut self,
-        incoming_message: ModelMessage,
+        incoming_message: &ModelMessage,
         _services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.state.jobs.push(incoming_message.content);
+        self.state.jobs.push(incoming_message.content.clone());
         self.state.event_list.push(ScheduledEvent {
             time: 0.0,
             event: Event::SendJob,
