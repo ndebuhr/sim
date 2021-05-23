@@ -1,6 +1,6 @@
 [package]
 name = "sim"
-version = "0.7.0"
+version = "0.8.0"
 edition = "2018"
 license = "MIT OR Apache-2.0"
 authors = ["Neal DeBuhr <ndebuhr@gmail.com>"]
@@ -34,7 +34,7 @@ serde_yaml = "0.8"
 thiserror = "1.0"
 wasm-bindgen = "0.2.63"
 web-sys = { version = "0.3", features = [ "console" ] }
-sim_derive = { version = "0.7", path = "../sim_derive" }
+sim_derive = { version = "0.8", path = "../sim_derive" }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
