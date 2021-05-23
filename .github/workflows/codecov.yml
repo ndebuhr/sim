@@ -12,21 +12,25 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install Rust (rustup)
+      working-directory: ./sim
       run: rustup update stable && rustup default stable
     - name: Generate Cargo.lock
+      working-directory: ./sim
       run: cargo generate-lockfile
     - uses: actions/cache@v2
       with:
         path: |
           ~/.cargo/registry
           ~/.cargo/git
-          target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          ./sim/target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('./sim/Cargo.lock') }}
     - name: Build (wasm-pack)
+      working-directory: ./sim
       run: |
         curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
         wasm-pack build
     - name: Push Coverage Data (codecov)
+      working-directory: ./sim
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       run: |

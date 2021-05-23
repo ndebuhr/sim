@@ -17,17 +17,20 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: Install Rust (rustup)
+      working-directory: ./sim
       run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }}
     - name: Generate Cargo.lock
+      working-directory: ./sim
       run: cargo generate-lockfile
     - uses: actions/cache@v2
       with:
         path: |
           ~/.cargo/registry
           ~/.cargo/git
-          target
-        key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
+          ./sim/target
+        key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('./sim/Cargo.lock') }}
     - name: Run Tests
+      working-directory: ./sim
       run: cargo test
 
   wasm-pack:
@@ -36,17 +39,20 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install Rust
+      working-directory: ./sim
       run: rustup update stable && rustup default stable
     - name: Generate Cargo.lock
+      working-directory: ./sim
       run: cargo generate-lockfile
     - uses: actions/cache@v2
       with:
         path: |
           ~/.cargo/registry
           ~/.cargo/git
-          target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          ./sim/target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('./sim/Cargo.lock') }}
     - name: Run Tests (wasm-pack)
+      working-directory: ./sim
       run: |
         cargo install --git https://github.com/rustwasm/wasm-pack.git
         wasm-pack test --headless --chrome --firefox
@@ -57,17 +63,20 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: Install Rust
+      working-directory: ./sim
       run: rustup update stable && rustup default stable && rustup component add rustfmt
     - name: Generate Cargo.lock
+      working-directory: ./sim
       run: cargo generate-lockfile
     - uses: actions/cache@v2
       with:
         path: |
           ~/.cargo/registry
           ~/.cargo/git
-          target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          ./sim/target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('./sim/Cargo.lock') }}
     - name: Check Code Formatting
+      working-directory: ./sim
       run: cargo fmt -- --check
 
   clippy:
@@ -76,15 +85,18 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install Rust
+      working-directory: ./sim
       run: rustup update stable && rustup default stable && rustup component add clippy
     - name: Generate Cargo.lock
+      working-directory: ./sim
       run: cargo generate-lockfile
     - uses: actions/cache@v2
       with:
         path: |
           ~/.cargo/registry
           ~/.cargo/git
-          target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          ./sim/target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('./sim/Cargo.lock') }}
     - name: Run Clippy Checks
+      working-directory: ./sim
       run: cargo clippy --all-features -- -Dclippy::all -Dclippy::pedantic || echo "exit $?"

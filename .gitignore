@@ -1,9 +1,11 @@
+**/Cargo.lock
 /target
+/sim/target
+/sim_derive/target
+
 **/*.rs.bk
-Cargo.lock
-bin/
-pkg/
-wasm-pack.log
+
+**/wasm-pack.log
+
 .DS_Store
 .vscode/
-
