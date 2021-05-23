@@ -1,5 +1,5 @@
 <div align="center">
-	<img src="images/logo.png" width="200" height="200">
+	<img src="https://simrs.com/images/logo.png" width="200" height="200">
 	<h1>Sim</h1>
   <p>"Sim" or "SimRS" is a discrete event simulation package that facilitates<br>Rust- and npm-based simulation products and projects</p>
   <p><a href="https://simrs.com">Sim Website</a> | <a href="https://simrs.com/demo/">Sim Demo</a> | <a href="https://docs.rs/sim/">Sim Docs</p>
