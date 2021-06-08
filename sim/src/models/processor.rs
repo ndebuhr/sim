@@ -218,7 +218,7 @@ impl AsModel for Processor {
                         .ports_out
                         .snapshot
                         .clone()
-                        .ok_or_else(|| SimulationError::PortNotFound)?,
+                        .ok_or(SimulationError::PortNotFound)?,
                     content: serde_json::to_string(&self.snapshot)?,
                 });
             }
@@ -228,7 +228,7 @@ impl AsModel for Processor {
                         .ports_out
                         .history
                         .clone()
-                        .ok_or_else(|| SimulationError::PortNotFound)?,
+                        .ok_or(SimulationError::PortNotFound)?,
                     content: serde_json::to_string(&self.history)?,
                 });
             }
@@ -281,7 +281,7 @@ impl AsModel for Processor {
                                 self.state
                                     .queue
                                     .first()
-                                    .ok_or_else(|| SimulationError::InvalidModelState)?
+                                    .ok_or(SimulationError::InvalidModelState)?
                                     .to_string(),
                                 services.global_time(),
                             ));
@@ -301,7 +301,7 @@ impl AsModel for Processor {
                                 self.state
                                     .queue
                                     .first()
-                                    .ok_or_else(|| SimulationError::InvalidModelState)?
+                                    .ok_or(SimulationError::InvalidModelState)?
                                     .to_string(),
                                 services.global_time(),
                             ));
@@ -318,7 +318,7 @@ impl AsModel for Processor {
                                     .remove(0)
                                     .split(' ')
                                     .last()
-                                    .ok_or_else(|| SimulationError::InvalidMessage)?
+                                    .ok_or(SimulationError::InvalidMessage)?
                             ],
                         });
                         self.state.phase = Phase::Passive;

@@ -186,7 +186,7 @@ impl AsModel for ParallelGateway {
                             .collections
                             .iter()
                             .find(|(_, count)| **count == self.ports_in.flow_paths.len())
-                            .ok_or_else(|| SimulationError::InvalidModelState)?
+                            .ok_or(SimulationError::InvalidModelState)?
                             .0
                             .to_string();
                         self.ports_out.flow_paths.iter().for_each(|port_out| {

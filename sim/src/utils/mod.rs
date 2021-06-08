@@ -13,7 +13,7 @@ use error::SimulationError;
 pub fn evaluate_polynomial(coefficients: &[f64], x: f64) -> Result<f64, SimulationError> {
     let highest_order_polynomial_coeff = coefficients
         .first()
-        .ok_or_else(|| SimulationError::EmptyPolynomial)?;
+        .ok_or(SimulationError::EmptyPolynomial)?;
     Ok(coefficients[0..coefficients.len() - 1]
         .iter()
         .fold(*highest_order_polynomial_coeff, |acc, coefficient| {

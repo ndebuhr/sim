@@ -44,7 +44,7 @@ where
 /// This function converts a usize to a Float, with an associated SimulationError
 /// returned for failed conversions
 fn usize_to_float<T: Float>(unconv: usize) -> Result<T, SimulationError> {
-    T::from(unconv).ok_or_else(|| SimulationError::FloatConvError)
+    T::from(unconv).ok_or(SimulationError::FloatConvError)
 }
 
 /// The confidence interval provides an upper and lower estimate on a given
@@ -252,7 +252,7 @@ where
         // batch means.
         let deletion_point = self
             .deletion_point
-            .ok_or_else(|| SimulationError::PrerequisiteCalcError)?;
+            .ok_or(SimulationError::PrerequisiteCalcError)?;
         let batch_count = usize::min(usize_sqrt(self.time_series.len() - deletion_point), 30);
         self.batch_count = Some(batch_count);
         let batch_size = (self.time_series.len() - deletion_point) / batch_count;
@@ -274,13 +274,13 @@ where
         }
         let deletion_point = self
             .deletion_point
-            .ok_or_else(|| SimulationError::PrerequisiteCalcError)?;
+            .ok_or(SimulationError::PrerequisiteCalcError)?;
         let batch_size = self
             .batch_size
-            .ok_or_else(|| SimulationError::PrerequisiteCalcError)?;
+            .ok_or(SimulationError::PrerequisiteCalcError)?;
         let batch_count = self
             .batch_count
-            .ok_or_else(|| SimulationError::PrerequisiteCalcError)?;
+            .ok_or(SimulationError::PrerequisiteCalcError)?;
         let batch_means: Result<Vec<T>, SimulationError> = (0..batch_count)
             .map(|batch_index| {
                 let batch_start_index = deletion_point + batch_size * batch_index;
@@ -311,14 +311,14 @@ where
         }
         let batches_mean = self
             .batches_mean
-            .ok_or_else(|| SimulationError::PrerequisiteCalcError)?;
+            .ok_or(SimulationError::PrerequisiteCalcError)?;
         let batch_count = self
             .batch_count
-            .ok_or_else(|| SimulationError::PrerequisiteCalcError)?;
+            .ok_or(SimulationError::PrerequisiteCalcError)?;
         let f_batch_count: T = usize_to_float(batch_count)?;
         let batches_variance = self
             .batches_variance
-            .ok_or_else(|| SimulationError::PrerequisiteCalcError)?;
+            .ok_or(SimulationError::PrerequisiteCalcError)?;
         if batch_count == 1 {
             return Ok(ConfidenceInterval {
                 lower: batches_mean,
@@ -343,9 +343,8 @@ where
         if self.batches_mean.is_none() {
             self.calculate_batch_statistics()?;
         }
-        Ok(self
-            .batches_mean
-            .ok_or_else(|| SimulationError::PrerequisiteCalcError)?)
+        self.batches_mean
+            .ok_or(SimulationError::PrerequisiteCalcError)
     }
 }
 

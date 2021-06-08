@@ -85,7 +85,7 @@ impl Simulation {
             .models
             .iter()
             .find(|model| model.id() == model_id)
-            .ok_or_else(|| SimulationError::ModelNotFound)?
+            .ok_or(SimulationError::ModelNotFound)?
             .status())
     }
 
@@ -165,8 +165,8 @@ impl Simulation {
         let mut next_messages: Vec<Message> = Vec::new();
         // Process external events and gather associated messages
         if !messages.is_empty() {
-            let errors: Result<(), SimulationError> = (0..self.models.len())
-                .map(|model_index| -> Result<(), SimulationError> {
+            let errors: Result<(), SimulationError> =
+                (0..self.models.len()).try_for_each(|model_index| -> Result<(), SimulationError> {
                     let model_messages: Vec<ModelMessage> = messages
                         .iter()
                         .filter_map(|message| {
@@ -180,9 +180,8 @@ impl Simulation {
                             }
                         })
                         .collect();
-                    model_messages
-                        .iter()
-                        .map(|model_message| -> Result<(), SimulationError> {
+                    model_messages.iter().try_for_each(
+                        |model_message| -> Result<(), SimulationError> {
                             self.models[model_index]
                                 .events_ext(&model_message, &mut self.services)?
                                 .iter()
@@ -209,10 +208,9 @@ impl Simulation {
                                     );
                                 });
                             Ok(())
-                        })
-                        .collect()
-                })
-                .collect();
+                        },
+                    )
+                });
             errors?;
         }
         // Process internal events and gather associated messages
