@@ -1,5 +1,3 @@
-use std::f64::INFINITY;
-
 use serde::{Deserialize, Serialize};
 
 use super::model_trait::{AsModel, SerializableModel};
@@ -7,8 +5,8 @@ use super::ModelMessage;
 use crate::input_modeling::random_variable::ContinuousRandomVariable;
 use crate::input_modeling::Thinning;
 use crate::simulator::Services;
+use crate::utils::default_records_port_name;
 use crate::utils::error::SimulationError;
-use crate::utils::{populate_history_port, populate_snapshot_port};
 
 use sim_derive::SerializableModel;
 
@@ -31,73 +29,64 @@ pub struct Generator {
     ports_in: PortsIn,
     ports_out: PortsOut,
     #[serde(default)]
+    store_records: bool,
+    #[serde(default)]
     state: State,
-    #[serde(default)]
-    snapshot: Metrics,
-    #[serde(default)]
-    history: Vec<Metrics>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct PortsIn {
-    snapshot: Option<String>,
-    history: Option<String>,
+    #[serde(default = "default_records_port_name")]
+    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct PortsOut {
     job: String,
-    snapshot: Option<String>,
-    history: Option<String>,
+    #[serde(default = "default_records_port_name")]
+    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct State {
-    event_list: Vec<ScheduledEvent>,
-    until_message_interdeparture: f64,
-    job_counter: usize,
+    phase: Phase,
+    until_next_event: f64,
+    until_job: f64,
+    last_job: Job,
+    records: Vec<Job>,
 }
 
 impl Default for State {
     fn default() -> Self {
-        let initalization_event = ScheduledEvent {
-            time: 0.0,
-            event: Event::Run,
-        };
-        State {
-            event_list: vec![initalization_event],
-            until_message_interdeparture: INFINITY,
-            job_counter: 0,
+        Self {
+            phase: Phase::Initializing,
+            until_next_event: 0.0,
+            until_job: 0.0,
+            last_job: Job {
+                index: 0,
+                content: String::from("job 0"),
+                time: 0.0,
+            },
+            records: Vec::new(),
         }
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-enum Event {
-    Run,
-    BeginGeneration,
-    SendJob,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct ScheduledEvent {
-    time: f64,
-    event: Event,
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+enum Phase {
+    Initializing,
+    RecordsFetch,
+    Generating,
+    Saved,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Metrics {
-    last_generation: Option<(String, f64)>,
-}
-
-impl Default for Metrics {
-    fn default() -> Self {
-        Metrics {
-            last_generation: None,
-        }
-    }
+struct Job {
+    index: usize,
+    content: String,
+    time: f64,
 }
 
 impl Generator {
@@ -105,35 +94,94 @@ impl Generator {
         message_interdeparture_time: ContinuousRandomVariable,
         thinning: Option<Thinning>,
         job_port: String,
-        snapshot_metrics: bool,
-        history_metrics: bool,
+        store_records: bool,
     ) -> Self {
         Self {
             message_interdeparture_time,
             thinning,
             ports_in: PortsIn {
-                snapshot: populate_snapshot_port(snapshot_metrics),
-                history: populate_history_port(history_metrics),
+                records: default_records_port_name(),
             },
             ports_out: PortsOut {
                 job: job_port,
-                snapshot: populate_snapshot_port(snapshot_metrics),
-                history: populate_history_port(history_metrics),
+                records: default_records_port_name(),
             },
+            store_records,
             state: Default::default(),
-            snapshot: Default::default(),
-            history: Default::default(),
         }
     }
 
-    fn need_snapshot_metrics(&self) -> bool {
-        self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
+    fn request_records(
+        &mut self,
+        _incoming_message: &ModelMessage,
+        services: &mut Services,
+    ) -> Result<(), SimulationError> {
+        self.state.phase = Phase::RecordsFetch;
+        self.state.until_next_event = 0.0;
+        self.state.until_job -= services.global_time() - self.state.last_job.time;
+        Ok(())
     }
 
-    fn need_historical_metrics(&self) -> bool {
-        self.need_snapshot_metrics()
-            && self.ports_in.history.is_some()
-            && self.ports_out.history.is_some()
+    fn ignore_request(
+        &mut self,
+        _incoming_message: &ModelMessage,
+        _services: &mut Services,
+    ) -> Result<(), SimulationError> {
+        Ok(())
+    }
+
+    fn save_job(&mut self, services: &mut Services) -> Result<Vec<ModelMessage>, SimulationError> {
+        self.state.phase = Phase::Saved;
+        self.state.until_next_event = 0.0;
+        self.state.records.push(Job {
+            index: self.state.last_job.index + 1,
+            content: format!["{} {}", self.ports_out.job, self.state.last_job.index + 1],
+            time: services.global_time(),
+        });
+        Ok(Vec::new())
+    }
+
+    fn release_job(
+        &mut self,
+        services: &mut Services,
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
+        let interdeparture = self
+            .message_interdeparture_time
+            .random_variate(services.uniform_rng())?;
+        self.state.phase = Phase::Generating;
+        self.state.until_next_event = interdeparture;
+        self.state.until_job = interdeparture;
+        self.state.last_job = Job {
+            index: self.state.last_job.index + 1,
+            content: format!["{} {}", self.ports_out.job, self.state.last_job.index + 1],
+            time: services.global_time(),
+        };
+        Ok(vec![ModelMessage {
+            port_name: self.ports_out.job.clone(),
+            content: self.state.last_job.content.clone(),
+        }])
+    }
+
+    fn release_records(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+        self.state.phase = Phase::Generating;
+        self.state.until_next_event = self.state.until_job;
+        Ok(vec![ModelMessage {
+            port_name: self.ports_out.records.clone(),
+            content: serde_json::to_string(&self.state.records).unwrap(),
+        }])
+    }
+
+    fn initialize_generation(
+        &mut self,
+        services: &mut Services,
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
+        let interdeparture = self
+            .message_interdeparture_time
+            .random_variate(services.uniform_rng())?;
+        self.state.phase = Phase::Generating;
+        self.state.until_next_event = interdeparture;
+        self.state.until_job = interdeparture;
+        Ok(Vec::new())
     }
 }
 
@@ -144,9 +192,16 @@ impl AsModel for Generator {
 
     fn events_ext(
         &mut self,
-        _incoming_message: &ModelMessage,
-        _services: &mut Services,
+        incoming_message: &ModelMessage,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
+        if self.store_records {
+            self.request_records(incoming_message, services)?;
+        } else if !self.store_records {
+            self.ignore_request(incoming_message, services)?;
+        } else {
+            return Err(SimulationError::InvalidModelState);
+        }
         Ok(Vec::new())
     }
 
@@ -154,95 +209,26 @@ impl AsModel for Generator {
         &mut self,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
-        let events = self.state.event_list.clone();
-        self.state.event_list = self
-            .state
-            .event_list
-            .iter()
-            .filter(|scheduled_event| scheduled_event.time != 0.0)
-            .cloned()
-            .collect();
-        events
-            .iter()
-            .filter(|scheduled_event| scheduled_event.time == 0.0)
-            .map(
-                |scheduled_event| -> Result<Vec<ModelMessage>, SimulationError> {
-                    match scheduled_event.event {
-                        Event::Run => {
-                            self.state.event_list.push(ScheduledEvent {
-                                time: 0.0,
-                                event: Event::BeginGeneration,
-                            });
-                        }
-                        Event::BeginGeneration => {
-                            self.state.until_message_interdeparture = self
-                                .message_interdeparture_time
-                                .random_variate(services.uniform_rng())?;
-                            self.state.event_list.push(ScheduledEvent {
-                                time: self.state.until_message_interdeparture,
-                                event: Event::BeginGeneration,
-                            });
-                            if let Some(thinning) = self.thinning.clone() {
-                                let thinning_threshold =
-                                    thinning.evaluate(services.global_time())?;
-                                let uniform_rn = services.uniform_rng().rn();
-                                if uniform_rn < thinning_threshold {
-                                    self.state.event_list.push(ScheduledEvent {
-                                        time: self.state.until_message_interdeparture,
-                                        event: Event::SendJob,
-                                    });
-                                }
-                            } else {
-                                self.state.event_list.push(ScheduledEvent {
-                                    time: self.state.until_message_interdeparture,
-                                    event: Event::SendJob,
-                                });
-                            }
-                        }
-                        Event::SendJob => {
-                            self.state.job_counter += 1;
-                            let generated = format![
-                                "{job_type} {job_id}",
-                                job_type = self.ports_out.job,
-                                job_id = self.state.job_counter
-                            ];
-                            outgoing_messages.push(ModelMessage {
-                                port_name: self.ports_out.job.clone(),
-                                content: generated.clone(),
-                            });
-                            // Possible metrics updates
-                            if self.need_snapshot_metrics() {
-                                self.snapshot.last_generation =
-                                    Some((generated, services.global_time()));
-                            }
-                            if self.need_historical_metrics() {
-                                self.history.push(self.snapshot.clone());
-                            }
-                        }
-                    }
-                    Ok(Vec::new())
-                },
-            )
-            .find(|result| result.is_err())
-            .unwrap_or(Ok(outgoing_messages))
+        if self.state.phase == Phase::Generating && self.store_records {
+            self.save_job(services)
+        } else if (self.state.phase == Phase::Generating && !self.store_records)
+            || self.state.phase == Phase::Saved
+        {
+            self.release_job(services)
+        } else if self.state.phase == Phase::RecordsFetch {
+            self.release_records()
+        } else if self.state.phase == Phase::Initializing {
+            self.initialize_generation(services)
+        } else {
+            Err(SimulationError::InvalidModelState)
+        }
     }
 
     fn time_advance(&mut self, time_delta: f64) {
-        self.state
-            .event_list
-            .iter_mut()
-            .for_each(|scheduled_event| {
-                scheduled_event.time -= time_delta;
-            });
+        self.state.until_next_event -= time_delta;
     }
 
     fn until_next_event(&self) -> f64 {
-        self.state
-            .event_list
-            .iter()
-            .fold(INFINITY, |until_next_event, event| {
-                f64::min(until_next_event, event.time)
-            })
+        self.state.until_next_event
     }
 }
