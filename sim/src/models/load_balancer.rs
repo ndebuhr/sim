@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
 use crate::simulator::Services;
+use crate::utils::default_records_port_name;
 use crate::utils::error::SimulationError;
-use crate::utils::{populate_history_port, populate_snapshot_port};
 
 use sim_derive::SerializableModel;
 
@@ -18,106 +18,155 @@ pub struct LoadBalancer {
     ports_in: PortsIn,
     ports_out: PortsOut,
     #[serde(default)]
+    store_records: bool,
+    #[serde(default)]
     state: State,
-    #[serde(default)]
-    snapshot: Metrics,
-    #[serde(default)]
-    history: Vec<Metrics>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct PortsIn {
     job: String,
-    snapshot: Option<String>,
-    history: Option<String>,
+    #[serde(default = "default_records_port_name")]
+    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PortsOut {
     flow_paths: Vec<String>,
-    snapshot: Option<String>,
-    history: Option<String>,
+    #[serde(default = "default_records_port_name")]
+    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct State {
-    event_list: Vec<ScheduledEvent>,
-    jobs: Vec<String>,
+    phase: Phase,
+    until_next_event: f64,
     next_port_out: usize,
+    jobs: Vec<Job>,
+    records: Vec<Job>,
 }
 
 impl Default for State {
     fn default() -> Self {
-        let initalization_event = ScheduledEvent {
-            time: 0.0,
-            event: Event::Run,
-        };
-        State {
-            event_list: vec![initalization_event],
-            jobs: Vec::new(),
+        Self {
+            phase: Phase::LoadBalancing,
+            until_next_event: 0.0,
             next_port_out: 0,
+            jobs: Vec::new(),
+            records: Vec::new(),
         }
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-enum Event {
-    Run,
-    SendJob,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct ScheduledEvent {
-    time: f64,
-    event: Event,
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+enum Phase {
+    LoadBalancing,
+    RecordsFetch,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Metrics {
-    last_job: Option<(String, String, f64)>, // Port, message, time
-}
-
-impl Default for Metrics {
-    fn default() -> Self {
-        Metrics { last_job: None }
-    }
+struct Job {
+    content: String,
+    time: f64,
+    port_out: String,
 }
 
 impl LoadBalancer {
-    pub fn new(
-        job_port: String,
-        flow_path_ports: Vec<String>,
-        snapshot_metrics: bool,
-        history_metrics: bool,
-    ) -> Self {
+    pub fn new(job_port: String, flow_path_ports: Vec<String>, store_records: bool) -> Self {
         Self {
             ports_in: PortsIn {
                 job: job_port,
-                snapshot: populate_snapshot_port(snapshot_metrics),
-                history: populate_history_port(history_metrics),
+                records: default_records_port_name(),
             },
             ports_out: PortsOut {
                 flow_paths: flow_path_ports,
-                snapshot: populate_snapshot_port(snapshot_metrics),
-                history: populate_history_port(history_metrics),
+                records: default_records_port_name(),
             },
+            store_records,
             state: Default::default(),
-            snapshot: Default::default(),
-            history: Default::default(),
         }
     }
 
-    fn need_snapshot_metrics(&self) -> bool {
-        self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
+    fn request_records(
+        &mut self,
+        _incoming_message: &ModelMessage,
+        _services: &mut Services,
+    ) -> Result<(), SimulationError> {
+        self.state.phase = Phase::RecordsFetch;
+        self.state.until_next_event = 0.0;
+        Ok(())
     }
 
-    fn need_historical_metrics(&self) -> bool {
-        self.need_snapshot_metrics()
-            && self.ports_in.history.is_some()
-            && self.ports_out.history.is_some()
+    fn ignore_request(
+        &mut self,
+        _incoming_message: &ModelMessage,
+        _services: &mut Services,
+    ) -> Result<(), SimulationError> {
+        Ok(())
+    }
+
+    fn pass_job(
+        &mut self,
+        incoming_message: &ModelMessage,
+        services: &mut Services,
+    ) -> Result<(), SimulationError> {
+        self.state.phase = Phase::LoadBalancing;
+        self.state.until_next_event = 0.0;
+        self.state.jobs.push(Job {
+            content: incoming_message.content.clone(),
+            time: services.global_time(),
+            port_out: self.ports_out.flow_paths[self.state.next_port_out].clone(),
+        });
+        self.state.next_port_out = (self.state.next_port_out + 1) % self.ports_out.flow_paths.len();
+        Ok(())
+    }
+
+    fn save_job(
+        &mut self,
+        incoming_message: &ModelMessage,
+        services: &mut Services,
+    ) -> Result<(), SimulationError> {
+        self.state.phase = Phase::LoadBalancing;
+        self.state.until_next_event = 0.0;
+        self.state.jobs.push(Job {
+            content: incoming_message.content.clone(),
+            time: services.global_time(),
+            port_out: self.ports_out.flow_paths[self.state.next_port_out].clone(),
+        });
+        self.state.records.push(Job {
+            content: incoming_message.content.clone(),
+            time: services.global_time(),
+            port_out: self.ports_out.flow_paths[self.state.next_port_out].clone(),
+        });
+        self.state.next_port_out = (self.state.next_port_out + 1) % self.ports_out.flow_paths.len();
+        Ok(())
+    }
+
+    fn passivate(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+        self.state.phase = Phase::LoadBalancing;
+        self.state.until_next_event = INFINITY;
+        Ok(Vec::new())
+    }
+
+    fn send_job(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+        self.state.until_next_event = 0.0;
+        let job = self.state.jobs.remove(0);
+        Ok(vec![ModelMessage {
+            port_name: job.port_out,
+            content: job.content,
+        }])
+    }
+
+    fn release_records(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+        self.state.phase = Phase::LoadBalancing;
+        self.state.until_next_event = 0.0;
+        Ok(vec![ModelMessage {
+            port_name: self.ports_out.records.clone(),
+            content: serde_json::to_string(&self.state.records).unwrap(),
+        }])
     }
 }
 
@@ -129,73 +178,42 @@ impl AsModel for LoadBalancer {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
-        _services: &mut Services,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.state.jobs.push(incoming_message.content.clone());
-        self.state.event_list.push(ScheduledEvent {
-            time: 0.0,
-            event: Event::SendJob,
-        });
+        if incoming_message.port_name == self.ports_in.records && self.store_records {
+            self.request_records(incoming_message, services)?;
+        } else if incoming_message.port_name == self.ports_in.records && !self.store_records {
+            self.ignore_request(incoming_message, services)?;
+        } else if incoming_message.port_name == self.ports_in.job && self.store_records {
+            self.save_job(incoming_message, services)?;
+        } else if incoming_message.port_name == self.ports_in.job && !self.store_records {
+            self.pass_job(incoming_message, services)?;
+        } else {
+            return Err(SimulationError::InvalidModelState);
+        }
         Ok(Vec::new())
     }
 
     fn events_int(
         &mut self,
-        services: &mut Services,
+        _services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
-        let events = self.state.event_list.clone();
-        self.state.event_list = self
-            .state
-            .event_list
-            .iter()
-            .filter(|scheduled_event| scheduled_event.time != 0.0)
-            .cloned()
-            .collect();
-        events
-            .iter()
-            .filter(|scheduled_event| scheduled_event.time == 0.0)
-            .for_each(|scheduled_event| match scheduled_event.event {
-                Event::Run => {}
-                Event::SendJob => {
-                    // Possible metrics updates
-                    if self.need_snapshot_metrics() {
-                        self.snapshot.last_job = Some((
-                            self.ports_out.flow_paths[self.state.next_port_out].clone(),
-                            self.state.jobs[0].clone(),
-                            services.global_time(),
-                        ));
-                    }
-                    if self.need_historical_metrics() {
-                        self.history.push(self.snapshot.clone());
-                    }
-                    // State changes
-                    outgoing_messages.push(ModelMessage {
-                        port_name: self.ports_out.flow_paths[self.state.next_port_out].clone(),
-                        content: self.state.jobs.remove(0),
-                    });
-                    self.state.next_port_out =
-                        (self.state.next_port_out + 1) % self.ports_out.flow_paths.len();
-                }
-            });
-        Ok(outgoing_messages)
+        if self.state.phase == Phase::RecordsFetch {
+            self.release_records()
+        } else if self.state.phase == Phase::LoadBalancing && self.state.jobs.is_empty() {
+            self.passivate()
+        } else if self.state.phase == Phase::LoadBalancing && !self.state.jobs.is_empty() {
+            self.send_job()
+        } else {
+            Err(SimulationError::InvalidModelState)
+        }
     }
 
     fn time_advance(&mut self, time_delta: f64) {
-        self.state
-            .event_list
-            .iter_mut()
-            .for_each(|scheduled_event| {
-                scheduled_event.time -= time_delta;
-            });
+        self.state.until_next_event -= time_delta;
     }
 
     fn until_next_event(&self) -> f64 {
-        self.state
-            .event_list
-            .iter()
-            .fold(INFINITY, |until_next_event, event| {
-                f64::min(until_next_event, event.time)
-            })
+        self.state.until_next_event
     }
 }

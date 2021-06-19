@@ -509,7 +509,6 @@ fn load_balancer_round_robin_outputs() {
                     String::from("server-3"),
                 ],
                 false,
-                false,
             )),
         ),
         Model::new(
@@ -802,7 +801,6 @@ fn match_status_reporting() {
                     String::from("beta"),
                     String::from("delta"),
                 ],
-                false,
                 false,
             )),
         ),
