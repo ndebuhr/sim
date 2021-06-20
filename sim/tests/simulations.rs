@@ -692,7 +692,6 @@ fn parallel_gateway_splits_and_joins() {
                     String::from("delta"),
                 ],
                 false,
-                false,
             )),
         ),
         Model::new(
@@ -704,7 +703,6 @@ fn parallel_gateway_splits_and_joins() {
                     String::from("delta"),
                 ],
                 vec![String::from("out")],
-                false,
                 false,
             )),
         ),
