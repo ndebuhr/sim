@@ -94,6 +94,7 @@ fn step_n_with_custom_passive_model() {
     assert_eq!(generations_count, expected);
 }
 
+#[test]
 #[wasm_bindgen_test]
 fn step_n_with_custom_passive_model_wasm() {
     let models = r#"
