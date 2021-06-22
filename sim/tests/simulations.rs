@@ -27,10 +27,9 @@ fn poisson_generator_processor_with_capacity() {
             String::from("processor-01"),
             Box::new(Processor::new(
                 ContinuousRandomVariable::Exp { lambda: 0.333333 },
-                14,
+                Some(14),
                 String::from("job"),
                 String::from("processed"),
-                false,
                 false,
             )),
         ),
@@ -182,10 +181,9 @@ fn non_stationary_generation() {
             String::from("processor-01"),
             Box::new(Processor::new(
                 ContinuousRandomVariable::Exp { lambda: 0.1659 },
-                14,
+                Some(14),
                 String::from("job"),
                 String::from("processed"),
-                false,
                 false,
             )),
         ),
