@@ -8,10 +8,7 @@ use wasm_bindgen_test::*;
 
 wasm_bindgen_test_configure!(run_in_browser);
 
-fn epsilon() -> f64 {
-    0.34
-}
-
+#[test]
 #[wasm_bindgen_test]
 fn processor_from_queue_response_time_is_correct() {
     let models = r#"
@@ -215,11 +212,11 @@ fn processor_from_queue_response_time_is_correct() {
         .sum::<f64>()
         / 50.0;
     let expectation = 1.0 / 3.0; // Exponential with lambda=3.0
-    assert!(
-        (average_batch_completion_time - 2.0 * expectation).abs() / (2.0 * expectation) < epsilon()
-    );
+                                 // Epsilon of 0.34
+    assert!((average_batch_completion_time - 2.0 * expectation).abs() / (2.0 * expectation) < 0.34);
 }
 
+#[test]
 #[wasm_bindgen_test]
 fn processor_network_no_job_loss() {
     let models = r#"
@@ -419,6 +416,7 @@ fn processor_network_no_job_loss() {
     assert_eq!(storage_arrivals_count, expected);
 }
 
+#[test]
 #[wasm_bindgen_test]
 fn simulation_serialization_deserialization_field_ordering() {
     // Confirm field order does not matter for yaml deserialization
@@ -464,6 +462,7 @@ fn simulation_serialization_deserialization_field_ordering() {
     WebSimulation::post_yaml(models, connectors);
 }
 
+#[test]
 #[wasm_bindgen_test]
 fn simulation_serialization_deserialization_round_trip() {
     // Confirm a round trip deserialization-serialization
@@ -514,6 +513,7 @@ fn simulation_serialization_deserialization_round_trip() {
     );
 }
 
+#[test]
 #[wasm_bindgen_test]
 fn ci_half_width_for_average_waiting_time() {
     let models = r#"
