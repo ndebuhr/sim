@@ -45,7 +45,7 @@ For use in Rust code bases, leverage the package as a `cargo` dependency
 
 ```toml
 [dependencies]
-sim = "0.8"
+sim = "0.9"
 ```
 
 For use as a WebAssembly module in a JavaScript/TypeScript code base, leverage the package as a `npm` dependency
