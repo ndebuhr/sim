@@ -138,19 +138,18 @@ impl AsModel for Batcher {
         &mut self,
         incoming_message: &ModelMessage,
         _services: &mut Services,
-    ) -> Result<Vec<ModelMessage>, SimulationError> {
+    ) -> Result<(), SimulationError> {
         if self.state.phase == Phase::Batching && self.state.jobs.len() + 1 < self.max_batch_size {
-            self.add_to_batch(incoming_message)?;
+            self.add_to_batch(incoming_message)
         } else if self.state.phase == Phase::Passive
             && self.state.jobs.len() + 1 < self.max_batch_size
         {
-            self.start_batch(incoming_message)?;
+            self.start_batch(incoming_message)
         } else if self.state.jobs.len() + 1 >= self.max_batch_size {
-            self.fill_batch(incoming_message)?;
+            self.fill_batch(incoming_message)
         } else {
-            return Err(SimulationError::InvalidModelState);
+            Err(SimulationError::InvalidModelState)
         }
-        Ok(Vec::new())
     }
 
     fn events_int(

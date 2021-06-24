@@ -185,27 +185,26 @@ impl AsModel for ExclusiveGateway {
         &mut self,
         incoming_message: &ModelMessage,
         services: &mut Services,
-    ) -> Result<Vec<ModelMessage>, SimulationError> {
+    ) -> Result<(), SimulationError> {
         if self
             .ports_in
             .flow_paths
             .contains(&incoming_message.port_name)
             && !self.store_records
         {
-            self.pass_job(incoming_message, services)?;
+            self.pass_job(incoming_message, services)
         } else if self
             .ports_in
             .flow_paths
             .contains(&incoming_message.port_name)
             && self.store_records
         {
-            self.store_job(incoming_message, services)?;
+            self.store_job(incoming_message, services)
         } else if self.ports_in.records == incoming_message.port_name {
-            self.records_request()?;
+            self.records_request()
         } else {
-            return Err(SimulationError::InvalidModelState);
+            Err(SimulationError::InvalidModelState)
         }
-        Ok(Vec::new())
     }
 
     fn events_int(

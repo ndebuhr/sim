@@ -163,55 +163,28 @@ impl Simulation {
     pub fn step(&mut self) -> Result<Vec<Message>, SimulationError> {
         let messages = self.messages.clone();
         let mut next_messages: Vec<Message> = Vec::new();
-        // Process external events and gather associated messages
+        // Process external events
         if !messages.is_empty() {
-            let errors: Result<(), SimulationError> =
-                (0..self.models.len()).try_for_each(|model_index| -> Result<(), SimulationError> {
-                    let model_messages: Vec<ModelMessage> = messages
-                        .iter()
-                        .filter_map(|message| {
-                            if message.target_id() == self.models[model_index].id() {
-                                Some(ModelMessage {
-                                    port_name: message.target_port().to_string(),
-                                    content: message.content().to_string(),
-                                })
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
-                    model_messages.iter().try_for_each(
-                        |model_message| -> Result<(), SimulationError> {
-                            self.models[model_index]
-                                .events_ext(&model_message, &mut self.services)?
-                                .iter()
-                                .for_each(|outgoing_message| {
-                                    let target_ids = self.get_message_target_ids(
-                                        &self.models[model_index].id(), // Outgoing message source model ID
-                                        &outgoing_message.port_name, // Outgoing message source model port
-                                    );
-                                    let target_ports = self.get_message_target_ports(
-                                        &self.models[model_index].id(), // Outgoing message source model ID
-                                        &outgoing_message.port_name, // Outgoing message source model port
-                                    );
-                                    target_ids.iter().zip(target_ports.iter()).for_each(
-                                        |(target_id, target_port)| {
-                                            next_messages.push(Message::new(
-                                                self.models[model_index].id().to_string(),
-                                                outgoing_message.port_name.clone(),
-                                                target_id.clone(),
-                                                target_port.clone(),
-                                                self.services.global_time(),
-                                                outgoing_message.content.clone(),
-                                            ));
-                                        },
-                                    );
-                                });
-                            Ok(())
-                        },
-                    )
-                });
-            errors?;
+            (0..self.models.len()).try_for_each(|model_index| -> Result<(), SimulationError> {
+                let model_messages: Vec<ModelMessage> = messages
+                    .iter()
+                    .filter_map(|message| {
+                        if message.target_id() == self.models[model_index].id() {
+                            Some(ModelMessage {
+                                port_name: message.target_port().to_string(),
+                                content: message.content().to_string(),
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                model_messages
+                    .iter()
+                    .try_for_each(|model_message| -> Result<(), SimulationError> {
+                        self.models[model_index].events_ext(&model_message, &mut self.services)
+                    })
+            })?;
         }
         // Process internal events and gather associated messages
         let until_next_event: f64;

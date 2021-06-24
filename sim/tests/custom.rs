@@ -40,8 +40,8 @@ impl AsModel for Passive {
         &mut self,
         _incoming_message: &ModelMessage,
         _services: &mut Services,
-    ) -> Result<Vec<ModelMessage>, SimulationError> {
-        Ok(Vec::new())
+    ) -> Result<(), SimulationError> {
+        Ok(())
     }
 
     fn events_int(

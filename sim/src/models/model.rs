@@ -60,7 +60,7 @@ impl AsModel for Model {
         &mut self,
         incoming_message: &ModelMessage,
         services: &mut Services,
-    ) -> Result<Vec<ModelMessage>, SimulationError> {
+    ) -> Result<(), SimulationError> {
         self.inner.events_ext(incoming_message, services)
     }
 

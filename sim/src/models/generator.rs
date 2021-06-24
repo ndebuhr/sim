@@ -194,15 +194,14 @@ impl AsModel for Generator {
         &mut self,
         incoming_message: &ModelMessage,
         services: &mut Services,
-    ) -> Result<Vec<ModelMessage>, SimulationError> {
+    ) -> Result<(), SimulationError> {
         if self.store_records {
-            self.request_records(incoming_message, services)?;
+            self.request_records(incoming_message, services)
         } else if !self.store_records {
-            self.ignore_request(incoming_message, services)?;
+            self.ignore_request(incoming_message, services)
         } else {
-            return Err(SimulationError::InvalidModelState);
+            Err(SimulationError::InvalidModelState)
         }
-        Ok(Vec::new())
     }
 
     fn events_int(

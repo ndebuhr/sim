@@ -204,21 +204,20 @@ impl AsModel for Storage {
         &mut self,
         incoming_message: &ModelMessage,
         services: &mut Services,
-    ) -> Result<Vec<ModelMessage>, SimulationError> {
+    ) -> Result<(), SimulationError> {
         if incoming_message.port_name == self.ports_in.records && self.store_records {
-            self.request_records(incoming_message, services)?;
+            self.request_records(incoming_message, services)
         } else if incoming_message.port_name == self.ports_in.records && !self.store_records {
-            self.ignore_request(incoming_message, services)?;
+            self.ignore_request(incoming_message, services)
         } else if incoming_message.port_name == self.ports_in.put && self.store_records {
-            self.save_job(incoming_message, services)?;
+            self.save_job(incoming_message, services)
         } else if incoming_message.port_name == self.ports_in.put && !self.store_records {
-            self.hold_job(incoming_message)?;
+            self.hold_job(incoming_message)
         } else if incoming_message.port_name == self.ports_in.get {
-            self.get_stored_value()?;
+            self.get_stored_value()
         } else {
-            return Err(SimulationError::InvalidModelState);
+            Err(SimulationError::InvalidModelState)
         }
-        Ok(Vec::new())
     }
 
     fn events_int(

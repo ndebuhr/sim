@@ -245,29 +245,28 @@ impl AsModel for Processor {
         &mut self,
         incoming_message: &ModelMessage,
         services: &mut Services,
-    ) -> Result<Vec<ModelMessage>, SimulationError> {
+    ) -> Result<(), SimulationError> {
         if incoming_message.port_name == self.ports_in.records && self.store_records {
-            self.request_records(incoming_message, services)?;
+            self.request_records(incoming_message, services)
         } else if incoming_message.port_name == self.ports_in.records && !self.store_records {
-            self.ignore_request(incoming_message, services)?;
+            self.ignore_request(incoming_message, services)
         } else if incoming_message.port_name == self.ports_in.job
             && self.state.phase == Phase::Active
             && self.state.queue.len() < self.queue_capacity
         {
-            self.add_job(incoming_message, services)?;
+            self.add_job(incoming_message, services)
         } else if incoming_message.port_name == self.ports_in.job
             && self.state.phase == Phase::Passive
             && self.state.queue.len() < self.queue_capacity
         {
-            self.start_job(incoming_message, services)?;
+            self.start_job(incoming_message, services)
         } else if incoming_message.port_name == self.ports_in.job
             && self.state.queue.len() == self.queue_capacity
         {
-            self.ignore_job()?;
+            self.ignore_job()
         } else {
-            return Err(SimulationError::InvalidModelState);
+            Err(SimulationError::InvalidModelState)
         }
-        Ok(Vec::new())
     }
 
     fn events_int(

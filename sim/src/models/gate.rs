@@ -224,37 +224,36 @@ impl AsModel for Gate {
         &mut self,
         incoming_message: &ModelMessage,
         services: &mut Services,
-    ) -> Result<Vec<ModelMessage>, SimulationError> {
+    ) -> Result<(), SimulationError> {
         if self.ports_in.activation == incoming_message.port_name {
-            self.activate()?;
+            self.activate()
         } else if self.ports_in.deactivation == incoming_message.port_name {
-            self.deactivate()?;
+            self.deactivate()
         } else if self.ports_in.job == incoming_message.port_name
             && !(self.state.phase == Phase::Closed)
             && !self.store_records
         {
-            self.pass_job(incoming_message, services)?;
+            self.pass_job(incoming_message, services)
         } else if self.ports_in.job == incoming_message.port_name
             && !(self.state.phase == Phase::Closed)
             && self.store_records
         {
-            self.store_job(incoming_message, services)?;
+            self.store_job(incoming_message, services)
         } else if self.ports_in.job == incoming_message.port_name
             && self.state.phase == Phase::Closed
         {
-            self.drop_job(incoming_message, services)?;
+            self.drop_job(incoming_message, services)
         } else if self.ports_in.records == incoming_message.port_name
             && !(self.state.phase == Phase::Closed)
         {
-            self.records_request_while_open()?;
+            self.records_request_while_open()
         } else if self.ports_in.records == incoming_message.port_name
             && Phase::Closed == self.state.phase
         {
-            self.records_request_while_closed()?;
+            self.records_request_while_closed()
         } else {
-            return Err(SimulationError::InvalidModelState);
+            Err(SimulationError::InvalidModelState)
         }
-        Ok(Vec::new())
     }
 
     fn events_int(
