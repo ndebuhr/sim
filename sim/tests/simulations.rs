@@ -40,7 +40,6 @@ fn poisson_generator_processor_with_capacity() {
                 String::from("read"),
                 String::from("stored"),
                 false,
-                false,
             )),
         ),
     ];
@@ -135,7 +134,6 @@ fn step_until_activities() {
                 String::from("read"),
                 String::from("stored"),
                 false,
-                false,
             )),
         ),
     ];
@@ -193,7 +191,6 @@ fn non_stationary_generation() {
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
-                false,
                 false,
             )),
         ),
@@ -277,7 +274,6 @@ fn exclusive_gateway_proportions_chi_square() {
                 String::from("read"),
                 String::from("stored"),
                 false,
-                false,
             )),
         ),
         Model::new(
@@ -287,7 +283,6 @@ fn exclusive_gateway_proportions_chi_square() {
                 String::from("read"),
                 String::from("stored"),
                 false,
-                false,
             )),
         ),
         Model::new(
@@ -296,7 +291,6 @@ fn exclusive_gateway_proportions_chi_square() {
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
-                false,
                 false,
             )),
         ),
@@ -415,7 +409,6 @@ fn gate_blocking_proportions() {
                 String::from("read"),
                 String::from("stored"),
                 false,
-                false,
             )),
         ),
     ];
@@ -516,7 +509,6 @@ fn load_balancer_round_robin_outputs() {
                 String::from("read"),
                 String::from("stored"),
                 false,
-                false,
             )),
         ),
         Model::new(
@@ -526,7 +518,6 @@ fn load_balancer_round_robin_outputs() {
                 String::from("read"),
                 String::from("stored"),
                 false,
-                false,
             )),
         ),
         Model::new(
@@ -535,7 +526,6 @@ fn load_balancer_round_robin_outputs() {
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
-                false,
                 false,
             )),
         ),
@@ -604,7 +594,6 @@ fn injection_initiated_stored_value_exchange() {
                 String::from("read"),
                 String::from("stored"),
                 false,
-                false,
             )),
         ),
         Model::new(
@@ -613,7 +602,6 @@ fn injection_initiated_stored_value_exchange() {
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
-                false,
                 false,
             )),
         ),
@@ -710,7 +698,6 @@ fn parallel_gateway_splits_and_joins() {
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
-                false,
                 false,
             )),
         ),
@@ -841,7 +828,6 @@ fn stochastic_gate_blocking() {
                 String::from("read"),
                 String::from("stored"),
                 false,
-                false,
             )),
         ),
     ];
@@ -908,7 +894,6 @@ fn batch_sizing() {
                 String::from("store"),
                 String::from("read"),
                 String::from("stored"),
-                false,
                 false,
             )),
         ),

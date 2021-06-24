@@ -140,8 +140,8 @@ fn processor_from_queue_response_time_is_correct() {
         "type": "Storage",
         "id": "storage-01",
         "portsIn": {
-            "store": "store",
-            "read": "read"
+            "put": "store",
+            "get": "read"
         },
         "portsOut": {
             "stored": "stored"
@@ -333,8 +333,8 @@ fn processor_network_no_job_loss() {
         "type": "Storage",
         "id": "storage-0",
         "portsIn": {
-            "store": "store",
-            "read": "read"
+            "put": "store",
+            "get": "read"
         },
         "portsOut": {
             "stored": "stored"
@@ -440,8 +440,8 @@ fn simulation_serialization_deserialization_field_ordering() {
   queueCapacity: 14
   id: "processor-01"
 - portsIn:
-    store: "store"
-    read: "read"
+    put: "store"
+    get: "read"
   portsOut:
     stored: "stored"
   type: "Storage"
@@ -488,8 +488,8 @@ fn simulation_serialization_deserialization_round_trip() {
 - type: "Storage"
   id: "storage-01"
   portsIn:
-    store: "store"
-    read: "read"
+    put: "store"
+    get: "read"
   portsOut:
     stored: "stored"
 "#;
@@ -575,29 +575,29 @@ fn ci_half_width_for_average_waiting_time() {
 - type: "Storage"
   id: "storage-01"
   portsIn:
-    store: "store"
-    read: "read"
+    put: "store"
+    get: "read"
   portsOut:
     stored: "stored"
 - type: "Storage"
   id: "storage-02"
   portsIn:
-    store: "store"
-    read: "read"
+    put: "store"
+    get: "read"
   portsOut:
     stored: "stored"
 - type: "Storage"
   id: "storage-03"
   portsIn:
-    store: "store"
-    read: "read"
+    put: "store"
+    get: "read"
   portsOut:
     stored: "stored"
 - type: "Storage"
   id: "sys-storage"
   portsIn:
-    store: "store"
-    read: "read"
+    put: "store"
+    get: "read"
   portsOut:
     stored: "stored"
 "#;
