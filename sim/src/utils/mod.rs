@@ -44,28 +44,6 @@ pub fn usize_sqrt(n: usize) -> usize {
     x
 }
 
-/// Populate a snapshot metrics port specification with either a None (if the
-/// snapshot metrics are not required) or the default Some("snapshot") (if
-/// snapshot metrics are required)
-pub fn populate_snapshot_port(snapshot_metrics: bool) -> Option<String> {
-    if snapshot_metrics {
-        Some(String::from("snapshot"))
-    } else {
-        None
-    }
-}
-
-/// Populate a history metrics port specification with either a None (if the
-/// history metrics are not required) or the default Some("history") (if
-/// history metrics are required)
-pub fn populate_history_port(history_metrics: bool) -> Option<String> {
-    if history_metrics {
-        Some(String::from("history"))
-    } else {
-        None
-    }
-}
-
 /// Provides a centralized default name for records ports
 pub fn default_records_port_name() -> String {
     String::from("records")
