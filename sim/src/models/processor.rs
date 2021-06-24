@@ -49,7 +49,7 @@ struct PortsIn {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PortsOut {
-    processed_job: String,
+    job: String,
     #[serde(default = "default_records_port_name")]
     records: String,
 }
@@ -108,7 +108,7 @@ impl Processor {
                 records: default_records_port_name(),
             },
             ports_out: PortsOut {
-                processed_job: processed_job_port,
+                job: processed_job_port,
                 records: default_records_port_name(),
             },
             store_records,
@@ -206,7 +206,7 @@ impl Processor {
             self.service_time.random_variate(services.uniform_rng())?;
         Ok(vec![ModelMessage {
             content: job.content,
-            port_name: self.ports_out.processed_job.clone(),
+            port_name: self.ports_out.job.clone(),
         }])
     }
 
@@ -221,7 +221,7 @@ impl Processor {
             self.service_time.random_variate(services.uniform_rng())?;
         Ok(vec![ModelMessage {
             content: job.content,
-            port_name: self.ports_out.processed_job.clone(),
+            port_name: self.ports_out.job.clone(),
         }])
     }
 

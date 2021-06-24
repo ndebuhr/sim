@@ -20,7 +20,7 @@ fn processor_from_queue_response_time_is_correct() {
             "job": "job"
         },
         "portsOut": {
-            "processedJob": "processed job"
+            "job": "processed job"
         },
         "serviceTime": {
             "exp": {
@@ -228,7 +228,7 @@ fn processor_network_no_job_loss() {
             "job": "job"
         },
         "portsOut": {
-            "processedJob": "processed job"
+            "job": "processed job"
         },
         "serviceTime": {
             "exp": {
@@ -261,7 +261,7 @@ fn processor_network_no_job_loss() {
             "job": "job"
         },
         "portsOut": {
-            "processedJob": "processed job"
+            "job": "processed job"
         },
         "serviceTime": {
             "exp": {
@@ -276,7 +276,7 @@ fn processor_network_no_job_loss() {
             "job": "job"
         },
         "portsOut": {
-            "processedJob": "processed job"
+            "job": "processed job"
         },
         "serviceTime": {
             "exp": {
@@ -291,7 +291,7 @@ fn processor_network_no_job_loss() {
             "job": "job"
         },
         "portsOut": {
-            "processedJob": "processed job"
+            "job": "processed job"
         },
         "serviceTime": {
             "exp": {
@@ -306,7 +306,7 @@ fn processor_network_no_job_loss() {
             "job": "job"
         },
         "portsOut": {
-            "processedJob": "processed job"
+            "job": "processed job"
         },
         "serviceTime": {
             "exp": {
@@ -321,7 +321,7 @@ fn processor_network_no_job_loss() {
             "job": "job"
         },
         "portsOut": {
-            "processedJob": "processed job"
+            "job": "processed job"
         },
         "serviceTime": {
             "exp": {
@@ -433,7 +433,7 @@ fn simulation_serialization_deserialization_field_ordering() {
   portsIn:
     job: "job"
   portsOut:
-    processedJob: "processed job"
+    job: "processed job"
   serviceTime:
     exp:
       lambda: 0.333333
@@ -480,7 +480,7 @@ fn simulation_serialization_deserialization_round_trip() {
   portsIn:
     job: "job"
   portsOut:
-    processedJob: "processed job"
+    job: "processed job"
   serviceTime:
     exp:
       lambda: 0.333333
@@ -547,7 +547,7 @@ fn ci_half_width_for_average_waiting_time() {
   portsIn:
     job: "job"
   portsOut:
-    processedJob: "job"
+    job: "job"
   storeRecords: true
   serviceTime:
     exp:
@@ -557,7 +557,7 @@ fn ci_half_width_for_average_waiting_time() {
   portsIn:
     job: "job"
   portsOut:
-    processedJob: "job"
+    job: "job"
   storeRecords: true
   serviceTime:
     exp:
@@ -567,7 +567,7 @@ fn ci_half_width_for_average_waiting_time() {
   portsIn:
     job: "job"
   portsOut:
-    processedJob: "job"
+    job: "job"
   storeRecords: true
   serviceTime:
     exp:
