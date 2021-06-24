@@ -832,7 +832,6 @@ fn stochastic_gate_blocking() {
                 String::from("job"),
                 String::from("job"),
                 false,
-                false,
             )),
         ),
         Model::new(

@@ -6,8 +6,8 @@ use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
 use crate::input_modeling::random_variable::BooleanRandomVariable;
 use crate::simulator::Services;
+use crate::utils::default_records_port_name;
 use crate::utils::error::SimulationError;
-use crate::utils::{populate_history_port, populate_snapshot_port};
 
 use sim_derive::SerializableModel;
 
@@ -22,82 +22,57 @@ pub struct StochasticGate {
     ports_in: PortsIn,
     ports_out: PortsOut,
     #[serde(default)]
+    store_records: bool,
+    #[serde(default)]
     state: State,
-    #[serde(default)]
-    snapshot: Metrics,
-    #[serde(default)]
-    history: Vec<Metrics>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct PortsIn {
     job: String,
-    snapshot: Option<String>,
-    history: Option<String>,
+    #[serde(default = "default_records_port_name")]
+    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct PortsOut {
     job: String,
-    snapshot: Option<String>,
-    history: Option<String>,
+    #[serde(default = "default_records_port_name")]
+    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct State {
-    event_list: Vec<ScheduledEvent>,
-    jobs: Vec<String>,
     phase: Phase,
+    until_next_event: f64,
+    jobs: Vec<Job>,
+    records: Vec<Job>,
 }
 
 impl Default for State {
     fn default() -> Self {
-        let initalization_event = ScheduledEvent {
-            time: 0.0,
-            event: Event::Run,
-        };
         State {
-            event_list: vec![initalization_event],
+            phase: Phase::Passive,
+            until_next_event: INFINITY,
             jobs: Vec::new(),
-            phase: Phase::Open,
+            records: Vec::new(),
         }
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct ScheduledEvent {
-    time: f64,
-    event: Event,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-enum Event {
-    Run,
-    DropJob,
-    SendJob,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 enum Phase {
-    Open,
-    Closed,
+    Passive,
+    RecordsFetch,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Metrics {
-    last_pass: Option<(String, f64)>,
-    last_block: Option<(String, f64)>,
-}
-
-impl Default for Metrics {
-    fn default() -> Self {
-        Metrics {
-            last_pass: None,
-            last_block: None,
-        }
-    }
+pub struct Job {
+    pub content: String,
+    pub time: f64,
+    pub pass: bool,
 }
 
 impl StochasticGate {
@@ -105,43 +80,116 @@ impl StochasticGate {
         pass_distribution: BooleanRandomVariable,
         job_in_port: String,
         job_out_port: String,
-        snapshot_metrics: bool,
-        history_metrics: bool,
+        store_records: bool,
     ) -> Self {
         Self {
             pass_distribution,
             ports_in: PortsIn {
                 job: job_in_port,
-                snapshot: populate_snapshot_port(snapshot_metrics),
-                history: populate_history_port(history_metrics),
+                records: default_records_port_name(),
             },
             ports_out: PortsOut {
                 job: job_out_port,
-                snapshot: populate_snapshot_port(snapshot_metrics),
-                history: populate_history_port(history_metrics),
+                records: default_records_port_name(),
             },
+            store_records,
             state: Default::default(),
-            snapshot: Default::default(),
-            history: Default::default(),
         }
     }
 
-    fn need_snapshot_metrics(&self) -> bool {
-        self.ports_in.snapshot.is_some() && self.ports_out.snapshot.is_some()
+    fn request_records(
+        &mut self,
+        _incoming_message: &ModelMessage,
+        _services: &mut Services,
+    ) -> Result<(), SimulationError> {
+        self.state.phase = Phase::RecordsFetch;
+        self.state.until_next_event = 0.0;
+        Ok(())
     }
 
-    fn need_historical_metrics(&self) -> bool {
-        self.need_snapshot_metrics()
-            && self.ports_in.history.is_some()
-            && self.ports_out.history.is_some()
+    fn ignore_request(
+        &mut self,
+        _incoming_message: &ModelMessage,
+        _services: &mut Services,
+    ) -> Result<(), SimulationError> {
+        Ok(())
+    }
+
+    fn accept_job(
+        &mut self,
+        incoming_message: &ModelMessage,
+        services: &mut Services,
+    ) -> Result<(), SimulationError> {
+        self.state.until_next_event = 0.0;
+        self.state.jobs.push(Job {
+            content: incoming_message.content.clone(),
+            time: services.global_time(),
+            pass: self
+                .pass_distribution
+                .random_variate(services.uniform_rng())?,
+        });
+        Ok(())
+    }
+
+    fn save_job(
+        &mut self,
+        incoming_message: &ModelMessage,
+        services: &mut Services,
+    ) -> Result<(), SimulationError> {
+        self.state.until_next_event = 0.0;
+        let pass = self
+            .pass_distribution
+            .random_variate(services.uniform_rng())?;
+        self.state.jobs.push(Job {
+            content: incoming_message.content.clone(),
+            time: services.global_time(),
+            pass,
+        });
+        self.state.jobs.push(Job {
+            content: incoming_message.content.clone(),
+            time: services.global_time(),
+            pass,
+        });
+        Ok(())
+    }
+
+    fn release_records(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+        self.state.phase = Phase::Passive;
+        self.state.until_next_event = 0.0;
+        Ok(vec![ModelMessage {
+            port_name: self.ports_out.records.clone(),
+            content: serde_json::to_string(&self.state.records).unwrap(),
+        }])
+    }
+
+    fn passivate(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+        self.state.phase = Phase::Passive;
+        self.state.until_next_event = INFINITY;
+        Ok(Vec::new())
+    }
+
+    fn release_job(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+        self.state.phase = Phase::Passive;
+        self.state.until_next_event = 0.0;
+        Ok(vec![ModelMessage {
+            content: self.state.jobs.remove(0).content,
+            port_name: self.ports_out.job.clone(),
+        }])
+    }
+
+    fn block_job(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+        self.state.phase = Phase::Passive;
+        self.state.until_next_event = 0.0;
+        self.state.jobs.remove(0);
+        Ok(Vec::new())
     }
 }
 
 impl AsModel for StochasticGate {
     fn status(&self) -> String {
         match self.state.phase {
-            Phase::Open => String::from("Pass"),
-            Phase::Closed => String::from("Block"),
+            Phase::Passive => String::from("Gating"),
+            Phase::RecordsFetch => String::from("Fetching Records"),
         }
     }
 
@@ -150,95 +198,48 @@ impl AsModel for StochasticGate {
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        let incoming_port: &str = &incoming_message.port_name;
-        match &self.ports_in {
-            PortsIn { job, .. } if job == incoming_port => {
-                // Execution
-                if self
-                    .pass_distribution
-                    .random_variate(services.uniform_rng())?
-                {
-                    self.state.event_list.push(ScheduledEvent {
-                        time: 0.0,
-                        event: Event::SendJob,
-                    })
-                } else {
-                    self.state.event_list.push(ScheduledEvent {
-                        time: 0.0,
-                        event: Event::DropJob,
-                    })
-                }
-                self.state.jobs.push(incoming_message.content.clone());
-            }
-            _ => return Err(SimulationError::PortNotFound),
+        if incoming_message.port_name == self.ports_in.records && self.store_records {
+            self.request_records(incoming_message, services)?;
+        } else if incoming_message.port_name == self.ports_in.records && !self.store_records {
+            self.ignore_request(incoming_message, services)?;
+        } else if incoming_message.port_name == self.ports_in.job && self.store_records {
+            self.save_job(incoming_message, services)?;
+        } else if incoming_message.port_name == self.ports_in.job && !self.store_records {
+            self.accept_job(incoming_message, services)?;
+        } else {
+            return Err(SimulationError::InvalidModelState);
         }
         Ok(Vec::new())
     }
 
     fn events_int(
         &mut self,
-        services: &mut Services,
+        _services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        let mut outgoing_messages: Vec<ModelMessage> = Vec::new();
-        let events = self.state.event_list.clone();
-        self.state.event_list = self
-            .state
-            .event_list
-            .iter()
-            .filter(|scheduled_event| scheduled_event.time != 0.0)
-            .cloned()
-            .collect();
-        events
-            .iter()
-            .filter(|scheduled_event| scheduled_event.time == 0.0)
-            .for_each(|scheduled_event| match scheduled_event.event {
-                Event::Run => {}
-                Event::DropJob => {
-                    // Possible metrics updates
-                    if self.need_snapshot_metrics() {
-                        self.snapshot.last_block =
-                            Some((self.state.jobs[0].clone(), services.global_time()));
-                    }
-                    if self.need_historical_metrics() {
-                        self.history.push(self.snapshot.clone());
-                    }
-                    // Execution
-                    self.state.jobs.remove(0);
-                }
-                Event::SendJob => {
-                    // Possible metrics updates
-                    if self.need_snapshot_metrics() {
-                        self.snapshot.last_pass =
-                            Some((self.state.jobs[0].clone(), services.global_time()));
-                    }
-                    if self.need_historical_metrics() {
-                        self.history.push(self.snapshot.clone());
-                    }
-                    // Execution
-                    outgoing_messages.push(ModelMessage {
-                        port_name: self.ports_out.job.clone(),
-                        content: self.state.jobs.remove(0),
-                    });
-                }
-            });
-        Ok(outgoing_messages)
+        if self.state.phase == Phase::RecordsFetch {
+            self.release_records()
+        } else if self.state.phase == Phase::Passive && self.state.jobs.is_empty() {
+            self.passivate()
+        } else if self.state.phase == Phase::Passive
+            && !self.state.jobs.is_empty()
+            && self.state.jobs[0].pass
+        {
+            self.release_job()
+        } else if self.state.phase == Phase::Passive
+            && !self.state.jobs.is_empty()
+            && !self.state.jobs[0].pass
+        {
+            self.block_job()
+        } else {
+            Err(SimulationError::InvalidModelState)
+        }
     }
 
     fn time_advance(&mut self, time_delta: f64) {
-        self.state
-            .event_list
-            .iter_mut()
-            .for_each(|scheduled_event| {
-                scheduled_event.time -= time_delta;
-            });
+        self.state.until_next_event -= time_delta;
     }
 
     fn until_next_event(&self) -> f64 {
-        self.state
-            .event_list
-            .iter()
-            .fold(INFINITY, |until_next_event, event| {
-                f64::min(until_next_event, event.time)
-            })
+        self.state.until_next_event
     }
 }
