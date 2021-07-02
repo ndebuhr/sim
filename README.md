@@ -20,10 +20,11 @@
 
 This repository contains:
 
-1. [Random variable framework](src/input_modeling), for easy specification of stochastic model behaviors.
-2. [Pre-built atomic models](src/models), for quickly building out simulations of dynamic systems with common modular components.
-3. [Output analysis framework](src/output_analysis), for analyzing simulation outputs statistically.
-4. [Simulator engine](src/simulator), for managing and executing discrete event simulations.
+1. [Random variable framework](/sim/src/input_modeling), for easy specification of stochastic model behaviors.
+2. [Out-of-the-box models](/sim/src/models), for quickly building out simulations of dynamic systems with common modular components.
+3. [Output analysis framework](/sim/src/output_analysis), for analyzing simulation outputs statistically.
+4. [Simulator engine](/sim/src/simulator), for managing and executing discrete event simulations.
+5. [Custom model macros](/sim_derive/src), for seamlessly integrating custom models into simulations.
 
 Sim is compatible with a wide variety of compilation targets, including WebAssembly.  Sim does not require nightly Rust.
 
@@ -56,13 +57,13 @@ npm i sim-rs
 
 ## Usage
 
-Rust simulations are created by passing `Model`s and `Connector`s to `Simulation`'s `post` constructor.  WebAssembly simulations are defined in a declarative YAML or JSON format, and then ingested through `WebSimulation`'s `post_yaml` or `post_json` constructors.  Both models and connectors are required to define the simulation.  For descriptions of the out-of-the-box models, see [MODELS.md](MODELS.md).
+Rust simulations are created by passing `Model`s and `Connector`s to `Simulation`'s `post` constructor.  WebAssembly simulations are defined in a declarative YAML or JSON format, and then ingested through `WebSimulation`'s `post_yaml` or `post_json` constructors.  Both models and connectors are required to define the simulation.  For descriptions of the out-of-the-box models, see [MODELS.md](/MODELS.md).
 
 Simulations may be stepped with the `step`, `step_n`, and `step_until` methods.  Input injection is possible with the `inject_input` method.
 
 Analyzing simulations will typically involve some combination of processing model records, collecting message transfers, and using output analysis tools.  Analysis of IID samples and time series data are possible.
 
-Please refer to the documentation at [https://docs.rs/sim](https://docs.rs/sim).  Also, the [test simulations](tests) are a good reference for creating, running, and analyzing simulations with Sim.
+Please refer to the documentation at [https://docs.rs/sim](https://docs.rs/sim).  Also, the [test simulations](/sim/tests) are a good reference for creating, running, and analyzing simulations with Sim.
 
 ## Contributing
 
