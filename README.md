@@ -56,66 +56,13 @@ npm i sim-rs
 
 ## Usage
 
-Please refer to the documentation at [https://docs.rs/sim](https://docs.rs/sim)
+Rust simulations are created by passing `Model`s and `Connector`s to `Simulation`'s `post` constructor.  WebAssembly simulations are defined in a declarative YAML or JSON format, and then ingested through `WebSimulation`'s `post_yaml` or `post_json` constructors.  Both models and connectors are required to define the simulation.  For descriptions of the out-of-the-box models, see [MODELS.md](MODELS.md).
 
-Also, the [test simulations](tests/simulations.rs) are a good reference for creating, running, and analyzing simulations with Sim.
-
-### Creating Simulations
-
-Rust simulations are created by passing `Model`s and `Connector`s to `Simulation`'s `post` constructor.
-
-WebAssembly simulations are defined in a declarative YAML or JSON format, and then ingested through `WebSimulation`'s `post_yaml` or `post_json` constructors.
-
-Both models and connectors are required to define the simulation.  For descriptions of the pre-built models, see [MODELS.md](MODELS.md) A simple three-model simulation could be defined as:
-
-Nodes:
-```yaml
-- type: "Generator"
-  id: "generator-01"
-  portsIn: {}
-  portsOut:
-    job: "job"
-  messageInterdepartureTime:
-    exp:
-      lambda: 0.5
-- type: "Processor"
-  id: "processor-01"
-  portsIn:
-    job: "job"
-  portsOut:
-    processedJob: "processed"
-  serviceTime:
-    exp:
-      lambda: 0.333333
-  queueCapacity: 14
-- type: "Storage"
-  id: "storage-01"
-  portsIn:
-    store: "store"
-    read: "read"
-  portsOut:
-    stored: "stored"
-```
-
-Connectors:
-```yaml
-- id: "connector-01"
-  sourceID: "generator-01"
-  targetID: "processor-01"
-  sourcePort: "job"
-  targetPort: "job"
-- id: "connector-02"
-  sourceID: "processor-01"
-  targetID: "storage-01"
-  sourcePort: "processed"
-  targetPort: "store"
-```
-
-### Running Simulations
 Simulations may be stepped with the `step`, `step_n`, and `step_until` methods.  Input injection is possible with the `inject_input` method.
 
-### Analyzing Simulations
-Analyzing simulations will typically involve some combination of listening to model metrics, collecting message transfers, and using output analysis tools.  Analysis of IID samples and time series data are possible.
+Analyzing simulations will typically involve some combination of processing model records, collecting message transfers, and using output analysis tools.  Analysis of IID samples and time series data are possible.
+
+Please refer to the documentation at [https://docs.rs/sim](https://docs.rs/sim).  Also, the [test simulations](tests) are a good reference for creating, running, and analyzing simulations with Sim.
 
 ## Contributing
 
