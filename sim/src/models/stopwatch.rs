@@ -276,7 +276,7 @@ impl AsModel for Stopwatch {
             .map(|(_, duration)| duration)
             .collect();
         format![
-            "Average {:.3} sec",
+            "Average {:.3}",
             durations.iter().sum::<f64>() / durations.len() as f64
         ]
     }
