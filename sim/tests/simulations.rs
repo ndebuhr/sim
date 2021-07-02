@@ -934,3 +934,140 @@ fn batch_sizing() {
     assert![exists_full_batch];
     assert![!exists_oversized_batch];
 }
+
+#[test]
+fn min_and_max_stopwatch() {
+    let models = [
+        Model::new(
+            String::from("generator-01"),
+            Box::new(Generator::new(
+                ContinuousRandomVariable::Exp { lambda: 0.01 },
+                None,
+                String::from("job"),
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("processor-01"),
+            Box::new(Processor::new(
+                ContinuousRandomVariable::Exp { lambda: 0.333333 },
+                Some(14),
+                String::from("job"),
+                String::from("processed"),
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("storage-01"),
+            Box::new(Storage::new(
+                String::from("store"),
+                String::from("read"),
+                String::from("stored"),
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("stopwatch-01"),
+            Box::new(Stopwatch::new(
+                String::from("start"),
+                String::from("stop"),
+                String::from("min"),
+                String::from("min"),
+                stopwatch::Metric::Minimum,
+                false,
+            )),
+        ),
+        Model::new(
+            String::from("stopwatch-02"),
+            Box::new(Stopwatch::new(
+                String::from("start"),
+                String::from("stop"),
+                String::from("max"),
+                String::from("max"),
+                stopwatch::Metric::Maximum,
+                false,
+            )),
+        ),
+    ];
+    let connectors = [
+        Connector::new(
+            String::from("connector-01"),
+            String::from("generator-01"),
+            String::from("processor-01"),
+            String::from("job"),
+            String::from("job"),
+        ),
+        Connector::new(
+            String::from("connector-02"),
+            String::from("generator-01"),
+            String::from("stopwatch-01"),
+            String::from("job"),
+            String::from("start"),
+        ),
+        Connector::new(
+            String::from("connector-03"),
+            String::from("generator-01"),
+            String::from("stopwatch-02"),
+            String::from("job"),
+            String::from("start"),
+        ),
+        Connector::new(
+            String::from("connector-04"),
+            String::from("processor-01"),
+            String::from("storage-01"),
+            String::from("job"),
+            String::from("store"),
+        ),
+        Connector::new(
+            String::from("connector-05"),
+            String::from("processor-01"),
+            String::from("stopwatch-01"),
+            String::from("processed"),
+            String::from("stop"),
+        ),
+        Connector::new(
+            String::from("connector-06"),
+            String::from("processor-01"),
+            String::from("stopwatch-02"),
+            String::from("processed"),
+            String::from("stop"),
+        ),
+        Connector::new(
+            String::from("connector-07"),
+            String::from("stopwatch-01"),
+            String::from("storage-01"),
+            String::from("min"),
+            String::from("store"),
+        ),
+        Connector::new(
+            String::from("connector-06"),
+            String::from("stopwatch-02"),
+            String::from("storage-01"),
+            String::from("max"),
+            String::from("store"),
+        ),
+    ];
+    let mut simulation = Simulation::post(models.to_vec(), connectors.to_vec());
+    simulation.step_n(12).unwrap();
+    let minimum_fetch = Message::new(
+        String::from("manual"),
+        String::from("manual"),
+        String::from("stopwatch-01"),
+        String::from("min"),
+        simulation.get_global_time(),
+        String::from("42"),
+    );
+    simulation.inject_input(minimum_fetch);
+    let maximum_fetch = Message::new(
+        String::from("manual"),
+        String::from("manual"),
+        String::from("stopwatch-02"),
+        String::from("max"),
+        simulation.get_global_time(),
+        String::from("42"),
+    );
+    simulation.inject_input(maximum_fetch);
+    let responses = simulation.step_n(2).unwrap();
+    // Assert the minimum duration job and maximum duration job are not the same
+    assert![responses[0].content() != responses[1].content()];
+}

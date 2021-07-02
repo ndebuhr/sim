@@ -12,6 +12,7 @@ pub mod model;
 pub mod parallel_gateway;
 pub mod processor;
 pub mod stochastic_gate;
+pub mod stopwatch;
 pub mod storage;
 
 pub mod model_factory;
@@ -28,6 +29,7 @@ pub use self::model_trait::AsModel;
 pub use self::parallel_gateway::ParallelGateway;
 pub use self::processor::Processor;
 pub use self::stochastic_gate::StochasticGate;
+pub use self::stopwatch::Stopwatch;
 pub use self::storage::Storage;
 
 pub use self::model_repr::ModelRepr;

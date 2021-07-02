@@ -37,6 +37,10 @@ lazy_static! {
             "StochasticGate",
             super::StochasticGate::from_value as ModelConstructor,
         );
+        m.insert(
+            "Stopwatch",
+            super::Stopwatch::from_value as ModelConstructor,
+        );
         m.insert("Storage", super::Storage::from_value as ModelConstructor);
         Mutex::new(m)
     };
