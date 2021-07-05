@@ -11,6 +11,12 @@ use crate::utils::error::SimulationError;
 
 use sim_derive::SerializableModel;
 
+/// The stopwatch calculates durations by matching messages on the start and
+/// stop ports.  For example, a "job 1" message arrives at the start port at
+/// time 0.1, and then a "job 1" message arrives at the stop port at time
+/// 1.3.  The duration for job 1 will be saved as 1.2.  The status reporting
+/// provides the average duration across all jobs.  The maximum or minimum
+/// duration job is also accessible through the metric and job ports.
 #[derive(Debug, Clone, Serialize, Deserialize, SerializableModel)]
 #[serde(rename_all = "camelCase")]
 pub struct Stopwatch {
