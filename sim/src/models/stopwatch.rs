@@ -274,17 +274,21 @@ impl Stopwatch {
 
 impl AsModel for Stopwatch {
     fn status(&self) -> String {
-        let durations: Vec<f64> = self
-            .state
-            .jobs
-            .iter()
-            .filter_map(|job| self.some_duration(job))
-            .map(|(_, duration)| duration)
-            .collect();
-        format![
-            "Average {:.3}",
-            durations.iter().sum::<f64>() / durations.len() as f64
-        ]
+        if self.state.jobs.is_empty() {
+            String::from("Measuring durations")
+        } else {
+            let durations: Vec<f64> = self
+                .state
+                .jobs
+                .iter()
+                .filter_map(|job| self.some_duration(job))
+                .map(|(_, duration)| duration)
+                .collect();
+            format![
+                "Average {:.3}",
+                durations.iter().sum::<f64>() / durations.len() as f64
+            ]
+        }
     }
 
     fn events_ext(
