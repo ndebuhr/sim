@@ -35,6 +35,13 @@ struct PortsIn {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+enum ArrivalPort {
+    Job,
+    Records,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct PortsOut {
     job: String,
     #[serde(default = "default_records_port_name")]
@@ -94,6 +101,16 @@ impl StochasticGate {
             },
             store_records,
             state: Default::default(),
+        }
+    }
+
+    fn arrival_port(&self, message_port: &str) -> ArrivalPort {
+        if message_port == self.ports_in.job {
+            ArrivalPort::Job
+        } else if message_port == self.ports_in.records {
+            ArrivalPort::Records
+        } else {
+            ArrivalPort::Unknown
         }
     }
 
@@ -198,16 +215,15 @@ impl AsModel for StochasticGate {
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        if incoming_message.port_name == self.ports_in.records && self.store_records {
-            self.request_records(incoming_message, services)
-        } else if incoming_message.port_name == self.ports_in.records && !self.store_records {
-            self.ignore_request(incoming_message, services)
-        } else if incoming_message.port_name == self.ports_in.job && self.store_records {
-            self.save_job(incoming_message, services)
-        } else if incoming_message.port_name == self.ports_in.job && !self.store_records {
-            self.accept_job(incoming_message, services)
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match (
+            self.arrival_port(&incoming_message.port_name),
+            self.store_records,
+        ) {
+            (ArrivalPort::Records, true) => self.request_records(incoming_message, services),
+            (ArrivalPort::Records, false) => self.ignore_request(incoming_message, services),
+            (ArrivalPort::Job, true) => self.save_job(incoming_message, services),
+            (ArrivalPort::Job, false) => self.accept_job(incoming_message, services),
+            (ArrivalPort::Unknown, _) => Err(SimulationError::InvalidMessage),
         }
     }
 
@@ -215,22 +231,11 @@ impl AsModel for StochasticGate {
         &mut self,
         _services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        if self.state.phase == Phase::RecordsFetch {
-            self.release_records()
-        } else if self.state.phase == Phase::Passive && self.state.jobs.is_empty() {
-            self.passivate()
-        } else if self.state.phase == Phase::Passive
-            && !self.state.jobs.is_empty()
-            && self.state.jobs[0].pass
-        {
-            self.release_job()
-        } else if self.state.phase == Phase::Passive
-            && !self.state.jobs.is_empty()
-            && !self.state.jobs[0].pass
-        {
-            self.block_job()
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match (&self.state.phase, self.state.jobs.get(0)) {
+            (Phase::RecordsFetch, _) => self.release_records(),
+            (Phase::Passive, None) => self.passivate(),
+            (Phase::Passive, Some(Job { pass: true, .. })) => self.release_job(),
+            (Phase::Passive, Some(Job { pass: false, .. })) => self.block_job(),
         }
     }
 

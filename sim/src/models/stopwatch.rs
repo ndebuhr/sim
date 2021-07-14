@@ -40,6 +40,15 @@ struct PortsIn {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+enum ArrivalPort {
+    Start,
+    Stop,
+    Metric,
+    Records,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct PortsOut {
     job: String,
     #[serde(default = "default_records_port_name")]
@@ -125,6 +134,20 @@ impl Stopwatch {
             metric,
             store_records,
             state: Default::default(),
+        }
+    }
+
+    fn arrival_port(&self, message_port: &str) -> ArrivalPort {
+        if message_port == self.ports_in.start {
+            ArrivalPort::Start
+        } else if message_port == self.ports_in.stop {
+            ArrivalPort::Stop
+        } else if message_port == self.ports_in.metric {
+            ArrivalPort::Metric
+        } else if message_port == self.ports_in.records {
+            ArrivalPort::Records
+        } else {
+            ArrivalPort::Unknown
         }
     }
 
@@ -296,22 +319,17 @@ impl AsModel for Stopwatch {
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        if (self.ports_in.start == incoming_message.port_name
-            || self.ports_in.stop == incoming_message.port_name)
-            && self.store_records
-        {
-            self.calculate_and_save_job(incoming_message, services)
-        } else if (self.ports_in.start == incoming_message.port_name
-            || self.ports_in.stop == incoming_message.port_name)
-            && !self.store_records
-        {
-            self.calculate_job(incoming_message, services)
-        } else if incoming_message.port_name == self.ports_in.metric {
-            self.get_job()
-        } else if incoming_message.port_name == self.ports_in.records {
-            self.get_records()
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match (
+            self.arrival_port(&incoming_message.port_name),
+            self.store_records,
+        ) {
+            (ArrivalPort::Start, true) => self.calculate_and_save_job(incoming_message, services),
+            (ArrivalPort::Stop, true) => self.calculate_and_save_job(incoming_message, services),
+            (ArrivalPort::Start, false) => self.calculate_job(incoming_message, services),
+            (ArrivalPort::Stop, false) => self.calculate_job(incoming_message, services),
+            (ArrivalPort::Metric, _) => self.get_job(),
+            (ArrivalPort::Records, _) => self.get_records(),
+            (ArrivalPort::Unknown, _) => Err(SimulationError::InvalidMessage),
         }
     }
 
@@ -319,14 +337,10 @@ impl AsModel for Stopwatch {
         &mut self,
         _services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        if self.state.phase == Phase::RecordsFetch {
-            self.release_records()
-        } else if self.state.phase == Phase::JobFetch {
-            self.release_job()
-        } else if self.state.phase == Phase::Passive {
-            self.passivate()
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match &self.state.phase {
+            Phase::RecordsFetch => self.release_records(),
+            Phase::JobFetch => self.release_job(),
+            Phase::Passive => self.passivate(),
         }
     }
 

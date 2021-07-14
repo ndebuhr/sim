@@ -37,6 +37,15 @@ struct PortsIn {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+enum ArrivalPort {
+    Job,
+    Activation,
+    Deactivation,
+    Records,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct PortsOut {
     job: String,
     #[serde(default = "default_records_port_name")]
@@ -102,6 +111,20 @@ impl Gate {
             },
             store_records,
             state: Default::default(),
+        }
+    }
+
+    fn arrival_port(&self, message_port: &str) -> ArrivalPort {
+        if message_port == self.ports_in.job {
+            ArrivalPort::Job
+        } else if message_port == self.ports_in.activation {
+            ArrivalPort::Activation
+        } else if message_port == self.ports_in.deactivation {
+            ArrivalPort::Deactivation
+        } else if message_port == self.ports_in.records {
+            ArrivalPort::Records
+        } else {
+            ArrivalPort::Unknown
         }
     }
 
@@ -225,34 +248,19 @@ impl AsModel for Gate {
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        if self.ports_in.activation == incoming_message.port_name {
-            self.activate()
-        } else if self.ports_in.deactivation == incoming_message.port_name {
-            self.deactivate()
-        } else if self.ports_in.job == incoming_message.port_name
-            && !(self.state.phase == Phase::Closed)
-            && !self.store_records
-        {
-            self.pass_job(incoming_message, services)
-        } else if self.ports_in.job == incoming_message.port_name
-            && !(self.state.phase == Phase::Closed)
-            && self.store_records
-        {
-            self.store_job(incoming_message, services)
-        } else if self.ports_in.job == incoming_message.port_name
-            && self.state.phase == Phase::Closed
-        {
-            self.drop_job(incoming_message, services)
-        } else if self.ports_in.records == incoming_message.port_name
-            && !(self.state.phase == Phase::Closed)
-        {
-            self.records_request_while_open()
-        } else if self.ports_in.records == incoming_message.port_name
-            && Phase::Closed == self.state.phase
-        {
-            self.records_request_while_closed()
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match (
+            self.arrival_port(&incoming_message.port_name),
+            self.state.phase == Phase::Closed,
+            self.store_records,
+        ) {
+            (ArrivalPort::Activation, _, _) => self.activate(),
+            (ArrivalPort::Deactivation, _, _) => self.deactivate(),
+            (ArrivalPort::Job, false, false) => self.pass_job(incoming_message, services),
+            (ArrivalPort::Job, false, true) => self.store_job(incoming_message, services),
+            (ArrivalPort::Job, true, _) => self.drop_job(incoming_message, services),
+            (ArrivalPort::Records, false, _) => self.records_request_while_open(),
+            (ArrivalPort::Records, true, _) => self.records_request_while_closed(),
+            (ArrivalPort::Unknown, _, _) => Err(SimulationError::InvalidMessage),
         }
     }
 
@@ -260,14 +268,12 @@ impl AsModel for Gate {
         &mut self,
         _services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        if ![Phase::RespondWhileOpen, Phase::RespondWhileClosed].contains(&self.state.phase) {
-            self.send_jobs()
-        } else if self.state.phase == Phase::RespondWhileOpen {
-            self.send_records_while_open()
-        } else if self.state.phase == Phase::RespondWhileClosed {
-            self.send_records_while_closed()
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match &self.state.phase {
+            Phase::Open => self.send_jobs(),
+            Phase::Closed => self.send_jobs(),
+            Phase::Pass => self.send_jobs(),
+            Phase::RespondWhileOpen => self.send_records_while_open(),
+            Phase::RespondWhileClosed => self.send_records_while_closed(),
         }
     }
 

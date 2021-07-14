@@ -32,6 +32,14 @@ struct PortsIn {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+enum ArrivalPort {
+    Put,
+    Get,
+    Records,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct PortsOut {
     stored: String,
     #[serde(default = "default_records_port_name")]
@@ -98,6 +106,18 @@ impl Storage {
             },
             store_records,
             state: Default::default(),
+        }
+    }
+
+    fn arrival_port(&self, message_port: &str) -> ArrivalPort {
+        if message_port == self.ports_in.put {
+            ArrivalPort::Put
+        } else if message_port == self.ports_in.get {
+            ArrivalPort::Get
+        } else if message_port == self.ports_in.records {
+            ArrivalPort::Records
+        } else {
+            ArrivalPort::Unknown
         }
     }
 
@@ -205,18 +225,16 @@ impl AsModel for Storage {
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        if incoming_message.port_name == self.ports_in.records && self.store_records {
-            self.request_records(incoming_message, services)
-        } else if incoming_message.port_name == self.ports_in.records && !self.store_records {
-            self.ignore_request(incoming_message, services)
-        } else if incoming_message.port_name == self.ports_in.put && self.store_records {
-            self.save_job(incoming_message, services)
-        } else if incoming_message.port_name == self.ports_in.put && !self.store_records {
-            self.hold_job(incoming_message)
-        } else if incoming_message.port_name == self.ports_in.get {
-            self.get_stored_value()
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match (
+            self.arrival_port(&incoming_message.port_name),
+            self.store_records,
+        ) {
+            (ArrivalPort::Records, true) => self.request_records(incoming_message, services),
+            (ArrivalPort::Records, false) => self.ignore_request(incoming_message, services),
+            (ArrivalPort::Put, true) => self.save_job(incoming_message, services),
+            (ArrivalPort::Put, false) => self.hold_job(incoming_message),
+            (ArrivalPort::Get, _) => self.get_stored_value(),
+            (ArrivalPort::Unknown, _) => Err(SimulationError::InvalidMessage),
         }
     }
 
@@ -224,16 +242,11 @@ impl AsModel for Storage {
         &mut self,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        if self.state.phase == Phase::RecordsFetch {
-            self.release_records()
-        } else if self.state.phase == Phase::Passive {
-            self.passivate()
-        } else if self.state.phase == Phase::JobFetch && self.store_records {
-            self.save_and_release_job(services)
-        } else if self.state.phase == Phase::JobFetch && !self.store_records {
-            self.release_job()
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match (&self.state.phase, self.store_records) {
+            (Phase::RecordsFetch, _) => self.release_records(),
+            (Phase::Passive, _) => self.passivate(),
+            (Phase::JobFetch, true) => self.save_and_release_job(services),
+            (Phase::JobFetch, false) => self.release_job(),
         }
     }
 

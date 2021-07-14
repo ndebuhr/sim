@@ -31,6 +31,13 @@ struct PortsIn {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+enum ArrivalPort {
+    Job,
+    Records,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PortsOut {
     flow_paths: Vec<String>,
@@ -87,6 +94,16 @@ impl LoadBalancer {
             },
             store_records,
             state: Default::default(),
+        }
+    }
+
+    fn arrival_port(&self, message_port: &str) -> ArrivalPort {
+        if message_port == self.ports_in.job {
+            ArrivalPort::Job
+        } else if message_port == self.ports_in.records {
+            ArrivalPort::Records
+        } else {
+            ArrivalPort::Unknown
         }
     }
 
@@ -180,16 +197,15 @@ impl AsModel for LoadBalancer {
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        if incoming_message.port_name == self.ports_in.records && self.store_records {
-            self.request_records(incoming_message, services)
-        } else if incoming_message.port_name == self.ports_in.records && !self.store_records {
-            self.ignore_request(incoming_message, services)
-        } else if incoming_message.port_name == self.ports_in.job && self.store_records {
-            self.save_job(incoming_message, services)
-        } else if incoming_message.port_name == self.ports_in.job && !self.store_records {
-            self.pass_job(incoming_message, services)
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match (
+            self.arrival_port(&incoming_message.port_name),
+            self.store_records,
+        ) {
+            (ArrivalPort::Records, true) => self.request_records(incoming_message, services),
+            (ArrivalPort::Records, false) => self.ignore_request(incoming_message, services),
+            (ArrivalPort::Job, true) => self.save_job(incoming_message, services),
+            (ArrivalPort::Job, false) => self.pass_job(incoming_message, services),
+            (ArrivalPort::Unknown, _) => Err(SimulationError::InvalidMessage),
         }
     }
 
@@ -197,14 +213,10 @@ impl AsModel for LoadBalancer {
         &mut self,
         _services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        if self.state.phase == Phase::RecordsFetch {
-            self.release_records()
-        } else if self.state.phase == Phase::LoadBalancing && self.state.jobs.is_empty() {
-            self.passivate()
-        } else if self.state.phase == Phase::LoadBalancing && !self.state.jobs.is_empty() {
-            self.send_job()
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match (&self.state.phase, self.state.jobs.is_empty()) {
+            (Phase::RecordsFetch, _) => self.release_records(),
+            (Phase::LoadBalancing, true) => self.passivate(),
+            (Phase::LoadBalancing, false) => self.send_job(),
         }
     }
 

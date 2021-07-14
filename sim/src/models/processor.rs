@@ -47,6 +47,13 @@ struct PortsIn {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+enum ArrivalPort {
+    Job,
+    Records,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PortsOut {
     job: String,
@@ -113,6 +120,16 @@ impl Processor {
             },
             store_records,
             state: Default::default(),
+        }
+    }
+
+    fn arrival_port(&self, message_port: &str) -> ArrivalPort {
+        if message_port == self.ports_in.job {
+            ArrivalPort::Job
+        } else if message_port == self.ports_in.records {
+            ArrivalPort::Records
+        } else {
+            ArrivalPort::Unknown
         }
     }
 
@@ -246,26 +263,23 @@ impl AsModel for Processor {
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        if incoming_message.port_name == self.ports_in.records && self.store_records {
-            self.request_records(incoming_message, services)
-        } else if incoming_message.port_name == self.ports_in.records && !self.store_records {
-            self.ignore_request(incoming_message, services)
-        } else if incoming_message.port_name == self.ports_in.job
-            && self.state.phase == Phase::Active
-            && self.state.queue.len() < self.queue_capacity
-        {
-            self.add_job(incoming_message, services)
-        } else if incoming_message.port_name == self.ports_in.job
-            && self.state.phase == Phase::Passive
-            && self.state.queue.len() < self.queue_capacity
-        {
-            self.start_job(incoming_message, services)
-        } else if incoming_message.port_name == self.ports_in.job
-            && self.state.queue.len() == self.queue_capacity
-        {
-            self.ignore_job()
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match (
+            self.arrival_port(&incoming_message.port_name),
+            &self.state.phase,
+            self.store_records,
+            self.state.queue.len() < self.queue_capacity,
+        ) {
+            (ArrivalPort::Records, _, true, _) => self.request_records(incoming_message, services),
+            (ArrivalPort::Records, _, false, _) => self.ignore_request(incoming_message, services),
+            (ArrivalPort::Job, Phase::Active, _, true) => self.add_job(incoming_message, services),
+            (ArrivalPort::Job, Phase::Passive, _, true) => {
+                self.start_job(incoming_message, services)
+            }
+            (ArrivalPort::Job, Phase::RecordsFetch, _, true) => {
+                self.add_job(incoming_message, services)
+            }
+            (ArrivalPort::Job, _, _, false) => self.ignore_job(),
+            (ArrivalPort::Unknown, _, _, _) => Err(SimulationError::InvalidMessage),
         }
     }
 
@@ -273,18 +287,16 @@ impl AsModel for Processor {
         &mut self,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        if self.state.phase == Phase::RecordsFetch {
-            self.release_records()
-        } else if self.state.phase == Phase::Passive && !self.state.queue.is_empty() {
-            self.resume_processing(services)
-        } else if self.state.phase == Phase::Passive && self.state.queue.is_empty() {
-            self.passivate()
-        } else if self.state.phase == Phase::Active && self.store_records {
-            self.save_and_release_job(services)
-        } else if self.state.phase == Phase::Active && !self.store_records {
-            self.release_job(services)
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match (
+            &self.state.phase,
+            self.state.queue.is_empty(),
+            self.store_records,
+        ) {
+            (Phase::RecordsFetch, _, _) => self.release_records(),
+            (Phase::Passive, true, _) => self.passivate(),
+            (Phase::Passive, false, _) => self.resume_processing(services),
+            (Phase::Active, _, true) => self.save_and_release_job(services),
+            (Phase::Active, _, false) => self.release_job(services),
         }
     }
 

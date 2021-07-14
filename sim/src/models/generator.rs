@@ -195,12 +195,9 @@ impl AsModel for Generator {
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        if self.store_records {
-            self.request_records(incoming_message, services)
-        } else if !self.store_records {
-            self.ignore_request(incoming_message, services)
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match &self.store_records {
+            true => self.request_records(incoming_message, services),
+            false => self.ignore_request(incoming_message, services),
         }
     }
 
@@ -208,18 +205,13 @@ impl AsModel for Generator {
         &mut self,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        if self.state.phase == Phase::Generating && self.store_records {
-            self.save_job(services)
-        } else if (self.state.phase == Phase::Generating && !self.store_records)
-            || self.state.phase == Phase::Saved
-        {
-            self.release_job(services)
-        } else if self.state.phase == Phase::RecordsFetch {
-            self.release_records()
-        } else if self.state.phase == Phase::Initializing {
-            self.initialize_generation(services)
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match (&self.state.phase, self.store_records) {
+            (Phase::Generating, true) => self.save_job(services),
+            (Phase::Generating, false) => self.release_job(services),
+            (Phase::Saved, _) => self.release_job(services),
+            (Phase::RecordsFetch, true) => self.release_records(),
+            (Phase::RecordsFetch, false) => Err(SimulationError::InvalidModelState),
+            (Phase::Initializing, _) => self.initialize_generation(services),
         }
     }
 

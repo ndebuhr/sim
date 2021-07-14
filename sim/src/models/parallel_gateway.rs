@@ -35,6 +35,13 @@ struct PortsIn {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+enum ArrivalPort {
+    FlowPath,
+    Records,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PortsOut {
     flow_paths: Vec<String>,
@@ -92,6 +99,16 @@ impl ParallelGateway {
             },
             store_records,
             state: Default::default(),
+        }
+    }
+
+    fn arrival_port(&self, message_port: &str) -> ArrivalPort {
+        if self.ports_in.flow_paths.contains(&message_port.to_string()) {
+            ArrivalPort::FlowPath
+        } else if message_port == self.ports_in.records {
+            ArrivalPort::Records
+        } else {
+            ArrivalPort::Unknown
         }
     }
 
@@ -209,14 +226,14 @@ impl AsModel for ParallelGateway {
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        if incoming_message.port_name == self.ports_in.records && self.store_records {
-            self.request_records(incoming_message, services)
-        } else if incoming_message.port_name == self.ports_in.records && !self.store_records {
-            self.ignore_request(incoming_message, services)
-        } else if incoming_message.port_name != self.ports_in.records {
-            self.increment_collection(incoming_message, services)
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match (
+            self.arrival_port(&incoming_message.port_name),
+            self.store_records,
+        ) {
+            (ArrivalPort::Records, true) => self.request_records(incoming_message, services),
+            (ArrivalPort::Records, false) => self.ignore_request(incoming_message, services),
+            (ArrivalPort::FlowPath, _) => self.increment_collection(incoming_message, services),
+            (ArrivalPort::Unknown, _) => Err(SimulationError::InvalidMessage),
         }
     }
 
@@ -224,22 +241,15 @@ impl AsModel for ParallelGateway {
         &mut self,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        if self.state.phase == Phase::RecordsFetch {
-            self.release_records()
-        } else if self.state.phase == Phase::Processing
-            && self.store_records
-            && self.full_collection().is_some()
-        {
-            self.send_and_save_job(services)
-        } else if self.state.phase == Phase::Processing
-            && !self.store_records
-            && self.full_collection().is_some()
-        {
-            self.send_job()
-        } else if self.state.phase == Phase::Processing && self.full_collection().is_none() {
-            self.passivate()
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match (
+            &self.state.phase,
+            self.store_records,
+            self.full_collection().is_some(),
+        ) {
+            (Phase::RecordsFetch, _, _) => self.release_records(),
+            (Phase::Processing, true, true) => self.send_and_save_job(services),
+            (Phase::Processing, false, true) => self.send_job(),
+            (Phase::Processing, _, false) => self.passivate(),
         }
     }
 

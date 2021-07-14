@@ -139,16 +139,14 @@ impl AsModel for Batcher {
         incoming_message: &ModelMessage,
         _services: &mut Services,
     ) -> Result<(), SimulationError> {
-        if self.state.phase == Phase::Batching && self.state.jobs.len() + 1 < self.max_batch_size {
-            self.add_to_batch(incoming_message)
-        } else if self.state.phase == Phase::Passive
-            && self.state.jobs.len() + 1 < self.max_batch_size
-        {
-            self.start_batch(incoming_message)
-        } else if self.state.jobs.len() + 1 >= self.max_batch_size {
-            self.fill_batch(incoming_message)
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match (
+            &self.state.phase,
+            self.state.jobs.len() + 1 < self.max_batch_size,
+        ) {
+            (Phase::Batching, true) => self.add_to_batch(incoming_message),
+            (Phase::Passive, true) => self.start_batch(incoming_message),
+            (Phase::Release, true) => Err(SimulationError::InvalidModelState),
+            (_, false) => self.fill_batch(incoming_message),
         }
     }
 
@@ -156,12 +154,9 @@ impl AsModel for Batcher {
         &mut self,
         _services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        if self.state.jobs.len() <= self.max_batch_size {
-            self.release_full_queue()
-        } else if self.state.jobs.len() <= self.max_batch_size {
-            self.release_partial_queue()
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match self.state.jobs.len() <= self.max_batch_size {
+            true => self.release_full_queue(),
+            false => self.release_partial_queue(),
         }
     }
 

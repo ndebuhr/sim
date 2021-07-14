@@ -56,7 +56,7 @@ struct State {
 impl Default for State {
     fn default() -> Self {
         State {
-            phase: Phase::Idle,
+            phase: Phase::Passive,
             until_next_event: INFINITY,
             jobs: Vec::new(),
             records: Vec::new(),
@@ -66,7 +66,7 @@ impl Default for State {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 enum Phase {
-    Idle,    // Doing nothing
+    Passive, // Doing nothing
     Pass,    // Passing a job from input to output
     Respond, // Responding to a records request
 }
@@ -148,8 +148,12 @@ impl ExclusiveGateway {
         Ok(())
     }
 
+    fn ignore_request(&mut self) -> Result<(), SimulationError> {
+        Ok(())
+    }
+
     fn send_records(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.state.phase = Phase::Idle;
+        self.state.phase = Phase::Passive;
         self.state.until_next_event = INFINITY;
         Ok(vec![ModelMessage {
             port_name: self.ports_out.records.clone(),
@@ -158,7 +162,7 @@ impl ExclusiveGateway {
     }
 
     fn send_jobs(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.state.phase = Phase::Idle;
+        self.state.phase = Phase::Passive;
         self.state.until_next_event = INFINITY;
         Ok((0..self.state.jobs.len())
             .map(|_| {
@@ -170,12 +174,18 @@ impl ExclusiveGateway {
             })
             .collect())
     }
+
+    fn passivate(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+        self.state.phase = Phase::Passive;
+        self.state.until_next_event = INFINITY;
+        Ok(Vec::new())
+    }
 }
 
 impl AsModel for ExclusiveGateway {
     fn status(&self) -> String {
         match self.state.phase {
-            Phase::Idle => String::from("Idle"),
+            Phase::Passive => String::from("Passive"),
             Phase::Pass => format!["Passing {}", self.state.jobs[0].content],
             Phase::Respond => String::from("Fetching records"),
         }
@@ -186,24 +196,16 @@ impl AsModel for ExclusiveGateway {
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        if self
-            .ports_in
-            .flow_paths
-            .contains(&incoming_message.port_name)
-            && !self.store_records
-        {
-            self.pass_job(incoming_message, services)
-        } else if self
-            .ports_in
-            .flow_paths
-            .contains(&incoming_message.port_name)
-            && self.store_records
-        {
-            self.store_job(incoming_message, services)
-        } else if self.ports_in.records == incoming_message.port_name {
-            self.records_request()
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match (
+            self.ports_in
+                .flow_paths
+                .contains(&incoming_message.port_name),
+            self.store_records,
+        ) {
+            (true, true) => self.store_job(incoming_message, services),
+            (true, false) => self.pass_job(incoming_message, services),
+            (false, true) => self.records_request(),
+            (false, false) => self.ignore_request(),
         }
     }
 
@@ -211,12 +213,10 @@ impl AsModel for ExclusiveGateway {
         &mut self,
         _services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        if Phase::Pass == self.state.phase {
-            self.send_jobs()
-        } else if Phase::Respond == self.state.phase {
-            self.send_records()
-        } else {
-            Err(SimulationError::InvalidModelState)
+        match &self.state.phase {
+            Phase::Passive => self.passivate(),
+            Phase::Pass => self.send_jobs(),
+            Phase::Respond => self.send_records(),
         }
     }
 
