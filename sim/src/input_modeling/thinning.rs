@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::utils::error::SimulationError;
+use crate::utils::errors::SimulationError;
 use crate::utils::evaluate_polynomial;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

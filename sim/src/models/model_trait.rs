@@ -1,6 +1,6 @@
 use super::ModelMessage;
 use crate::simulator::Services;
-use crate::utils::error::SimulationError;
+use crate::utils::errors::SimulationError;
 
 pub trait ModelClone {
     fn clone_box(&self) -> Box<dyn AsModel>;

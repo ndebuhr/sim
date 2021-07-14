@@ -6,7 +6,7 @@ use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
 use crate::simulator::Services;
 use crate::utils::default_records_port_name;
-use crate::utils::error::SimulationError;
+use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
 

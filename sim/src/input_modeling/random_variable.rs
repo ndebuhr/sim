@@ -1,9 +1,8 @@
 //! Random variables underpin both stochastic and deterministic model
 //! behaviors, in that deterministic operation is simply a random variable
 //! with a single value of probability 1.  Common distributions, with their
-//! common parameterizations, are wrapped in enums
-//! `ContinuousRandomVariable`, `BooleanRandomVariable`,
-//! `DiscreteRandomVariable`, and `IndexRandomVariable`.
+//! common parameterizations, are wrapped in enums `Continuous`, `Boolean`,
+//! `Discrete`, and `Index`.
 
 use rand::distributions::Distribution;
 use serde::{Deserialize, Serialize};
@@ -13,11 +12,11 @@ use rand_distr::{Beta, Exp, Gamma, LogNormal, Normal, Triangular, Uniform, Weibu
 use rand_distr::{Bernoulli, Geometric, Poisson, WeightedIndex};
 
 use super::UniformRNG;
-use crate::utils::error::SimulationError;
+use crate::utils::errors::SimulationError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum ContinuousRandomVariable {
+pub enum Continuous {
     Beta { alpha: f64, beta: f64 },
     Exp { lambda: f64 },
     Gamma { shape: f64, scale: f64 },
@@ -30,13 +29,13 @@ pub enum ContinuousRandomVariable {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum BooleanRandomVariable {
+pub enum Boolean {
     Bernoulli { p: f64 },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum DiscreteRandomVariable {
+pub enum Discrete {
     Geometric {
         p: f64,
     },
@@ -52,7 +51,7 @@ pub enum DiscreteRandomVariable {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum IndexRandomVariable {
+pub enum Index {
     /// Range is inclusive of min, exclusive of max: [min, max)
     Uniform {
         min: usize,
@@ -63,41 +62,39 @@ pub enum IndexRandomVariable {
     },
 }
 
-impl ContinuousRandomVariable {
+impl Continuous {
     /// The generation of random variates drives stochastic behaviors during
     /// simulation execution.  This function requires the random number
     /// generator of the simulation, and produces a f64 random variate.
     pub fn random_variate(&mut self, uniform_rng: &mut UniformRNG) -> Result<f64, SimulationError> {
         match self {
-            ContinuousRandomVariable::Beta { alpha, beta } => {
+            Continuous::Beta { alpha, beta } => {
                 Ok(Beta::new(*alpha, *beta)?.sample(uniform_rng.rng()))
             }
-            ContinuousRandomVariable::Exp { lambda } => {
-                Ok(Exp::new(*lambda)?.sample(uniform_rng.rng()))
-            }
-            ContinuousRandomVariable::Gamma { shape, scale } => {
+            Continuous::Exp { lambda } => Ok(Exp::new(*lambda)?.sample(uniform_rng.rng())),
+            Continuous::Gamma { shape, scale } => {
                 Ok(Gamma::new(*shape, *scale)?.sample(uniform_rng.rng()))
             }
-            ContinuousRandomVariable::LogNormal { mu, sigma } => {
+            Continuous::LogNormal { mu, sigma } => {
                 Ok(LogNormal::new(*mu, *sigma)?.sample(uniform_rng.rng()))
             }
-            ContinuousRandomVariable::Normal { mean, std_dev } => {
+            Continuous::Normal { mean, std_dev } => {
                 Ok(Normal::new(*mean, *std_dev)?.sample(uniform_rng.rng()))
             }
-            ContinuousRandomVariable::Triangular { min, max, mode } => {
+            Continuous::Triangular { min, max, mode } => {
                 Ok(Triangular::new(*min, *max, *mode)?.sample(uniform_rng.rng()))
             }
-            ContinuousRandomVariable::Uniform { min, max } => {
+            Continuous::Uniform { min, max } => {
                 Ok(Uniform::new(*min, *max).sample(uniform_rng.rng()))
             }
-            ContinuousRandomVariable::Weibull { shape, scale } => {
+            Continuous::Weibull { shape, scale } => {
                 Ok(Weibull::new(*shape, *scale)?.sample(uniform_rng.rng()))
             }
         }
     }
 }
 
-impl BooleanRandomVariable {
+impl Boolean {
     /// The generation of random variates drives stochastic behaviors during
     /// simulation execution.  This function requires the random number
     /// generator of the simulation, and produces a boolean random variate.
@@ -106,33 +103,29 @@ impl BooleanRandomVariable {
         uniform_rng: &mut UniformRNG,
     ) -> Result<bool, SimulationError> {
         match self {
-            BooleanRandomVariable::Bernoulli { p } => {
-                Ok(Bernoulli::new(*p)?.sample(uniform_rng.rng()))
-            }
+            Boolean::Bernoulli { p } => Ok(Bernoulli::new(*p)?.sample(uniform_rng.rng())),
         }
     }
 }
 
-impl DiscreteRandomVariable {
+impl Discrete {
     /// The generation of random variates drives stochastic behaviors during
     /// simulation execution.  This function requires the random number
     /// generator of the simulation, and produces a u64 random variate.
     pub fn random_variate(&mut self, uniform_rng: &mut UniformRNG) -> Result<u64, SimulationError> {
         match self {
-            DiscreteRandomVariable::Geometric { p } => {
-                Ok(Geometric::new(*p)?.sample(uniform_rng.rng()))
-            }
-            DiscreteRandomVariable::Poisson { lambda } => {
+            Discrete::Geometric { p } => Ok(Geometric::new(*p)?.sample(uniform_rng.rng())),
+            Discrete::Poisson { lambda } => {
                 Ok(Poisson::new(*lambda)?.sample(uniform_rng.rng()) as u64)
             }
-            DiscreteRandomVariable::Uniform { min, max } => {
+            Discrete::Uniform { min, max } => {
                 Ok(Uniform::new(*min, *max).sample(uniform_rng.rng()))
             }
         }
     }
 }
 
-impl IndexRandomVariable {
+impl Index {
     /// The generation of random variates drives stochastic behaviors during
     /// simulation execution.  This function requires the random number
     /// generator of the simulation, and produces a usize random variate.
@@ -141,10 +134,8 @@ impl IndexRandomVariable {
         uniform_rng: &mut UniformRNG,
     ) -> Result<usize, SimulationError> {
         match self {
-            IndexRandomVariable::Uniform { min, max } => {
-                Ok(Uniform::new(*min, *max).sample(uniform_rng.rng()))
-            }
-            IndexRandomVariable::WeightedIndex { weights } => {
+            Index::Uniform { min, max } => Ok(Uniform::new(*min, *max).sample(uniform_rng.rng())),
+            Index::WeightedIndex { weights } => {
                 Ok(WeightedIndex::new(weights.clone())?.sample(uniform_rng.rng()))
             }
         }
@@ -156,25 +147,25 @@ mod tests {
     use super::*;
 
     enum RandomVariable {
-        Continuous(ContinuousRandomVariable),
-        Discrete(DiscreteRandomVariable),
+        Continuous(Continuous),
+        Discrete(Discrete),
     }
 
     enum ChiSquareTest {
         Continuous {
-            variable: ContinuousRandomVariable,
+            variable: Continuous,
             bin_mapping_fn: fn(f64) -> usize,
         },
         Boolean {
-            variable: BooleanRandomVariable,
+            variable: Boolean,
             bin_mapping_fn: fn(bool) -> usize,
         },
         Discrete {
-            variable: DiscreteRandomVariable,
+            variable: Discrete,
             bin_mapping_fn: fn(u64) -> usize,
         },
         Index {
-            variable: IndexRandomVariable,
+            variable: Index,
             bin_mapping_fn: fn(usize) -> usize,
         },
     }
@@ -231,7 +222,7 @@ mod tests {
 
     #[test]
     fn beta_samples_match_expectation() {
-        let variable = ContinuousRandomVariable::Beta {
+        let variable = Continuous::Beta {
             alpha: 7.0,
             beta: 11.0,
         };
@@ -242,7 +233,7 @@ mod tests {
 
     #[test]
     fn exponential_samples_match_expectation() {
-        let variable = ContinuousRandomVariable::Exp { lambda: 7.0 };
+        let variable = Continuous::Exp { lambda: 7.0 };
         let mean = empirical_mean(&mut RandomVariable::Continuous(variable), 10000);
         let expected = 1.0 / 7.0;
         assert!((mean - expected).abs() / expected < 0.025);
@@ -250,7 +241,7 @@ mod tests {
 
     #[test]
     fn gamma_samples_match_expectation() {
-        let variable = ContinuousRandomVariable::Gamma {
+        let variable = Continuous::Gamma {
             shape: 7.0,
             scale: 11.0,
         };
@@ -261,7 +252,7 @@ mod tests {
 
     #[test]
     fn lognormal_samples_match_expectation() {
-        let variable = ContinuousRandomVariable::LogNormal {
+        let variable = Continuous::LogNormal {
             mu: 11.0,
             sigma: 1.0,
         };
@@ -293,7 +284,7 @@ mod tests {
                 7
             }
         }
-        let variable = ContinuousRandomVariable::Normal {
+        let variable = Continuous::Normal {
             mean: 11.0,
             std_dev: 3.0,
         };
@@ -318,7 +309,7 @@ mod tests {
         fn bins_mapping(variate: f64) -> usize {
             ((variate - 5.0) / 5.0) as usize
         }
-        let variable = ContinuousRandomVariable::Triangular {
+        let variable = Continuous::Triangular {
             min: 5.0,
             max: 25.0,
             mode: 15.0,
@@ -345,7 +336,7 @@ mod tests {
             let max = 11.0;
             ((variate - min) * (max - 1.0)) as usize
         }
-        let variable = ContinuousRandomVariable::Uniform {
+        let variable = Continuous::Uniform {
             min: 7.0,
             max: 11.0,
         };
@@ -366,7 +357,7 @@ mod tests {
 
     #[test]
     fn weibull_samples_match_expectation() {
-        let variable = ContinuousRandomVariable::Weibull {
+        let variable = Continuous::Weibull {
             shape: 7.0,
             scale: 0.5,
         };
@@ -380,7 +371,7 @@ mod tests {
         fn bins_mapping(variate: bool) -> usize {
             variate as usize
         }
-        let variable = BooleanRandomVariable::Bernoulli { p: 0.3 };
+        let variable = Boolean::Bernoulli { p: 0.3 };
         // Failures (false == 0) is 70% of trials and success (true == 1) is 30% of trials
         let expected_counts: [usize; 2] = [7000, 3000];
         let chi_square_actual = chi_square(
@@ -398,7 +389,7 @@ mod tests {
 
     #[test]
     fn geometric_samples_match_expectation() {
-        let variable = DiscreteRandomVariable::Geometric { p: 0.2 };
+        let variable = Discrete::Geometric { p: 0.2 };
         let mean = empirical_mean(&mut RandomVariable::Discrete(variable), 10000);
         let expected = (1.0 - 0.2) / 0.2;
         assert!((mean - expected).abs() / expected < 0.025);
@@ -406,7 +397,7 @@ mod tests {
 
     #[test]
     fn poisson_samples_match_expectation() {
-        let variable = DiscreteRandomVariable::Poisson { lambda: 7.0 };
+        let variable = Discrete::Poisson { lambda: 7.0 };
         let mean = empirical_mean(&mut RandomVariable::Discrete(variable), 10000);
         let expected = 7.0;
         assert!((mean - expected).abs() / expected < 0.025);
@@ -418,7 +409,7 @@ mod tests {
             let min = 7;
             (variate - min) as usize
         }
-        let variable = DiscreteRandomVariable::Uniform { min: 7, max: 11 };
+        let variable = Discrete::Uniform { min: 7, max: 11 };
         // Constant bin counts, due to uniformity of distribution
         let expected_counts: [usize; 4] = [2500; 4];
         let chi_square_actual = chi_square(
@@ -439,7 +430,7 @@ mod tests {
         fn bins_mapping(variate: usize) -> usize {
             variate
         }
-        let variable = IndexRandomVariable::WeightedIndex {
+        let variable = Index::WeightedIndex {
             weights: vec![1, 2, 3, 4],
         };
         // The expected bin counts scale linearly with the weights
@@ -463,7 +454,7 @@ mod tests {
             let min = 7;
             variate - min
         }
-        let variable = IndexRandomVariable::Uniform { min: 7, max: 11 };
+        let variable = Index::Uniform { min: 7, max: 11 };
         // Constant bin counts, due to uniformity of distribution
         let expected_counts: [usize; 4] = [2500; 4];
         let chi_square_actual = chi_square(

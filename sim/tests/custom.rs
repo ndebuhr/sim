@@ -1,11 +1,11 @@
 use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
-use sim::input_modeling::random_variable::ContinuousRandomVariable;
+use sim::input_modeling::ContinuousRandomVariable;
 use sim::models::model_trait::{AsModel, SerializableModel};
 use sim::models::{Generator, Model, ModelMessage};
 use sim::simulator::{Connector, Message, Services, Simulation, WebSimulation};
-use sim::utils::error::SimulationError;
+use sim::utils::errors::SimulationError;
 use sim_derive::{register, SerializableModel};
 use wasm_bindgen_test::*;
 

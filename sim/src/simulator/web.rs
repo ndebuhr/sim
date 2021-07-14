@@ -4,38 +4,39 @@ use wasm_bindgen::prelude::*;
 
 use crate::utils::set_panic_hook;
 
-use super::Simulation;
+use super::Simulation as CoreSimulation;
 
-/// The `WebSimulation` provides JS/WASM-compatible interfaces to the core
+/// The web `Simulation` provides JS/WASM-compatible interfaces to the core
 /// `Simulation` struct.  For additional insight on these methods, refer to
-/// the associated `Simulation` methods.  Errors are unwrapped, instead of
-/// returned, in the `WebSimulation` methods.
+/// the associated core `Simulation` methods.  Errors are unwrapped, instead
+/// of returned, in the web `Simulation` methods.
 #[wasm_bindgen]
 #[derive(Default, Serialize, Deserialize)]
-pub struct WebSimulation {
-    simulation: Simulation,
+pub struct Simulation {
+    simulation: CoreSimulation,
 }
 
 #[wasm_bindgen]
-impl WebSimulation {
+impl Simulation {
     /// A JS/WASM interface for `Simulation.post`, which uses JSON
     /// representations of the simulation models and connectors.
     pub fn post_json(models: &str, connectors: &str) -> Self {
         set_panic_hook();
         Self {
-            simulation: Simulation {
-                models: serde_json::from_str(models).unwrap(),
-                connectors: serde_json::from_str(connectors).unwrap(),
-                ..Simulation::default()
-            },
+            simulation: CoreSimulation::post(
+                serde_json::from_str(models).unwrap(),
+                serde_json::from_str(connectors).unwrap(),
+            ),
         }
     }
 
     /// A JS/WASM interface for `Simulation.put`, which uses JSON
     /// representations of the simulation models and connectors.
     pub fn put_json(&mut self, models: &str, connectors: &str) {
-        self.simulation.models = serde_json::from_str(models).unwrap();
-        self.simulation.connectors = serde_json::from_str(connectors).unwrap();
+        self.simulation.put(
+            serde_json::from_str(models).unwrap(),
+            serde_json::from_str(connectors).unwrap(),
+        );
     }
 
     /// Get a JSON representation of the full `Simulation` configuration.
@@ -45,22 +46,23 @@ impl WebSimulation {
 
     /// A JS/WASM interface for `Simulation.post`, which uses YAML
     /// representations of the simulation models and connectors.
-    pub fn post_yaml(models: &str, connectors: &str) -> WebSimulation {
+    pub fn post_yaml(models: &str, connectors: &str) -> Simulation {
         set_panic_hook();
         Self {
-            simulation: Simulation {
-                models: serde_yaml::from_str(models).unwrap(),
-                connectors: serde_yaml::from_str(connectors).unwrap(),
-                ..Simulation::default()
-            },
+            simulation: CoreSimulation::post(
+                serde_yaml::from_str(models).unwrap(),
+                serde_yaml::from_str(connectors).unwrap(),
+            ),
         }
     }
 
     /// A JS/WASM interface for `Simulation.put`, which uses YAML
     /// representations of the simulation models and connectors.
     pub fn put_yaml(&mut self, models: &str, connectors: &str) {
-        self.simulation.models = serde_yaml::from_str(models).unwrap();
-        self.simulation.connectors = serde_yaml::from_str(connectors).unwrap();
+        self.simulation.put(
+            serde_yaml::from_str(models).unwrap(),
+            serde_yaml::from_str(connectors).unwrap(),
+        );
     }
 
     /// Get a YAML representation of the full `Simulation` configuration.

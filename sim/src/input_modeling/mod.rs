@@ -8,5 +8,9 @@ pub mod random_variable;
 pub mod thinning;
 pub mod uniform_rng;
 
+pub use random_variable::Boolean as BooleanRandomVariable;
+pub use random_variable::Continuous as ContinuousRandomVariable;
+pub use random_variable::Discrete as DiscreteRandomVariable;
+pub use random_variable::Index as IndexRandomVariable;
 pub use thinning::Thinning;
 pub use uniform_rng::UniformRNG;

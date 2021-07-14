@@ -1,4 +1,4 @@
-use sim::input_modeling::random_variable::*;
+use sim::input_modeling::{BooleanRandomVariable, ContinuousRandomVariable, IndexRandomVariable};
 use sim::models::*;
 use sim::output_analysis::*;
 use sim::simulator::*;

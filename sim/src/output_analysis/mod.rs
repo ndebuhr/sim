@@ -10,7 +10,7 @@ use num_traits::{Float, NumAssign};
 use serde::{Deserialize, Serialize};
 
 pub mod t_scores;
-use crate::utils::error::SimulationError;
+use crate::utils::errors::SimulationError;
 use crate::utils::usize_sqrt;
 
 fn sum<T: Float>(points: &[T]) -> T

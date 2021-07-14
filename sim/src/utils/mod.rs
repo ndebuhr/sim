@@ -3,9 +3,9 @@
 //! utilities are centered around debugging/traceability and common
 //! arithmetic.
 
-pub mod error;
+pub mod errors;
 
-use error::SimulationError;
+use errors::SimulationError;
 
 /// The function evaluates a polynomial at a single value, with coefficients
 /// defined as a slice, from the highest polynomial order to the zero order.

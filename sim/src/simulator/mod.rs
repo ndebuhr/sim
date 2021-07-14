@@ -19,7 +19,7 @@ use std::f64::INFINITY;
 use serde::{Deserialize, Serialize};
 
 use crate::models::{AsModel, Model, ModelMessage};
-use crate::utils::error::SimulationError;
+use crate::utils::errors::SimulationError;
 use crate::utils::set_panic_hook;
 
 pub mod coupling;
@@ -28,7 +28,7 @@ pub mod web;
 
 pub use self::coupling::{Connector, Message};
 pub use self::services::Services;
-pub use self::web::WebSimulation;
+pub use self::web::Simulation as WebSimulation;
 
 /// The `Simulation` struct is the core of sim, and includes everything
 /// needed to run a simulation - models, connectors, and a random number

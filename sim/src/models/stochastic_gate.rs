@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 
 use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
-use crate::input_modeling::random_variable::BooleanRandomVariable;
+use crate::input_modeling::BooleanRandomVariable;
 use crate::simulator::Services;
 use crate::utils::default_records_port_name;
-use crate::utils::error::SimulationError;
+use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
 

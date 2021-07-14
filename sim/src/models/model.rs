@@ -4,7 +4,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
 use crate::simulator::Services;
-use crate::utils::error::SimulationError;
+use crate::utils::errors::SimulationError;
 
 /// `Model` wraps `model_type` and provides common ID functionality (a struct
 /// field and associated accessor method).  The simulator requires all models

@@ -2,11 +2,11 @@ use serde::{Deserialize, Serialize};
 
 use super::model_trait::{AsModel, SerializableModel};
 use super::ModelMessage;
-use crate::input_modeling::random_variable::ContinuousRandomVariable;
+use crate::input_modeling::ContinuousRandomVariable;
 use crate::input_modeling::Thinning;
 use crate::simulator::Services;
 use crate::utils::default_records_port_name;
-use crate::utils::error::SimulationError;
+use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
 
