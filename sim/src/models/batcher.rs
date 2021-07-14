@@ -78,7 +78,7 @@ impl Batcher {
             ports_out: PortsOut { job: job_out_port },
             max_batch_time,
             max_batch_size,
-            state: Default::default(),
+            state: State::default(),
         }
     }
 

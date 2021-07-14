@@ -110,7 +110,7 @@ impl Gate {
                 records: default_records_port_name(),
             },
             store_records,
-            state: Default::default(),
+            state: State::default(),
         }
     }
 
@@ -238,8 +238,7 @@ impl AsModel for Gate {
             Phase::Open => String::from("Open"),
             Phase::Closed => String::from("Closed"),
             Phase::Pass => format!["Passing {}", self.state.jobs[0].content],
-            Phase::RespondWhileOpen => String::from("Fetching records"),
-            Phase::RespondWhileClosed => String::from("Fetching records"),
+            Phase::RespondWhileOpen | Phase::RespondWhileClosed => String::from("Fetching records"),
         }
     }
 
@@ -269,9 +268,7 @@ impl AsModel for Gate {
         _services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         match &self.state.phase {
-            Phase::Open => self.send_jobs(),
-            Phase::Closed => self.send_jobs(),
-            Phase::Pass => self.send_jobs(),
+            Phase::Open | Phase::Closed | Phase::Pass => self.send_jobs(),
             Phase::RespondWhileOpen => self.send_records_while_open(),
             Phase::RespondWhileClosed => self.send_records_while_closed(),
         }

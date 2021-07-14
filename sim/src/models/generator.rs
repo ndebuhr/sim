@@ -107,7 +107,7 @@ impl Generator {
                 records: default_records_port_name(),
             },
             store_records,
-            state: Default::default(),
+            state: State::default(),
         }
     }
 
@@ -207,8 +207,7 @@ impl AsModel for Generator {
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         match (&self.state.phase, self.store_records) {
             (Phase::Generating, true) => self.save_job(services),
-            (Phase::Generating, false) => self.release_job(services),
-            (Phase::Saved, _) => self.release_job(services),
+            (Phase::Generating, false) | (Phase::Saved, _) => self.release_job(services),
             (Phase::RecordsFetch, true) => self.release_records(),
             (Phase::RecordsFetch, false) => Err(SimulationError::InvalidModelState),
             (Phase::Initializing, _) => self.initialize_generation(services),

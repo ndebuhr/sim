@@ -41,8 +41,8 @@ where
         / usize_to_float(points.len())?)
 }
 
-/// This function converts a usize to a Float, with an associated SimulationError
-/// returned for failed conversions
+/// This function converts a usize to a Float, with an associated
+/// `SimulationError` returned for failed conversions
 fn usize_to_float<T: Float>(unconv: usize) -> Result<T, SimulationError> {
     T::from(unconv).ok_or(SimulationError::FloatConvError)
 }
@@ -242,9 +242,8 @@ where
                 // Use that point for deletion determination
                 self.deletion_point = mser.iter().position(|mser_value| *mser_value == min_mser);
                 break;
-            } else {
-                d -= 1;
             }
+            d -= 1;
         }
         // Schmeiser [1982] found that, for a fixed total sample size, there
         // is little benefit from dividing it into more than k = 30 batches,

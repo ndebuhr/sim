@@ -98,7 +98,7 @@ impl ExclusiveGateway {
             },
             port_weights,
             store_records,
-            state: Default::default(),
+            state: State::default(),
         }
     }
 

@@ -133,7 +133,7 @@ impl Stopwatch {
             },
             metric,
             store_records,
-            state: Default::default(),
+            state: State::default(),
         }
     }
 
@@ -304,8 +304,10 @@ impl AsModel for Stopwatch {
                 .state
                 .jobs
                 .iter()
-                .filter_map(|job| self.some_duration(job))
-                .map(|(_, duration)| duration)
+                .filter_map(|job| {
+                    self.some_duration(job)
+                        .map(|duration_record| duration_record.1)
+                })
                 .collect();
             format![
                 "Average {:.3}",
@@ -323,10 +325,12 @@ impl AsModel for Stopwatch {
             self.arrival_port(&incoming_message.port_name),
             self.store_records,
         ) {
-            (ArrivalPort::Start, true) => self.calculate_and_save_job(incoming_message, services),
-            (ArrivalPort::Stop, true) => self.calculate_and_save_job(incoming_message, services),
-            (ArrivalPort::Start, false) => self.calculate_job(incoming_message, services),
-            (ArrivalPort::Stop, false) => self.calculate_job(incoming_message, services),
+            (ArrivalPort::Start, true) | (ArrivalPort::Stop, true) => {
+                self.calculate_and_save_job(incoming_message, services)
+            }
+            (ArrivalPort::Start, false) | (ArrivalPort::Stop, false) => {
+                self.calculate_job(incoming_message, services)
+            }
             (ArrivalPort::Metric, _) => self.get_job(),
             (ArrivalPort::Records, _) => self.get_records(),
             (ArrivalPort::Unknown, _) => Err(SimulationError::InvalidMessage),

@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-/// SimulationError enumerates all possible errors returned by sim
+/// `SimulationError` enumerates all possible errors returned by sim
 #[derive(Error, Debug)]
 pub enum SimulationError {
     /// Represents an invalid model configuration encountered during simulation

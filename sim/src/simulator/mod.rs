@@ -234,7 +234,7 @@ impl Simulation {
             .collect();
         errors?;
         self.messages = next_messages;
-        Ok(self.get_messages().to_vec())
+        Ok(self.get_messages().clone())
     }
 
     /// This method executes simulation `step` calls, until a global time
@@ -264,7 +264,7 @@ impl Simulation {
                 message_records.extend(self.messages.clone());
                 Ok(Vec::new())
             })
-            .find(|result| result.is_err())
+            .find(Result::is_err)
             .unwrap_or(Ok(message_records))
     }
 }

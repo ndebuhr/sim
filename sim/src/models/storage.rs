@@ -105,7 +105,7 @@ impl Storage {
                 records: default_records_port_name(),
             },
             store_records,
-            state: Default::default(),
+            state: State::default(),
         }
     }
 
