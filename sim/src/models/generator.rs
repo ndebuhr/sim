@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::model_trait::{AsModel, SerializableModel};
+use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
 use super::ModelMessage;
 use crate::input_modeling::ContinuousRandomVariable;
 use crate::input_modeling::Thinning;
@@ -185,11 +185,7 @@ impl Generator {
     }
 }
 
-impl AsModel for Generator {
-    fn status(&self) -> String {
-        format!["Generating {}s", self.ports_out.job]
-    }
-
+impl DevsModel for Generator {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
@@ -222,3 +218,11 @@ impl AsModel for Generator {
         self.state.until_next_event
     }
 }
+
+impl Reportable for Generator {
+    fn status(&self) -> String {
+        format!["Generating {}s", self.ports_out.job]
+    }
+}
+
+impl ReportableModel for Generator {}

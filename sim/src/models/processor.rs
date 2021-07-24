@@ -2,7 +2,7 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model_trait::{AsModel, SerializableModel};
+use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
 use super::ModelMessage;
 use crate::input_modeling::ContinuousRandomVariable;
 use crate::simulator::Services;
@@ -249,15 +249,7 @@ impl Processor {
     }
 }
 
-impl AsModel for Processor {
-    fn status(&self) -> String {
-        match self.state.phase {
-            Phase::RecordsFetch => String::from("Fetching Records"),
-            Phase::Active => String::from("Processing"),
-            Phase::Passive => String::from("Passive"),
-        }
-    }
-
+impl DevsModel for Processor {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
@@ -308,3 +300,15 @@ impl AsModel for Processor {
         self.state.until_next_event
     }
 }
+
+impl Reportable for Processor {
+    fn status(&self) -> String {
+        match self.state.phase {
+            Phase::RecordsFetch => String::from("Fetching Records"),
+            Phase::Active => String::from("Processing"),
+            Phase::Passive => String::from("Passive"),
+        }
+    }
+}
+
+impl ReportableModel for Processor {}

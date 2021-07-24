@@ -3,7 +3,7 @@ use std::iter::once;
 
 use serde::{Deserialize, Serialize};
 
-use super::model_trait::{AsModel, SerializableModel};
+use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
 use super::ModelMessage;
 use crate::simulator::Services;
 use crate::utils::default_records_port_name;
@@ -295,27 +295,7 @@ impl Stopwatch {
     }
 }
 
-impl AsModel for Stopwatch {
-    fn status(&self) -> String {
-        if self.state.jobs.is_empty() {
-            String::from("Measuring durations")
-        } else {
-            let durations: Vec<f64> = self
-                .state
-                .jobs
-                .iter()
-                .filter_map(|job| {
-                    self.some_duration(job)
-                        .map(|duration_record| duration_record.1)
-                })
-                .collect();
-            format![
-                "Average {:.3}",
-                durations.iter().sum::<f64>() / durations.len() as f64
-            ]
-        }
-    }
-
+impl DevsModel for Stopwatch {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
@@ -356,3 +336,27 @@ impl AsModel for Stopwatch {
         self.state.until_next_event
     }
 }
+
+impl Reportable for Stopwatch {
+    fn status(&self) -> String {
+        if self.state.jobs.is_empty() {
+            String::from("Measuring durations")
+        } else {
+            let durations: Vec<f64> = self
+                .state
+                .jobs
+                .iter()
+                .filter_map(|job| {
+                    self.some_duration(job)
+                        .map(|duration_record| duration_record.1)
+                })
+                .collect();
+            format![
+                "Average {:.3}",
+                durations.iter().sum::<f64>() / durations.len() as f64
+            ]
+        }
+    }
+}
+
+impl ReportableModel for Stopwatch {}

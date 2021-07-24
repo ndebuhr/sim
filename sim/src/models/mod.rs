@@ -3,6 +3,8 @@
 //! specifies the requirements of any additional custom models, via the
 //! `Model` trait.
 
+use serde::{Deserialize, Serialize};
+
 pub mod batcher;
 pub mod exclusive_gateway;
 pub mod gate;
@@ -25,7 +27,7 @@ pub use self::gate::Gate;
 pub use self::generator::Generator;
 pub use self::load_balancer::LoadBalancer;
 pub use self::model::Model;
-pub use self::model_trait::AsModel;
+pub use self::model_trait::{DevsModel, Reportable, ReportableModel};
 pub use self::parallel_gateway::ParallelGateway;
 pub use self::processor::Processor;
 pub use self::stochastic_gate::StochasticGate;
@@ -38,4 +40,11 @@ pub use self::model_repr::ModelRepr;
 pub struct ModelMessage {
     pub port_name: String,
     pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelRecord {
+    pub time: f64,
+    pub action: String,
+    pub subject: String,
 }

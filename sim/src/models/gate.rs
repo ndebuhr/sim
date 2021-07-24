@@ -2,7 +2,7 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model_trait::{AsModel, SerializableModel};
+use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
 use super::ModelMessage;
 use crate::simulator::Services;
 use crate::utils::default_records_port_name;
@@ -232,16 +232,7 @@ impl Gate {
     }
 }
 
-impl AsModel for Gate {
-    fn status(&self) -> String {
-        match self.state.phase {
-            Phase::Open => String::from("Open"),
-            Phase::Closed => String::from("Closed"),
-            Phase::Pass => format!["Passing {}", self.state.jobs[0].content],
-            Phase::RespondWhileOpen | Phase::RespondWhileClosed => String::from("Fetching records"),
-        }
-    }
-
+impl DevsModel for Gate {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
@@ -282,3 +273,16 @@ impl AsModel for Gate {
         self.state.until_next_event
     }
 }
+
+impl Reportable for Gate {
+    fn status(&self) -> String {
+        match self.state.phase {
+            Phase::Open => String::from("Open"),
+            Phase::Closed => String::from("Closed"),
+            Phase::Pass => format!["Passing {}", self.state.jobs[0].content],
+            Phase::RespondWhileOpen | Phase::RespondWhileClosed => String::from("Fetching records"),
+        }
+    }
+}
+
+impl ReportableModel for Gate {}

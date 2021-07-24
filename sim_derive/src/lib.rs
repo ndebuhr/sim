@@ -12,7 +12,7 @@ pub fn model(item: TokenStream) -> TokenStream {
     let name = input.ident;
     let tokens = quote! {
         impl #name {
-            pub fn from_value(value: serde_yaml::Value) -> Option<Box<dyn AsModel>> {
+            pub fn from_value(value: serde_yaml::Value) -> Option<Box<dyn ReportableModel>> {
                 match serde_yaml::from_value::<Self>(value) {
                     Ok(model) => Some(Box::new(model)),
                     Err(_) => None

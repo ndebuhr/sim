@@ -2,7 +2,7 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model_trait::{AsModel, SerializableModel};
+use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
 use super::ModelMessage;
 use crate::simulator::Services;
 use crate::utils::default_records_port_name;
@@ -212,14 +212,7 @@ impl Storage {
     }
 }
 
-impl AsModel for Storage {
-    fn status(&self) -> String {
-        match &self.state.job {
-            Some(stored) => format!["Storing {}", stored],
-            None => String::from("Empty"),
-        }
-    }
-
+impl DevsModel for Storage {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
@@ -258,3 +251,14 @@ impl AsModel for Storage {
         self.state.until_next_event
     }
 }
+
+impl Reportable for Storage {
+    fn status(&self) -> String {
+        match &self.state.job {
+            Some(stored) => format!["Storing {}", stored],
+            None => String::from("Empty"),
+        }
+    }
+}
+
+impl ReportableModel for Storage {}

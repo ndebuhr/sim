@@ -2,7 +2,7 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 use sim::input_modeling::ContinuousRandomVariable;
-use sim::models::model_trait::{AsModel, SerializableModel};
+use sim::models::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
 use sim::models::{Generator, Model, ModelMessage};
 use sim::simulator::{Connector, Message, Services, Simulation, WebSimulation};
 use sim::utils::errors::SimulationError;
@@ -31,11 +31,7 @@ impl Passive {
     }
 }
 
-impl AsModel for Passive {
-    fn status(&self) -> String {
-        "Passive".into()
-    }
-
+impl DevsModel for Passive {
     fn events_ext(
         &mut self,
         _incoming_message: &ModelMessage,
@@ -61,6 +57,14 @@ impl AsModel for Passive {
         INFINITY
     }
 }
+
+impl Reportable for Passive {
+    fn status(&self) -> String {
+        "Passive".into()
+    }
+}
+
+impl ReportableModel for Passive {}
 
 #[test]
 fn step_n_with_custom_passive_model() {

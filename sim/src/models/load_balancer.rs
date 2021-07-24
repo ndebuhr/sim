@@ -2,7 +2,7 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model_trait::{AsModel, SerializableModel};
+use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
 use super::ModelMessage;
 use crate::simulator::Services;
 use crate::utils::default_records_port_name;
@@ -187,11 +187,7 @@ impl LoadBalancer {
     }
 }
 
-impl AsModel for LoadBalancer {
-    fn status(&self) -> String {
-        format!["Listening for {}s", self.ports_in.job]
-    }
-
+impl DevsModel for LoadBalancer {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
@@ -228,3 +224,11 @@ impl AsModel for LoadBalancer {
         self.state.until_next_event
     }
 }
+
+impl Reportable for LoadBalancer {
+    fn status(&self) -> String {
+        format!["Listening for {}s", self.ports_in.job]
+    }
+}
+
+impl ReportableModel for LoadBalancer {}

@@ -1,4 +1,4 @@
-use super::model_trait::AsModel;
+use super::model_trait::ReportableModel;
 use serde::de;
 use serde::Deserializer;
 use std::collections::HashMap;
@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 
 use std::sync::Mutex;
 
-pub type ModelConstructor = fn(serde_yaml::Value) -> Option<Box<dyn AsModel>>;
+pub type ModelConstructor = fn(serde_yaml::Value) -> Option<Box<dyn ReportableModel>>;
 lazy_static! {
     static ref CONSTRUCTORS: Mutex<HashMap<&'static str, ModelConstructor>> = {
         let mut m = HashMap::new();
@@ -65,7 +65,7 @@ pub fn register(model_type: &'static str, model_constructor: ModelConstructor) {
 pub fn create<'de, D: Deserializer<'de>>(
     model_type: &str,
     extra_fields: serde_yaml::Value,
-) -> Result<Box<dyn AsModel>, D::Error> {
+) -> Result<Box<dyn ReportableModel>, D::Error> {
     let model = match CONSTRUCTORS.lock().unwrap().get(model_type) {
         Some(constructor) => constructor(extra_fields),
         None => None,

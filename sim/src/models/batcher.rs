@@ -2,7 +2,7 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model_trait::{AsModel, SerializableModel};
+use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
 use super::ModelMessage;
 use crate::simulator::Services;
 use crate::utils::errors::SimulationError;
@@ -125,15 +125,7 @@ impl Batcher {
     }
 }
 
-impl AsModel for Batcher {
-    fn status(&self) -> String {
-        match self.state.phase {
-            Phase::Passive => String::from("Passive"),
-            Phase::Batching => String::from("Creating batch"),
-            Phase::Release => String::from("Releasing batch"),
-        }
-    }
-
+impl DevsModel for Batcher {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
@@ -168,3 +160,15 @@ impl AsModel for Batcher {
         self.state.until_next_event
     }
 }
+
+impl Reportable for Batcher {
+    fn status(&self) -> String {
+        match self.state.phase {
+            Phase::Passive => String::from("Passive"),
+            Phase::Batching => String::from("Creating batch"),
+            Phase::Release => String::from("Releasing batch"),
+        }
+    }
+}
+
+impl ReportableModel for Batcher {}

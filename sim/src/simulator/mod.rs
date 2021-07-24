@@ -18,7 +18,7 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use crate::models::{AsModel, Model, ModelMessage};
+use crate::models::{DevsModel, Model, ModelMessage, Reportable};
 use crate::utils::errors::SimulationError;
 use crate::utils::set_panic_hook;
 

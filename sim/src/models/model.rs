@@ -1,7 +1,7 @@
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use super::model_trait::{AsModel, SerializableModel};
+use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
 use super::ModelMessage;
 use crate::simulator::Services;
 use crate::utils::errors::SimulationError;
@@ -12,11 +12,11 @@ use crate::utils::errors::SimulationError;
 #[derive(Clone)]
 pub struct Model {
     id: String,
-    inner: Box<dyn AsModel>,
+    inner: Box<dyn ReportableModel>,
 }
 
 impl Model {
-    pub fn new(id: String, inner: Box<dyn AsModel>) -> Self {
+    pub fn new(id: String, inner: Box<dyn ReportableModel>) -> Self {
         Self { id, inner }
     }
 
@@ -51,11 +51,7 @@ impl<'de> Deserialize<'de> for Model {
 
 impl SerializableModel for Model {}
 
-impl AsModel for Model {
-    fn status(&self) -> String {
-        self.inner.status()
-    }
-
+impl DevsModel for Model {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
@@ -79,3 +75,11 @@ impl AsModel for Model {
         self.inner.until_next_event()
     }
 }
+
+impl Reportable for Model {
+    fn status(&self) -> String {
+        self.inner.status()
+    }
+}
+
+impl ReportableModel for Model {}

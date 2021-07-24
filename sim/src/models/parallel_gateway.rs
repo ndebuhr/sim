@@ -3,7 +3,7 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model_trait::{AsModel, SerializableModel};
+use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
 use super::ModelMessage;
 use crate::simulator::Services;
 use crate::utils::default_records_port_name;
@@ -216,11 +216,7 @@ impl ParallelGateway {
     }
 }
 
-impl AsModel for ParallelGateway {
-    fn status(&self) -> String {
-        String::from("Active")
-    }
-
+impl DevsModel for ParallelGateway {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
@@ -261,3 +257,11 @@ impl AsModel for ParallelGateway {
         self.state.until_next_event
     }
 }
+
+impl Reportable for ParallelGateway {
+    fn status(&self) -> String {
+        String::from("Active")
+    }
+}
+
+impl ReportableModel for ParallelGateway {}

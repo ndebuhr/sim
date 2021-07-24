@@ -2,7 +2,7 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model_trait::{AsModel, SerializableModel};
+use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
 use super::ModelMessage;
 use crate::input_modeling::IndexRandomVariable;
 use crate::simulator::Services;
@@ -182,15 +182,7 @@ impl ExclusiveGateway {
     }
 }
 
-impl AsModel for ExclusiveGateway {
-    fn status(&self) -> String {
-        match self.state.phase {
-            Phase::Passive => String::from("Passive"),
-            Phase::Pass => format!["Passing {}", self.state.jobs[0].content],
-            Phase::Respond => String::from("Fetching records"),
-        }
-    }
-
+impl DevsModel for ExclusiveGateway {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
@@ -228,3 +220,15 @@ impl AsModel for ExclusiveGateway {
         self.state.until_next_event
     }
 }
+
+impl Reportable for ExclusiveGateway {
+    fn status(&self) -> String {
+        match self.state.phase {
+            Phase::Passive => String::from("Passive"),
+            Phase::Pass => format!["Passing {}", self.state.jobs[0].content],
+            Phase::Respond => String::from("Fetching records"),
+        }
+    }
+}
+
+impl ReportableModel for ExclusiveGateway {}

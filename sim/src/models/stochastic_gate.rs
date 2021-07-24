@@ -2,7 +2,7 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use super::model_trait::{AsModel, SerializableModel};
+use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
 use super::ModelMessage;
 use crate::input_modeling::BooleanRandomVariable;
 use crate::simulator::Services;
@@ -202,14 +202,7 @@ impl StochasticGate {
     }
 }
 
-impl AsModel for StochasticGate {
-    fn status(&self) -> String {
-        match self.state.phase {
-            Phase::Passive => String::from("Gating"),
-            Phase::RecordsFetch => String::from("Fetching Records"),
-        }
-    }
-
+impl DevsModel for StochasticGate {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
@@ -247,3 +240,14 @@ impl AsModel for StochasticGate {
         self.state.until_next_event
     }
 }
+
+impl Reportable for StochasticGate {
+    fn status(&self) -> String {
+        match self.state.phase {
+            Phase::Passive => String::from("Gating"),
+            Phase::RecordsFetch => String::from("Fetching Records"),
+        }
+    }
+}
+
+impl ReportableModel for StochasticGate {}
