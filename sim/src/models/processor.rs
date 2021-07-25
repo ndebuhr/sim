@@ -3,10 +3,9 @@ use std::f64::INFINITY;
 use serde::{Deserialize, Serialize};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
-use super::ModelMessage;
+use super::{ModelMessage, ModelRecord};
 use crate::input_modeling::ContinuousRandomVariable;
 use crate::simulator::Services;
-use crate::utils::default_records_port_name;
 use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
@@ -42,14 +41,11 @@ fn max_usize() -> usize {
 #[serde(rename_all = "camelCase")]
 struct PortsIn {
     job: String,
-    #[serde(default = "default_records_port_name")]
-    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 enum ArrivalPort {
     Job,
-    Records,
     Unknown,
 }
 
@@ -57,8 +53,6 @@ enum ArrivalPort {
 #[serde(rename_all = "camelCase")]
 struct PortsOut {
     job: String,
-    #[serde(default = "default_records_port_name")]
-    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,9 +60,8 @@ struct PortsOut {
 struct State {
     phase: Phase,
     until_next_event: f64,
-    until_job_completion: f64,
-    queue: Vec<Job>,
-    records: Vec<Job>,
+    queue: Vec<String>,
+    records: Vec<ModelRecord>,
 }
 
 impl Default for State {
@@ -76,7 +69,6 @@ impl Default for State {
         State {
             phase: Phase::Passive,
             until_next_event: INFINITY,
-            until_job_completion: INFINITY,
             queue: Vec::new(),
             records: Vec::new(),
         }
@@ -87,16 +79,6 @@ impl Default for State {
 enum Phase {
     Active,
     Passive,
-    RecordsFetch,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Job {
-    pub content: String,
-    pub arrival_time: f64,
-    pub processing_start_time: f64,
-    pub departure_time: f64,
 }
 
 impl Processor {
@@ -110,13 +92,9 @@ impl Processor {
         Self {
             service_time,
             queue_capacity: queue_capacity.unwrap_or(usize::MAX),
-            ports_in: PortsIn {
-                job: job_port,
-                records: default_records_port_name(),
-            },
+            ports_in: PortsIn { job: job_port },
             ports_out: PortsOut {
                 job: processed_job_port,
-                records: default_records_port_name(),
             },
             store_records,
             state: State::default(),
@@ -126,30 +104,9 @@ impl Processor {
     fn arrival_port(&self, message_port: &str) -> ArrivalPort {
         if message_port == self.ports_in.job {
             ArrivalPort::Job
-        } else if message_port == self.ports_in.records {
-            ArrivalPort::Records
         } else {
             ArrivalPort::Unknown
         }
-    }
-
-    fn request_records(
-        &mut self,
-        _incoming_message: &ModelMessage,
-        _services: &mut Services,
-    ) -> Result<(), SimulationError> {
-        self.state.phase = Phase::RecordsFetch;
-        self.state.until_job_completion = self.state.until_next_event;
-        self.state.until_next_event = 0.0;
-        Ok(())
-    }
-
-    fn ignore_request(
-        &mut self,
-        _incoming_message: &ModelMessage,
-        _services: &mut Services,
-    ) -> Result<(), SimulationError> {
-        Ok(())
     }
 
     fn add_job(
@@ -157,74 +114,61 @@ impl Processor {
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        self.state.queue.push(Job {
-            content: incoming_message.content.clone(),
-            arrival_time: services.global_time(),
-            processing_start_time: INFINITY,
-            departure_time: INFINITY,
-        });
+        self.state.queue.push(incoming_message.content.clone());
+        self.record(
+            services.global_time(),
+            String::from("Arrival"),
+            incoming_message.content.clone(),
+        );
         Ok(())
     }
 
-    fn start_job(
+    fn activate(
         &mut self,
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        self.state.queue.push(Job {
-            content: incoming_message.content.clone(),
-            arrival_time: services.global_time(),
-            processing_start_time: INFINITY,
-            departure_time: INFINITY,
-        });
-        self.state.phase = Phase::Passive;
-        self.state.until_job_completion =
-            self.service_time.random_variate(services.uniform_rng())?;
-        self.state.until_next_event = 0.0;
+        self.state.queue.push(incoming_message.content.clone());
+        self.state.phase = Phase::Active;
+        self.state.until_next_event = self.service_time.random_variate(services.uniform_rng())?;
+        self.record(
+            services.global_time(),
+            String::from("Arrival"),
+            incoming_message.content.clone(),
+        );
+        self.record(
+            services.global_time(),
+            String::from("Processing Start"),
+            incoming_message.content.clone(),
+        );
         Ok(())
     }
 
-    fn ignore_job(&mut self) -> Result<(), SimulationError> {
+    fn ignore_job(
+        &mut self,
+        incoming_message: &ModelMessage,
+        services: &mut Services,
+    ) -> Result<(), SimulationError> {
+        self.record(
+            services.global_time(),
+            String::from("Drop"),
+            incoming_message.content.clone(),
+        );
         Ok(())
     }
 
-    fn release_records(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.state.phase = Phase::Passive;
-        self.state.until_next_event = 0.0;
-        Ok(vec![ModelMessage {
-            port_name: self.ports_out.records.clone(),
-            content: serde_json::to_string(&self.state.records).unwrap(),
-        }])
-    }
-
-    fn resume_processing(
+    fn process_next(
         &mut self,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         self.state.phase = Phase::Active;
-        self.state.until_next_event = self.state.until_job_completion;
-        self.state.queue[0].processing_start_time = f64::min(
-            self.state.queue[0].processing_start_time,
+        self.state.until_next_event = self.service_time.random_variate(services.uniform_rng())?;
+        self.record(
             services.global_time(),
+            String::from("Processing Start"),
+            self.state.queue[0].clone(),
         );
         Ok(Vec::new())
-    }
-
-    fn save_and_release_job(
-        &mut self,
-        services: &mut Services,
-    ) -> Result<Vec<ModelMessage>, SimulationError> {
-        let mut job = self.state.queue.remove(0);
-        job.departure_time = services.global_time();
-        self.state.records.push(job.clone());
-        self.state.phase = Phase::Passive;
-        self.state.until_next_event = 0.0;
-        self.state.until_job_completion =
-            self.service_time.random_variate(services.uniform_rng())?;
-        Ok(vec![ModelMessage {
-            content: job.content,
-            port_name: self.ports_out.job.clone(),
-        }])
     }
 
     fn release_job(
@@ -234,10 +178,13 @@ impl Processor {
         let job = self.state.queue.remove(0);
         self.state.phase = Phase::Passive;
         self.state.until_next_event = 0.0;
-        self.state.until_job_completion =
-            self.service_time.random_variate(services.uniform_rng())?;
+        self.record(
+            services.global_time(),
+            String::from("Departure"),
+            job.clone(),
+        );
         Ok(vec![ModelMessage {
-            content: job.content,
+            content: job,
             port_name: self.ports_out.job.clone(),
         }])
     }
@@ -246,6 +193,16 @@ impl Processor {
         self.state.phase = Phase::Passive;
         self.state.until_next_event = INFINITY;
         Ok(Vec::new())
+    }
+
+    fn record(&mut self, time: f64, action: String, subject: String) {
+        if self.store_records {
+            self.state.records.push(ModelRecord {
+                time,
+                action,
+                subject,
+            })
+        }
     }
 }
 
@@ -257,21 +214,14 @@ impl DevsModel for Processor {
     ) -> Result<(), SimulationError> {
         match (
             self.arrival_port(&incoming_message.port_name),
-            &self.state.phase,
-            self.store_records,
-            self.state.queue.len() < self.queue_capacity,
+            self.state.queue.is_empty(),
+            self.state.queue.len() == self.queue_capacity,
         ) {
-            (ArrivalPort::Records, _, true, _) => self.request_records(incoming_message, services),
-            (ArrivalPort::Records, _, false, _) => self.ignore_request(incoming_message, services),
-            (ArrivalPort::Job, Phase::Active, _, true) => self.add_job(incoming_message, services),
-            (ArrivalPort::Job, Phase::Passive, _, true) => {
-                self.start_job(incoming_message, services)
-            }
-            (ArrivalPort::Job, Phase::RecordsFetch, _, true) => {
-                self.add_job(incoming_message, services)
-            }
-            (ArrivalPort::Job, _, _, false) => self.ignore_job(),
-            (ArrivalPort::Unknown, _, _, _) => Err(SimulationError::InvalidMessage),
+            (ArrivalPort::Job, true, true) => Err(SimulationError::InvalidModelState),
+            (ArrivalPort::Job, false, true) => self.ignore_job(incoming_message, services),
+            (ArrivalPort::Job, true, false) => self.activate(incoming_message, services),
+            (ArrivalPort::Job, false, false) => self.add_job(incoming_message, services),
+            (ArrivalPort::Unknown, _, _) => Err(SimulationError::InvalidMessage),
         }
     }
 
@@ -279,16 +229,10 @@ impl DevsModel for Processor {
         &mut self,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        match (
-            &self.state.phase,
-            self.state.queue.is_empty(),
-            self.store_records,
-        ) {
-            (Phase::RecordsFetch, _, _) => self.release_records(),
-            (Phase::Passive, true, _) => self.passivate(),
-            (Phase::Passive, false, _) => self.resume_processing(services),
-            (Phase::Active, _, true) => self.save_and_release_job(services),
-            (Phase::Active, _, false) => self.release_job(services),
+        match (&self.state.phase, self.state.queue.is_empty()) {
+            (Phase::Passive, true) => self.passivate(),
+            (Phase::Passive, false) => self.process_next(services),
+            (Phase::Active, _) => self.release_job(services),
         }
     }
 
@@ -304,10 +248,13 @@ impl DevsModel for Processor {
 impl Reportable for Processor {
     fn status(&self) -> String {
         match self.state.phase {
-            Phase::RecordsFetch => String::from("Fetching Records"),
             Phase::Active => String::from("Processing"),
             Phase::Passive => String::from("Passive"),
         }
+    }
+
+    fn records(&self) -> &Vec<ModelRecord> {
+        &self.state.records
     }
 }
 

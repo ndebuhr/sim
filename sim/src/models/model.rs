@@ -2,7 +2,7 @@ use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
-use super::ModelMessage;
+use super::{ModelMessage, ModelRecord};
 use crate::simulator::Services;
 use crate::utils::errors::SimulationError;
 
@@ -79,6 +79,10 @@ impl DevsModel for Model {
 impl Reportable for Model {
     fn status(&self) -> String {
         self.inner.status()
+    }
+
+    fn records(&self) -> &Vec<ModelRecord> {
+        self.inner.records()
     }
 }
 

@@ -1,4 +1,4 @@
-use super::ModelMessage;
+use super::{ModelMessage, ModelRecord};
 use crate::simulator::Services;
 use crate::utils::errors::SimulationError;
 
@@ -51,6 +51,7 @@ pub trait DevsModel: ModelClone + SerializableModel {
 /// impact simulation execution or results.
 pub trait Reportable {
     fn status(&self) -> String;
+    fn records(&self) -> &Vec<ModelRecord>;
 }
 
 /// A `ReportableModel` has the required Discrete Event System Specification

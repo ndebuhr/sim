@@ -4,9 +4,8 @@ use std::f64::INFINITY;
 use serde::{Deserialize, Serialize};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
-use super::ModelMessage;
+use super::{ModelMessage, ModelRecord};
 use crate::simulator::Services;
-use crate::utils::default_records_port_name;
 use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
@@ -30,14 +29,11 @@ pub struct ParallelGateway {
 #[serde(rename_all = "camelCase")]
 struct PortsIn {
     flow_paths: Vec<String>,
-    #[serde(default = "default_records_port_name")]
-    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 enum ArrivalPort {
     FlowPath,
-    Records,
     Unknown,
 }
 
@@ -45,41 +41,24 @@ enum ArrivalPort {
 #[serde(rename_all = "camelCase")]
 struct PortsOut {
     flow_paths: Vec<String>,
-    #[serde(default = "default_records_port_name")]
-    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct State {
-    phase: Phase,
     until_next_event: f64,
     collections: HashMap<String, usize>,
-    records: Vec<Record>,
+    records: Vec<ModelRecord>,
 }
 
 impl Default for State {
     fn default() -> Self {
         Self {
-            phase: Phase::Processing,
-            until_next_event: 0.0,
+            until_next_event: INFINITY,
             collections: HashMap::new(),
             records: Vec::new(),
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-enum Phase {
-    Processing,
-    RecordsFetch,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Record {
-    content: String,
-    time: f64,
 }
 
 impl ParallelGateway {
@@ -91,11 +70,9 @@ impl ParallelGateway {
         Self {
             ports_in: PortsIn {
                 flow_paths: flow_paths_in,
-                records: default_records_port_name(),
             },
             ports_out: PortsOut {
                 flow_paths: flow_paths_out,
-                records: default_records_port_name(),
             },
             store_records,
             state: State::default(),
@@ -105,8 +82,6 @@ impl ParallelGateway {
     fn arrival_port(&self, message_port: &str) -> ArrivalPort {
         if self.ports_in.flow_paths.contains(&message_port.to_string()) {
             ArrivalPort::FlowPath
-        } else if message_port == self.ports_in.records {
-            ArrivalPort::Records
         } else {
             ArrivalPort::Unknown
         }
@@ -122,73 +97,27 @@ impl ParallelGateway {
     fn increment_collection(
         &mut self,
         incoming_message: &ModelMessage,
-        _services: &mut Services,
+        services: &mut Services,
     ) -> Result<(), SimulationError> {
         *self
             .state
             .collections
             .entry(incoming_message.content.clone())
             .or_insert(0) += 1;
+        self.record(
+            services.global_time(),
+            String::from("Arrival"),
+            format![
+                "{} on {}",
+                incoming_message.content.clone(),
+                incoming_message.port_name.clone()
+            ],
+        );
         self.state.until_next_event = 0.0;
         Ok(())
     }
 
-    fn request_records(
-        &mut self,
-        _incoming_message: &ModelMessage,
-        _services: &mut Services,
-    ) -> Result<(), SimulationError> {
-        self.state.phase = Phase::RecordsFetch;
-        self.state.until_next_event = 0.0;
-        Ok(())
-    }
-
-    fn ignore_request(
-        &mut self,
-        _incoming_message: &ModelMessage,
-        _services: &mut Services,
-    ) -> Result<(), SimulationError> {
-        Ok(())
-    }
-
-    fn release_records(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.state.phase = Phase::Processing;
-        self.state.until_next_event = 0.0;
-        Ok(vec![ModelMessage {
-            port_name: self.ports_out.records.clone(),
-            content: serde_json::to_string(&self.state.records).unwrap(),
-        }])
-    }
-
-    fn send_and_save_job(
-        &mut self,
-        services: &mut Services,
-    ) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.state.until_next_event = 0.0;
-        let completed_collection = self
-            .full_collection()
-            .ok_or(SimulationError::InvalidModelState)?
-            .0
-            .to_string();
-        self.state.collections.remove(&completed_collection);
-        self.state.records.push(Record {
-            content: completed_collection.clone(),
-            time: services.global_time(),
-        });
-        Ok(self
-            .ports_out
-            .flow_paths
-            .iter()
-            .fold(Vec::new(), |mut messages, flow_path| {
-                messages.push(ModelMessage {
-                    port_name: flow_path.clone(),
-                    content: completed_collection.clone(),
-                });
-                messages
-            }))
-    }
-
-    fn send_job(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn send_job(&mut self, services: &mut Services) -> Result<Vec<ModelMessage>, SimulationError> {
         self.state.until_next_event = 0.0;
         let completed_collection = self
             .full_collection()
@@ -199,8 +128,14 @@ impl ParallelGateway {
         Ok(self
             .ports_out
             .flow_paths
+            .clone()
             .iter()
             .fold(Vec::new(), |mut messages, flow_path| {
+                self.record(
+                    services.global_time(),
+                    String::from("Departure"),
+                    format!["{} on {}", completed_collection.clone(), flow_path.clone()],
+                );
                 messages.push(ModelMessage {
                     port_name: flow_path.clone(),
                     content: completed_collection.clone(),
@@ -210,9 +145,18 @@ impl ParallelGateway {
     }
 
     fn passivate(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.state.phase = Phase::Processing;
         self.state.until_next_event = INFINITY;
         Ok(Vec::new())
+    }
+
+    fn record(&mut self, time: f64, action: String, subject: String) {
+        if self.store_records {
+            self.state.records.push(ModelRecord {
+                time,
+                action,
+                subject,
+            })
+        }
     }
 }
 
@@ -222,14 +166,9 @@ impl DevsModel for ParallelGateway {
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        match (
-            self.arrival_port(&incoming_message.port_name),
-            self.store_records,
-        ) {
-            (ArrivalPort::Records, true) => self.request_records(incoming_message, services),
-            (ArrivalPort::Records, false) => self.ignore_request(incoming_message, services),
-            (ArrivalPort::FlowPath, _) => self.increment_collection(incoming_message, services),
-            (ArrivalPort::Unknown, _) => Err(SimulationError::InvalidMessage),
+        match self.arrival_port(&incoming_message.port_name) {
+            ArrivalPort::FlowPath => self.increment_collection(incoming_message, services),
+            ArrivalPort::Unknown => Err(SimulationError::InvalidMessage),
         }
     }
 
@@ -237,15 +176,10 @@ impl DevsModel for ParallelGateway {
         &mut self,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        match (
-            &self.state.phase,
-            self.store_records,
-            self.full_collection().is_some(),
-        ) {
-            (Phase::RecordsFetch, _, _) => self.release_records(),
-            (Phase::Processing, true, true) => self.send_and_save_job(services),
-            (Phase::Processing, false, true) => self.send_job(),
-            (Phase::Processing, _, false) => self.passivate(),
+        if self.full_collection().is_some() {
+            self.send_job(services)
+        } else {
+            self.passivate()
         }
     }
 
@@ -261,6 +195,10 @@ impl DevsModel for ParallelGateway {
 impl Reportable for ParallelGateway {
     fn status(&self) -> String {
         String::from("Active")
+    }
+
+    fn records(&self) -> &Vec<ModelRecord> {
+        &self.state.records
     }
 }
 

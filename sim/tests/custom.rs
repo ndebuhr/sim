@@ -3,7 +3,7 @@ use std::f64::INFINITY;
 use serde::{Deserialize, Serialize};
 use sim::input_modeling::ContinuousRandomVariable;
 use sim::models::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
-use sim::models::{Generator, Model, ModelMessage};
+use sim::models::{Generator, Model, ModelMessage, ModelRecord};
 use sim::simulator::{Connector, Message, Services, Simulation, WebSimulation};
 use sim::utils::errors::SimulationError;
 use sim_derive::{register, SerializableModel};
@@ -16,6 +16,8 @@ wasm_bindgen_test_configure!(run_in_browser);
 #[serde(rename_all = "camelCase")]
 pub struct Passive {
     ports_in: PortsIn,
+    #[serde(default)]
+    state: State,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,10 +25,18 @@ struct PortsIn {
     job: String,
 }
 
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+struct State {
+    records: Vec<ModelRecord>,
+}
+
 impl Passive {
     pub fn new(job_port: String) -> Self {
         Self {
             ports_in: PortsIn { job: job_port },
+            state: State {
+                records: Vec::new(),
+            },
         }
     }
 }
@@ -61,6 +71,10 @@ impl DevsModel for Passive {
 impl Reportable for Passive {
     fn status(&self) -> String {
         "Passive".into()
+    }
+
+    fn records(&self) -> &Vec<ModelRecord> {
+        &self.state.records
     }
 }
 

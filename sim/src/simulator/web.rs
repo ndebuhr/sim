@@ -99,9 +99,21 @@ impl Simulation {
         self.simulation.get_global_time()
     }
 
-    /// An interface to `Simulation.status`.
-    pub fn status(&self, model_id: &str) -> String {
-        self.simulation.status(model_id).unwrap()
+    /// An interface to `Simulation.get_status`.
+    pub fn get_status(&self, model_id: &str) -> String {
+        self.simulation.get_status(model_id).unwrap()
+    }
+
+    /// A JS/WASM interface for `Simulation.records`, which converts the
+    /// records to a JSON string.
+    pub fn get_records_json(&self, model_id: &str) -> String {
+        serde_json::to_string(self.simulation.get_records(model_id).unwrap()).unwrap()
+    }
+
+    /// A JS/WASM interface for `Simulation.records`, which converts the
+    /// records to a YAML string.
+    pub fn get_records_yaml(&self, model_id: &str) -> String {
+        serde_yaml::to_string(self.simulation.get_records(model_id).unwrap()).unwrap()
     }
 
     /// An interface to `Simulation.reset`.

@@ -1,6 +1,6 @@
+use std::collections::HashMap;
 use std::f64::INFINITY;
 
-use sim::models::processor::Job as ProcessorJob;
 use sim::models::*;
 use sim::output_analysis::*;
 use sim::simulator::*;
@@ -30,108 +30,17 @@ fn processor_from_queue_response_time_is_correct() {
         "state": {
             "phase": "Passive",
             "untilNextEvent": 0.0,
-            "untilJobCompletion": 0.0,
             "queue": [
-                {"content": "job 1", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 2", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 3", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 4", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 5", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 6", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 7", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 8", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 9", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 10", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 11", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 12", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 13", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 14", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 15", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 16", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 17", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 18", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 19", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 20", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 21", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 22", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 23", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 24", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 25", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 26", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 27", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 28", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 29", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 30", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 31", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 32", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 33", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 34", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 35", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 36", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 37", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 38", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 39", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 40", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 41", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 42", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 43", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 44", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 45", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 46", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 47", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 48", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 49", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 50", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 51", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 52", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 53", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 54", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 55", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 56", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 57", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 58", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 59", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 60", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 61", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 62", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 63", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 64", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 65", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 66", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 67", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 68", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 69", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 70", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 71", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 72", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 73", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 74", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 75", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 76", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 77", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 78", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 79", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 80", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 81", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 82", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 83", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 84", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 85", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 86", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 87", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 88", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 89", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 90", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 91", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 92", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 93", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 94", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 95", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 96", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 97", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 98", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 99", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 100", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0}
+                "job 1", "job 2", "job 3", "job 4", "job 5", "job 6", "job 7", "job 8", "job 9", "job 10",
+                "job 11", "job 12", "job 13", "job 14", "job 15", "job 16", "job 17", "job 18", "job 19", "job 20",
+                "job 21", "job 22", "job 23", "job 24", "job 25", "job 26", "job 27", "job 28", "job 29", "job 30",
+                "job 31", "job 32", "job 33", "job 34", "job 35", "job 36", "job 37", "job 38", "job 39", "job 40",
+                "job 41", "job 42", "job 43", "job 44", "job 45", "job 46", "job 47", "job 48", "job 49", "job 50",
+                "job 51", "job 52", "job 53", "job 54", "job 55", "job 56", "job 57", "job 58", "job 59", "job 60",
+                "job 61", "job 62", "job 63", "job 64", "job 65", "job 66", "job 67", "job 68", "job 69", "job 70",
+                "job 71", "job 72", "job 73", "job 74", "job 75", "job 76", "job 77", "job 78", "job 79", "job 80",
+                "job 81", "job 82", "job 83", "job 84", "job 85", "job 86", "job 87", "job 88", "job 89", "job 90",
+                "job 91", "job 92", "job 93", "job 94", "job 95", "job 96", "job 97", "job 98", "job 99", "job 100"
             ],
             "records": []
         }
@@ -240,16 +149,7 @@ fn processor_network_no_job_loss() {
             "untilNextEvent": 0.0,
             "untilJobCompletion": 0.0,
             "queue": [
-                {"content": "job 0", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 1", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 2", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 3", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 4", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 5", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 6", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 7", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 8", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0},
-                {"content": "job 9", "arrivalTime": 0.0, "processingStartTime": 0.0, "departureTime": 0.0}
+                "job 0", "job 1", "job 2", "job 3", "job 4", "job 5", "job 6", "job 7", "job 8", "job 9"
             ],
             "records": []
         }
@@ -658,56 +558,55 @@ fn ci_half_width_for_average_waiting_time() {
     let mut average_waiting_times: [Vec<f64>; 3] = [Vec::new(), Vec::new(), Vec::new()];
     let mut cis_sufficient_precision = [false, false, false];
     // Replicate as needed for a CI half width of 1.0
-    let mut waiting_times: Vec<IndependentSample<f64>>;
     loop {
         // Refresh the models, but maintain the Uniform RNG for replication independence
         web.reset();
         web.put_yaml(models, connectors);
         web.step_until_json(480.0);
-        waiting_times = Vec::new();
         // Loop through (processor_number, average_processing_time)
-        for processor in ["processor-01", "processor-02", "processor-03"].iter() {
-            let records_request = Message::new(
-                String::from("manual"),
-                String::from("manual"),
-                processor.to_string(),
-                String::from("records"),
-                web.get_global_time(),
-                String::from(""),
-            );
-            web.inject_input_json(&serde_json::to_string(&records_request).unwrap());
-            let messages_json = web.step_json();
-            let messages: Vec<Message> = serde_json::from_str(&messages_json).unwrap();
-            let metrics_message = messages
-                .iter()
-                .find(|message| message.source_port() == "records")
-                .unwrap();
-            let records: Vec<ProcessorJob> =
-                serde_json::from_str(&metrics_message.content()).unwrap();
-            let processor_waiting_times: Vec<f64> = records
-                .iter()
-                .filter(|job| job.arrival_time < INFINITY)
-                .map(|job| &job.departure_time - &job.processing_start_time)
-                .collect();
-            waiting_times.push(IndependentSample::post(processor_waiting_times).unwrap());
-        }
-
-        waiting_times
+        ["processor-01", "processor-02", "processor-03"]
             .iter()
             .enumerate()
-            .for_each(|(index, waiting_times_sample)| {
+            .for_each(|(processor_index, processor)| {
+                let records: Vec<ModelRecord> =
+                    serde_json::from_str(&web.get_records_json(processor)).unwrap();
+                // Times: Arrival, Processing Start, Departure
+                let mut job_timestamps: HashMap<String, (Option<f64>, Option<f64>, Option<f64>)> =
+                    HashMap::new();
+                records.iter().for_each(|record| {
+                    let job = job_timestamps
+                        .entry(record.subject.clone())
+                        .or_insert((None, None, None));
+                    if record.action == "Arrival" {
+                        job.0 = Some(record.time);
+                    } else if record.action == "Processing Start" {
+                        job.1 = Some(record.time);
+                    } else if record.action == "Departure" {
+                        job.2 = Some(record.time);
+                    }
+                });
+                let waiting_times = job_timestamps
+                    .iter()
+                    .filter_map(|job_timestamps| match &job_timestamps.1 {
+                        (Some(arrival), Some(processing_start), _) => {
+                            Some(processing_start - arrival)
+                        }
+                        (_, _, _) => None,
+                    })
+                    .collect();
+                let waiting_times_sample = IndependentSample::post(waiting_times).unwrap();
                 if !waiting_times_sample.point_estimate_mean().is_nan() {
-                    average_waiting_times[index].push(waiting_times_sample.point_estimate_mean());
+                    average_waiting_times[processor_index]
+                        .push(waiting_times_sample.point_estimate_mean());
                 }
-                let ci = IndependentSample::post(average_waiting_times[index].clone())
+                let ci = IndependentSample::post(average_waiting_times[processor_index].clone())
                     .unwrap()
                     .confidence_interval_mean(0.05)
                     .unwrap();
                 if ci.half_width() < 1.0 && ci.half_width() > 0.0 {
-                    cis_sufficient_precision[index] = true;
+                    cis_sufficient_precision[processor_index] = true;
                 }
             });
-
         if cis_sufficient_precision
             .iter()
             .all(|sufficient| *sufficient)

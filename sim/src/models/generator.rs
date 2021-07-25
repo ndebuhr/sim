@@ -1,11 +1,10 @@
 use serde::{Deserialize, Serialize};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
-use super::ModelMessage;
+use super::{ModelMessage, ModelRecord};
 use crate::input_modeling::ContinuousRandomVariable;
 use crate::input_modeling::Thinning;
 use crate::simulator::Services;
-use crate::utils::default_records_port_name;
 use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
@@ -35,16 +34,11 @@ pub struct Generator {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct PortsIn {
-    #[serde(default = "default_records_port_name")]
-    records: String,
-}
+struct PortsIn {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct PortsOut {
     job: String,
-    #[serde(default = "default_records_port_name")]
-    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,8 +47,8 @@ struct State {
     phase: Phase,
     until_next_event: f64,
     until_job: f64,
-    last_job: Job,
-    records: Vec<Job>,
+    last_job: usize,
+    records: Vec<ModelRecord>,
 }
 
 impl Default for State {
@@ -63,11 +57,7 @@ impl Default for State {
             phase: Phase::Initializing,
             until_next_event: 0.0,
             until_job: 0.0,
-            last_job: Job {
-                index: 0,
-                content: String::from("job 0"),
-                time: 0.0,
-            },
+            last_job: 0,
             records: Vec::new(),
         }
     }
@@ -76,17 +66,7 @@ impl Default for State {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 enum Phase {
     Initializing,
-    RecordsFetch,
     Generating,
-    Saved,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Job {
-    index: usize,
-    content: String,
-    time: f64,
 }
 
 impl Generator {
@@ -99,46 +79,11 @@ impl Generator {
         Self {
             message_interdeparture_time,
             thinning,
-            ports_in: PortsIn {
-                records: default_records_port_name(),
-            },
-            ports_out: PortsOut {
-                job: job_port,
-                records: default_records_port_name(),
-            },
+            ports_in: PortsIn {},
+            ports_out: PortsOut { job: job_port },
             store_records,
             state: State::default(),
         }
-    }
-
-    fn request_records(
-        &mut self,
-        _incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
-        self.state.phase = Phase::RecordsFetch;
-        self.state.until_next_event = 0.0;
-        self.state.until_job -= services.global_time() - self.state.last_job.time;
-        Ok(())
-    }
-
-    fn ignore_request(
-        &mut self,
-        _incoming_message: &ModelMessage,
-        _services: &mut Services,
-    ) -> Result<(), SimulationError> {
-        Ok(())
-    }
-
-    fn save_job(&mut self, services: &mut Services) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.state.phase = Phase::Saved;
-        self.state.until_next_event = 0.0;
-        self.state.records.push(Job {
-            index: self.state.last_job.index + 1,
-            content: format!["{} {}", self.ports_out.job, self.state.last_job.index + 1],
-            time: services.global_time(),
-        });
-        Ok(Vec::new())
     }
 
     fn release_job(
@@ -151,23 +96,15 @@ impl Generator {
         self.state.phase = Phase::Generating;
         self.state.until_next_event = interdeparture;
         self.state.until_job = interdeparture;
-        self.state.last_job = Job {
-            index: self.state.last_job.index + 1,
-            content: format!["{} {}", self.ports_out.job, self.state.last_job.index + 1],
-            time: services.global_time(),
-        };
+        self.state.last_job += 1;
+        self.record(
+            services.global_time(),
+            String::from("Generation"),
+            format!["{} {}", self.ports_out.job, self.state.last_job],
+        );
         Ok(vec![ModelMessage {
             port_name: self.ports_out.job.clone(),
-            content: self.state.last_job.content.clone(),
-        }])
-    }
-
-    fn release_records(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.state.phase = Phase::Generating;
-        self.state.until_next_event = self.state.until_job;
-        Ok(vec![ModelMessage {
-            port_name: self.ports_out.records.clone(),
-            content: serde_json::to_string(&self.state.records).unwrap(),
+            content: format!["{} {}", self.ports_out.job, self.state.last_job],
         }])
     }
 
@@ -181,32 +118,41 @@ impl Generator {
         self.state.phase = Phase::Generating;
         self.state.until_next_event = interdeparture;
         self.state.until_job = interdeparture;
+        self.record(
+            services.global_time(),
+            String::from("Initialization"),
+            String::from(""),
+        );
         Ok(Vec::new())
+    }
+
+    fn record(&mut self, time: f64, action: String, subject: String) {
+        if self.store_records {
+            self.state.records.push(ModelRecord {
+                time,
+                action,
+                subject,
+            })
+        }
     }
 }
 
 impl DevsModel for Generator {
     fn events_ext(
         &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
+        _incoming_message: &ModelMessage,
+        _services: &mut Services,
     ) -> Result<(), SimulationError> {
-        match &self.store_records {
-            true => self.request_records(incoming_message, services),
-            false => self.ignore_request(incoming_message, services),
-        }
+        Ok(())
     }
 
     fn events_int(
         &mut self,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        match (&self.state.phase, self.store_records) {
-            (Phase::Generating, true) => self.save_job(services),
-            (Phase::Generating, false) | (Phase::Saved, _) => self.release_job(services),
-            (Phase::RecordsFetch, true) => self.release_records(),
-            (Phase::RecordsFetch, false) => Err(SimulationError::InvalidModelState),
-            (Phase::Initializing, _) => self.initialize_generation(services),
+        match &self.state.phase {
+            Phase::Generating => self.release_job(services),
+            Phase::Initializing => self.initialize_generation(services),
         }
     }
 
@@ -222,6 +168,10 @@ impl DevsModel for Generator {
 impl Reportable for Generator {
     fn status(&self) -> String {
         format!["Generating {}s", self.ports_out.job]
+    }
+
+    fn records(&self) -> &Vec<ModelRecord> {
+        &self.state.records
     }
 }
 

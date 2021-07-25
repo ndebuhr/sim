@@ -3,7 +3,7 @@ use std::f64::INFINITY;
 use serde::{Deserialize, Serialize};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
-use super::ModelMessage;
+use super::{ModelMessage, ModelRecord};
 use crate::simulator::Services;
 use crate::utils::errors::SimulationError;
 
@@ -26,6 +26,8 @@ pub struct Batcher {
     max_batch_time: f64,
     max_batch_size: usize,
     #[serde(default)]
+    store_records: bool,
+    #[serde(default)]
     state: State,
 }
 
@@ -47,6 +49,7 @@ struct State {
     phase: Phase,
     until_next_event: f64,
     jobs: Vec<String>,
+    records: Vec<ModelRecord>,
 }
 
 impl Default for State {
@@ -55,6 +58,7 @@ impl Default for State {
             phase: Phase::Passive,
             until_next_event: INFINITY,
             jobs: Vec::new(),
+            records: Vec::new(),
         }
     }
 }
@@ -72,56 +76,136 @@ impl Batcher {
         job_out_port: String,
         max_batch_time: f64,
         max_batch_size: usize,
+        store_records: bool,
     ) -> Self {
         Self {
             ports_in: PortsIn { job: job_in_port },
             ports_out: PortsOut { job: job_out_port },
             max_batch_time,
             max_batch_size,
+            store_records,
             state: State::default(),
         }
     }
 
-    fn add_to_batch(&mut self, incoming_message: &ModelMessage) -> Result<(), SimulationError> {
+    fn add_to_batch(
+        &mut self,
+        incoming_message: &ModelMessage,
+        services: &mut Services,
+    ) -> Result<(), SimulationError> {
         self.state.phase = Phase::Batching;
         self.state.jobs.push(incoming_message.content.clone());
+        self.record(
+            services.global_time(),
+            String::from("Arrival"),
+            incoming_message.content.clone(),
+        );
         Ok(())
     }
 
-    fn start_batch(&mut self, incoming_message: &ModelMessage) -> Result<(), SimulationError> {
+    fn start_batch(
+        &mut self,
+        incoming_message: &ModelMessage,
+        services: &mut Services,
+    ) -> Result<(), SimulationError> {
         self.state.phase = Phase::Batching;
         self.state.until_next_event = self.max_batch_time;
         self.state.jobs.push(incoming_message.content.clone());
+        self.record(
+            services.global_time(),
+            String::from("Arrival"),
+            incoming_message.content.clone(),
+        );
         Ok(())
     }
 
-    fn fill_batch(&mut self, incoming_message: &ModelMessage) -> Result<(), SimulationError> {
+    fn fill_batch(
+        &mut self,
+        incoming_message: &ModelMessage,
+        services: &mut Services,
+    ) -> Result<(), SimulationError> {
         self.state.phase = Phase::Release;
         self.state.until_next_event = 0.0;
         self.state.jobs.push(incoming_message.content.clone());
+        self.record(
+            services.global_time(),
+            String::from("Arrival"),
+            incoming_message.content.clone(),
+        );
         Ok(())
     }
 
-    fn release_full_queue(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn release_full_queue(
+        &mut self,
+        services: &mut Services,
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
         self.state.phase = Phase::Passive;
         self.state.until_next_event = INFINITY;
         Ok((0..self.state.jobs.len())
-            .map(|_| ModelMessage {
-                port_name: self.ports_out.job.clone(),
-                content: self.state.jobs.remove(0),
+            .map(|_| {
+                self.record(
+                    services.global_time(),
+                    String::from("Departure"),
+                    self.state.jobs[0].clone(),
+                );
+                ModelMessage {
+                    port_name: self.ports_out.job.clone(),
+                    content: self.state.jobs.remove(0),
+                }
             })
             .collect())
     }
 
-    fn release_partial_queue(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn release_partial_queue(
+        &mut self,
+        services: &mut Services,
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
         self.state.phase = Phase::Batching;
         self.state.until_next_event = self.max_batch_time;
         Ok((0..self.max_batch_size)
-            .map(|_| ModelMessage {
-                port_name: self.ports_out.job.clone(),
-                content: self.state.jobs.remove(0),
+            .map(|_| {
+                self.record(
+                    services.global_time(),
+                    String::from("Departure"),
+                    self.state.jobs[0].clone(),
+                );
+                ModelMessage {
+                    port_name: self.ports_out.job.clone(),
+                    content: self.state.jobs.remove(0),
+                }
             })
             .collect())
+    }
+
+    fn release_multiple(
+        &mut self,
+        services: &mut Services,
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
+        self.state.phase = Phase::Release;
+        self.state.until_next_event = 0.0;
+        Ok((0..self.max_batch_size)
+            .map(|_| {
+                self.record(
+                    services.global_time(),
+                    String::from("Departure"),
+                    self.state.jobs[0].clone(),
+                );
+                ModelMessage {
+                    port_name: self.ports_out.job.clone(),
+                    content: self.state.jobs.remove(0),
+                }
+            })
+            .collect())
+    }
+
+    fn record(&mut self, time: f64, action: String, subject: String) {
+        if self.store_records {
+            self.state.records.push(ModelRecord {
+                time,
+                action,
+                subject,
+            })
+        }
     }
 }
 
@@ -129,26 +213,31 @@ impl DevsModel for Batcher {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
-        _services: &mut Services,
+        services: &mut Services,
     ) -> Result<(), SimulationError> {
         match (
             &self.state.phase,
             self.state.jobs.len() + 1 < self.max_batch_size,
         ) {
-            (Phase::Batching, true) => self.add_to_batch(incoming_message),
-            (Phase::Passive, true) => self.start_batch(incoming_message),
+            (Phase::Batching, true) => self.add_to_batch(incoming_message, services),
+            (Phase::Passive, true) => self.start_batch(incoming_message, services),
             (Phase::Release, true) => Err(SimulationError::InvalidModelState),
-            (_, false) => self.fill_batch(incoming_message),
+            (_, false) => self.fill_batch(incoming_message, services),
         }
     }
 
     fn events_int(
         &mut self,
-        _services: &mut Services,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        match self.state.jobs.len() <= self.max_batch_size {
-            true => self.release_full_queue(),
-            false => self.release_partial_queue(),
+        match (
+            self.state.jobs.len() <= self.max_batch_size,
+            self.state.jobs.len() >= 2 * self.max_batch_size,
+        ) {
+            (true, false) => self.release_full_queue(services),
+            (false, true) => self.release_multiple(services),
+            (false, false) => self.release_partial_queue(services),
+            (true, true) => Err(SimulationError::InvalidModelState),
         }
     }
 
@@ -168,6 +257,10 @@ impl Reportable for Batcher {
             Phase::Batching => String::from("Creating batch"),
             Phase::Release => String::from("Releasing batch"),
         }
+    }
+
+    fn records(&self) -> &Vec<ModelRecord> {
+        &self.state.records
     }
 }
 

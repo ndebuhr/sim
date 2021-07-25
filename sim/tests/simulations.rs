@@ -791,11 +791,11 @@ fn match_status_reporting() {
     let connectors = [];
     let simulation = Simulation::post(models.to_vec(), connectors.to_vec());
     assert_eq![
-        simulation.status("generator-01").unwrap(),
+        simulation.get_status("generator-01").unwrap(),
         "Generating jobs"
     ];
     assert_eq![
-        simulation.status("load-balancer-01").unwrap(),
+        simulation.get_status("load-balancer-01").unwrap(),
         "Listening for requests"
     ];
 }
@@ -886,6 +886,7 @@ fn batch_sizing() {
                 String::from("job"),
                 10.0, // 10 seconds max batching time
                 10,   // 10 jobs max batch size
+                false,
             )),
         ),
         Model::new(

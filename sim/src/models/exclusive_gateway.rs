@@ -3,10 +3,9 @@ use std::f64::INFINITY;
 use serde::{Deserialize, Serialize};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
-use super::ModelMessage;
+use super::{ModelMessage, ModelRecord};
 use crate::input_modeling::IndexRandomVariable;
 use crate::simulator::Services;
-use crate::utils::default_records_port_name;
 use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
@@ -32,16 +31,12 @@ pub struct ExclusiveGateway {
 #[serde(rename_all = "camelCase")]
 struct PortsIn {
     flow_paths: Vec<String>,
-    #[serde(default = "default_records_port_name")]
-    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PortsOut {
     flow_paths: Vec<String>,
-    #[serde(default = "default_records_port_name")]
-    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,8 +44,8 @@ struct PortsOut {
 struct State {
     phase: Phase,
     until_next_event: f64,
-    jobs: Vec<Job>,    // port, message, time
-    records: Vec<Job>, // port, message, time
+    jobs: Vec<String>,         // port, message, time
+    records: Vec<ModelRecord>, // port, message, time
 }
 
 impl Default for State {
@@ -68,16 +63,6 @@ impl Default for State {
 enum Phase {
     Passive, // Doing nothing
     Pass,    // Passing a job from input to output
-    Respond, // Responding to a records request
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Job {
-    arrival_port: String,
-    departure_port: String,
-    content: String,
-    time: f64,
 }
 
 impl ExclusiveGateway {
@@ -90,11 +75,9 @@ impl ExclusiveGateway {
         Self {
             ports_in: PortsIn {
                 flow_paths: flow_paths_in,
-                records: default_records_port_name(),
             },
             ports_out: PortsOut {
                 flow_paths: flow_paths_out,
-                records: default_records_port_name(),
             },
             port_weights,
             store_records,
@@ -109,67 +92,37 @@ impl ExclusiveGateway {
     ) -> Result<(), SimulationError> {
         self.state.phase = Phase::Pass;
         self.state.until_next_event = 0.0;
-        let departure_port_index = self.port_weights.random_variate(services.uniform_rng())?;
-        self.state.jobs.push(Job {
-            arrival_port: incoming_message.port_name.clone(),
-            departure_port: self.ports_out.flow_paths[departure_port_index].clone(),
-            content: incoming_message.content.clone(),
-            time: services.global_time(),
-        });
+        self.state.jobs.push(incoming_message.content.clone());
+        self.record(
+            services.global_time(),
+            String::from("Arrival"),
+            format![
+                "{} on {}",
+                incoming_message.content.clone(),
+                incoming_message.port_name
+            ],
+        );
         Ok(())
     }
 
-    fn store_job(
-        &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
-        self.state.phase = Phase::Pass;
-        self.state.until_next_event = 0.0;
-        let departure_port_index = self.port_weights.random_variate(services.uniform_rng())?;
-        self.state.jobs.push(Job {
-            arrival_port: incoming_message.port_name.clone(),
-            departure_port: self.ports_out.flow_paths[departure_port_index].clone(),
-            content: incoming_message.content.clone(),
-            time: services.global_time(),
-        });
-        self.state.records.push(Job {
-            arrival_port: incoming_message.port_name.clone(),
-            departure_port: self.ports_out.flow_paths[departure_port_index].clone(),
-            content: incoming_message.content.clone(),
-            time: services.global_time(),
-        });
-        Ok(())
-    }
-
-    fn records_request(&mut self) -> Result<(), SimulationError> {
-        self.state.phase = Phase::Respond;
-        self.state.until_next_event = 0.0;
-        Ok(())
-    }
-
-    fn ignore_request(&mut self) -> Result<(), SimulationError> {
-        Ok(())
-    }
-
-    fn send_records(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn send_jobs(&mut self, services: &mut Services) -> Result<Vec<ModelMessage>, SimulationError> {
         self.state.phase = Phase::Passive;
         self.state.until_next_event = INFINITY;
-        Ok(vec![ModelMessage {
-            port_name: self.ports_out.records.clone(),
-            content: serde_json::to_string(&self.state.records).unwrap(),
-        }])
-    }
-
-    fn send_jobs(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.state.phase = Phase::Passive;
-        self.state.until_next_event = INFINITY;
+        let departure_port_index = self.port_weights.random_variate(services.uniform_rng())?;
         Ok((0..self.state.jobs.len())
             .map(|_| {
-                let job = self.state.jobs.remove(0);
+                self.record(
+                    services.global_time(),
+                    String::from("Departure"),
+                    format![
+                        "{} on {}",
+                        self.state.jobs[0].clone(),
+                        self.ports_out.flow_paths[departure_port_index].clone()
+                    ],
+                );
                 ModelMessage {
-                    port_name: job.departure_port,
-                    content: job.content,
+                    port_name: self.ports_out.flow_paths[departure_port_index].clone(),
+                    content: self.state.jobs.remove(0),
                 }
             })
             .collect())
@@ -180,6 +133,16 @@ impl ExclusiveGateway {
         self.state.until_next_event = INFINITY;
         Ok(Vec::new())
     }
+
+    fn record(&mut self, time: f64, action: String, subject: String) {
+        if self.store_records {
+            self.state.records.push(ModelRecord {
+                time,
+                action,
+                subject,
+            })
+        }
+    }
 }
 
 impl DevsModel for ExclusiveGateway {
@@ -188,27 +151,16 @@ impl DevsModel for ExclusiveGateway {
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        match (
-            self.ports_in
-                .flow_paths
-                .contains(&incoming_message.port_name),
-            self.store_records,
-        ) {
-            (true, true) => self.store_job(incoming_message, services),
-            (true, false) => self.pass_job(incoming_message, services),
-            (false, true) => self.records_request(),
-            (false, false) => self.ignore_request(),
-        }
+        self.pass_job(incoming_message, services)
     }
 
     fn events_int(
         &mut self,
-        _services: &mut Services,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         match &self.state.phase {
             Phase::Passive => self.passivate(),
-            Phase::Pass => self.send_jobs(),
-            Phase::Respond => self.send_records(),
+            Phase::Pass => self.send_jobs(services),
         }
     }
 
@@ -225,9 +177,12 @@ impl Reportable for ExclusiveGateway {
     fn status(&self) -> String {
         match self.state.phase {
             Phase::Passive => String::from("Passive"),
-            Phase::Pass => format!["Passing {}", self.state.jobs[0].content],
-            Phase::Respond => String::from("Fetching records"),
+            Phase::Pass => format!["Passing {}", self.state.jobs[0]],
         }
+    }
+
+    fn records(&self) -> &Vec<ModelRecord> {
+        &self.state.records
     }
 }
 

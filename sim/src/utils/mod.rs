@@ -44,11 +44,6 @@ pub fn usize_sqrt(n: usize) -> usize {
     x
 }
 
-/// Provides a centralized default name for records ports
-pub fn default_records_port_name() -> String {
-    String::from("records")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

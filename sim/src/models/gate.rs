@@ -3,9 +3,8 @@ use std::f64::INFINITY;
 use serde::{Deserialize, Serialize};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
-use super::ModelMessage;
+use super::{ModelMessage, ModelRecord};
 use crate::simulator::Services;
-use crate::utils::default_records_port_name;
 use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
@@ -32,8 +31,6 @@ struct PortsIn {
     job: String,
     activation: String,
     deactivation: String,
-    #[serde(default = "default_records_port_name")]
-    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,15 +38,12 @@ enum ArrivalPort {
     Job,
     Activation,
     Deactivation,
-    Records,
     Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct PortsOut {
     job: String,
-    #[serde(default = "default_records_port_name")]
-    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,8 +51,8 @@ struct PortsOut {
 struct State {
     phase: Phase,
     until_next_event: f64,
-    jobs: Vec<Job>,
-    records: Vec<Job>,
+    jobs: Vec<String>,
+    records: Vec<ModelRecord>,
 }
 
 impl Default for State {
@@ -77,17 +71,6 @@ enum Phase {
     Open,
     Closed,
     Pass,
-    RespondWhileOpen,
-    RespondWhileClosed,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Job {
-    arrival_port: String,
-    departure_port: String,
-    content: String,
-    time: f64,
 }
 
 impl Gate {
@@ -103,12 +86,8 @@ impl Gate {
                 job: job_in_port,
                 activation: activation_port,
                 deactivation: deactivation_port,
-                records: default_records_port_name(),
             },
-            ports_out: PortsOut {
-                job: job_out_port,
-                records: default_records_port_name(),
-            },
+            ports_out: PortsOut { job: job_out_port },
             store_records,
             state: State::default(),
         }
@@ -121,22 +100,38 @@ impl Gate {
             ArrivalPort::Activation
         } else if message_port == self.ports_in.deactivation {
             ArrivalPort::Deactivation
-        } else if message_port == self.ports_in.records {
-            ArrivalPort::Records
         } else {
             ArrivalPort::Unknown
         }
     }
 
-    fn activate(&mut self) -> Result<(), SimulationError> {
+    fn activate(
+        &mut self,
+        incoming_message: &ModelMessage,
+        services: &mut Services,
+    ) -> Result<(), SimulationError> {
         self.state.phase = Phase::Open;
         self.state.until_next_event = INFINITY;
+        self.record(
+            services.global_time(),
+            String::from("Activation"),
+            incoming_message.content.clone(),
+        );
         Ok(())
     }
 
-    fn deactivate(&mut self) -> Result<(), SimulationError> {
+    fn deactivate(
+        &mut self,
+        incoming_message: &ModelMessage,
+        services: &mut Services,
+    ) -> Result<(), SimulationError> {
         self.state.phase = Phase::Closed;
         self.state.until_next_event = INFINITY;
+        self.record(
+            services.global_time(),
+            String::from("Deactivation"),
+            incoming_message.content.clone(),
+        );
         Ok(())
     }
 
@@ -147,88 +142,54 @@ impl Gate {
     ) -> Result<(), SimulationError> {
         self.state.phase = Phase::Pass;
         self.state.until_next_event = 0.0;
-        self.state.jobs.push(Job {
-            arrival_port: incoming_message.port_name.clone(),
-            departure_port: self.ports_out.job.clone(),
-            content: incoming_message.content.clone(),
-            time: services.global_time(),
-        });
-        Ok(())
-    }
-
-    fn store_job(
-        &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
-        self.state.phase = Phase::Pass;
-        self.state.until_next_event = 0.0;
-        self.state.jobs.push(Job {
-            arrival_port: incoming_message.port_name.clone(),
-            departure_port: self.ports_out.job.clone(),
-            content: incoming_message.content.clone(),
-            time: services.global_time(),
-        });
-        self.state.records.push(Job {
-            arrival_port: incoming_message.port_name.clone(),
-            departure_port: self.ports_out.job.clone(),
-            content: incoming_message.content.clone(),
-            time: services.global_time(),
-        });
+        self.state.jobs.push(incoming_message.content.clone());
+        self.record(
+            services.global_time(),
+            String::from("Arrival"),
+            incoming_message.content.clone(),
+        );
         Ok(())
     }
 
     fn drop_job(
         &mut self,
-        _incoming_message: &ModelMessage,
-        _services: &mut Services,
+        incoming_message: &ModelMessage,
+        services: &mut Services,
     ) -> Result<(), SimulationError> {
-        // Do nothing
+        self.record(
+            services.global_time(),
+            String::from("Arrival"),
+            incoming_message.content.clone(),
+        );
         Ok(())
     }
 
-    fn records_request_while_open(&mut self) -> Result<(), SimulationError> {
-        self.state.phase = Phase::RespondWhileOpen;
-        self.state.until_next_event = 0.0;
-        Ok(())
-    }
-
-    fn records_request_while_closed(&mut self) -> Result<(), SimulationError> {
-        self.state.phase = Phase::RespondWhileClosed;
-        self.state.until_next_event = 0.0;
-        Ok(())
-    }
-
-    fn send_jobs(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn send_jobs(&mut self, services: &mut Services) -> Result<Vec<ModelMessage>, SimulationError> {
         self.state.phase = Phase::Open;
         self.state.until_next_event = INFINITY;
         Ok((0..self.state.jobs.len())
             .map(|_| {
-                let job = self.state.jobs.remove(0);
+                self.record(
+                    services.global_time(),
+                    String::from("Departure"),
+                    self.state.jobs[0].clone(),
+                );
                 ModelMessage {
-                    port_name: job.departure_port,
-                    content: job.content,
+                    port_name: self.ports_out.job.clone(),
+                    content: self.state.jobs.remove(0),
                 }
             })
             .collect())
     }
 
-    fn send_records_while_open(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.state.phase = Phase::Open;
-        self.state.until_next_event = INFINITY;
-        Ok(vec![ModelMessage {
-            port_name: self.ports_out.records.clone(),
-            content: serde_json::to_string(&self.state.records).unwrap(),
-        }])
-    }
-
-    fn send_records_while_closed(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.state.phase = Phase::Closed;
-        self.state.until_next_event = INFINITY;
-        Ok(vec![ModelMessage {
-            port_name: self.ports_out.records.clone(),
-            content: serde_json::to_string(&self.state.records).unwrap(),
-        }])
+    fn record(&mut self, time: f64, action: String, subject: String) {
+        if self.store_records {
+            self.state.records.push(ModelRecord {
+                time,
+                action,
+                subject,
+            })
+        }
     }
 }
 
@@ -241,28 +202,20 @@ impl DevsModel for Gate {
         match (
             self.arrival_port(&incoming_message.port_name),
             self.state.phase == Phase::Closed,
-            self.store_records,
         ) {
-            (ArrivalPort::Activation, _, _) => self.activate(),
-            (ArrivalPort::Deactivation, _, _) => self.deactivate(),
-            (ArrivalPort::Job, false, false) => self.pass_job(incoming_message, services),
-            (ArrivalPort::Job, false, true) => self.store_job(incoming_message, services),
-            (ArrivalPort::Job, true, _) => self.drop_job(incoming_message, services),
-            (ArrivalPort::Records, false, _) => self.records_request_while_open(),
-            (ArrivalPort::Records, true, _) => self.records_request_while_closed(),
-            (ArrivalPort::Unknown, _, _) => Err(SimulationError::InvalidMessage),
+            (ArrivalPort::Activation, _) => self.activate(incoming_message, services),
+            (ArrivalPort::Deactivation, _) => self.deactivate(incoming_message, services),
+            (ArrivalPort::Job, false) => self.pass_job(incoming_message, services),
+            (ArrivalPort::Job, true) => self.drop_job(incoming_message, services),
+            (ArrivalPort::Unknown, _) => Err(SimulationError::InvalidMessage),
         }
     }
 
     fn events_int(
         &mut self,
-        _services: &mut Services,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        match &self.state.phase {
-            Phase::Open | Phase::Closed | Phase::Pass => self.send_jobs(),
-            Phase::RespondWhileOpen => self.send_records_while_open(),
-            Phase::RespondWhileClosed => self.send_records_while_closed(),
-        }
+        self.send_jobs(services)
     }
 
     fn time_advance(&mut self, time_delta: f64) {
@@ -279,9 +232,12 @@ impl Reportable for Gate {
         match self.state.phase {
             Phase::Open => String::from("Open"),
             Phase::Closed => String::from("Closed"),
-            Phase::Pass => format!["Passing {}", self.state.jobs[0].content],
-            Phase::RespondWhileOpen | Phase::RespondWhileClosed => String::from("Fetching records"),
+            Phase::Pass => format!["Passing {}", self.state.jobs[0]],
         }
+    }
+
+    fn records(&self) -> &Vec<ModelRecord> {
+        &self.state.records
     }
 }
 

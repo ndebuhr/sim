@@ -4,9 +4,8 @@ use std::iter::once;
 use serde::{Deserialize, Serialize};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
-use super::ModelMessage;
+use super::{ModelMessage, ModelRecord};
 use crate::simulator::Services;
-use crate::utils::default_records_port_name;
 use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
@@ -35,8 +34,6 @@ struct PortsIn {
     start: String,
     stop: String,
     metric: String,
-    #[serde(default = "default_records_port_name")]
-    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,15 +41,12 @@ enum ArrivalPort {
     Start,
     Stop,
     Metric,
-    Records,
     Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct PortsOut {
     job: String,
-    #[serde(default = "default_records_port_name")]
-    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,7 +67,7 @@ struct State {
     phase: Phase,
     until_next_event: f64,
     jobs: Vec<Job>,
-    records: Vec<Record>,
+    records: Vec<ModelRecord>,
 }
 
 impl Default for State {
@@ -91,21 +85,11 @@ impl Default for State {
 enum Phase {
     Passive,
     JobFetch,
-    RecordsFetch,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Job {
-    name: String,
-    start: Option<f64>,
-    stop: Option<f64>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Record {
-    timestamp: f64,
     name: String,
     start: Option<f64>,
     stop: Option<f64>,
@@ -125,12 +109,8 @@ impl Stopwatch {
                 start: start_port,
                 stop: stop_port,
                 metric: metric_port,
-                records: default_records_port_name(),
             },
-            ports_out: PortsOut {
-                job: job_port,
-                records: default_records_port_name(),
-            },
+            ports_out: PortsOut { job: job_port },
             metric,
             store_records,
             state: State::default(),
@@ -144,8 +124,6 @@ impl Stopwatch {
             ArrivalPort::Stop
         } else if message_port == self.ports_in.metric {
             ArrivalPort::Metric
-        } else if message_port == self.ports_in.records {
-            ArrivalPort::Records
         } else {
             ArrivalPort::Unknown
         }
@@ -209,40 +187,31 @@ impl Stopwatch {
             .0
     }
 
-    fn calculate_job(
+    fn start_job(
         &mut self,
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        if incoming_message.port_name == self.ports_in.start {
-            self.matching_or_new_job(incoming_message).start = Some(services.global_time())
-        } else if incoming_message.port_name == self.ports_in.stop {
-            self.matching_or_new_job(incoming_message).stop = Some(services.global_time())
-        } else {
-            return Err(SimulationError::InvalidModelState);
-        }
+        self.record(
+            services.global_time(),
+            String::from("Start"),
+            incoming_message.content.clone(),
+        );
+        self.matching_or_new_job(incoming_message).start = Some(services.global_time());
         Ok(())
     }
 
-    fn calculate_and_save_job(
+    fn stop_job(
         &mut self,
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        if incoming_message.port_name == self.ports_in.start {
-            self.matching_or_new_job(incoming_message).start = Some(services.global_time())
-        } else if incoming_message.port_name == self.ports_in.stop {
-            self.matching_or_new_job(incoming_message).stop = Some(services.global_time())
-        } else {
-            return Err(SimulationError::InvalidModelState);
-        }
-        let job = self.matching_or_new_job(incoming_message).clone();
-        self.state.records.push(Record {
-            timestamp: services.global_time(),
-            name: job.name,
-            start: job.start,
-            stop: job.stop,
-        });
+        self.record(
+            services.global_time(),
+            String::from("Stop"),
+            incoming_message.content.clone(),
+        );
+        self.matching_or_new_job(incoming_message).stop = Some(services.global_time());
         Ok(())
     }
 
@@ -252,46 +221,62 @@ impl Stopwatch {
         Ok(())
     }
 
-    fn get_records(&mut self) -> Result<(), SimulationError> {
-        self.state.phase = Phase::RecordsFetch;
-        self.state.until_next_event = 0.0;
-        Ok(())
-    }
-
-    fn release_records(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn release_minimum(
+        &mut self,
+        services: &mut Services,
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
         self.state.phase = Phase::Passive;
         self.state.until_next_event = INFINITY;
-        Ok(vec![ModelMessage {
-            port_name: self.ports_out.records.clone(),
-            content: serde_json::to_string(&self.state.records).unwrap(),
-        }])
+        self.record(
+            services.global_time(),
+            String::from("Minimum Fetch"),
+            self.minimum_duration_job()
+                .unwrap_or_else(|| "None".to_string()),
+        );
+        Ok(once(self.minimum_duration_job())
+            .flatten()
+            .map(|job| ModelMessage {
+                content: job,
+                port_name: self.ports_out.job.clone(),
+            })
+            .collect())
     }
 
-    fn release_job(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn release_maximum(
+        &mut self,
+        services: &mut Services,
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
         self.state.phase = Phase::Passive;
         self.state.until_next_event = INFINITY;
-        Ok(match &self.metric {
-            Metric::Minimum => once(self.minimum_duration_job())
-                .flatten()
-                .map(|job| ModelMessage {
-                    content: job,
-                    port_name: self.ports_out.job.clone(),
-                })
-                .collect(),
-            Metric::Maximum => once(self.maximum_duration_job())
-                .flatten()
-                .map(|job| ModelMessage {
-                    content: job,
-                    port_name: self.ports_out.job.clone(),
-                })
-                .collect(),
-        })
+        self.record(
+            services.global_time(),
+            String::from("Maximum Fetch"),
+            self.maximum_duration_job()
+                .unwrap_or_else(|| "None".to_string()),
+        );
+        Ok(once(self.maximum_duration_job())
+            .flatten()
+            .map(|job| ModelMessage {
+                content: job,
+                port_name: self.ports_out.job.clone(),
+            })
+            .collect())
     }
 
     fn passivate(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
         self.state.phase = Phase::Passive;
         self.state.until_next_event = INFINITY;
         Ok(Vec::new())
+    }
+
+    fn record(&mut self, time: f64, action: String, subject: String) {
+        if self.store_records {
+            self.state.records.push(ModelRecord {
+                time,
+                action,
+                subject,
+            })
+        }
     }
 }
 
@@ -301,30 +286,22 @@ impl DevsModel for Stopwatch {
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        match (
-            self.arrival_port(&incoming_message.port_name),
-            self.store_records,
-        ) {
-            (ArrivalPort::Start, true) | (ArrivalPort::Stop, true) => {
-                self.calculate_and_save_job(incoming_message, services)
-            }
-            (ArrivalPort::Start, false) | (ArrivalPort::Stop, false) => {
-                self.calculate_job(incoming_message, services)
-            }
-            (ArrivalPort::Metric, _) => self.get_job(),
-            (ArrivalPort::Records, _) => self.get_records(),
-            (ArrivalPort::Unknown, _) => Err(SimulationError::InvalidMessage),
+        match self.arrival_port(&incoming_message.port_name) {
+            ArrivalPort::Start => self.start_job(incoming_message, services),
+            ArrivalPort::Stop => self.stop_job(incoming_message, services),
+            ArrivalPort::Metric => self.get_job(),
+            ArrivalPort::Unknown => Err(SimulationError::InvalidMessage),
         }
     }
 
     fn events_int(
         &mut self,
-        _services: &mut Services,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        match &self.state.phase {
-            Phase::RecordsFetch => self.release_records(),
-            Phase::JobFetch => self.release_job(),
-            Phase::Passive => self.passivate(),
+        match (&self.state.phase, &self.metric) {
+            (Phase::JobFetch, Metric::Minimum) => self.release_minimum(services),
+            (Phase::JobFetch, Metric::Maximum) => self.release_maximum(services),
+            (Phase::Passive, _) => self.passivate(),
         }
     }
 
@@ -356,6 +333,10 @@ impl Reportable for Stopwatch {
                 durations.iter().sum::<f64>() / durations.len() as f64
             ]
         }
+    }
+
+    fn records(&self) -> &Vec<ModelRecord> {
+        &self.state.records
     }
 }
 

@@ -3,10 +3,9 @@ use std::f64::INFINITY;
 use serde::{Deserialize, Serialize};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
-use super::ModelMessage;
+use super::{ModelMessage, ModelRecord};
 use crate::input_modeling::BooleanRandomVariable;
 use crate::simulator::Services;
-use crate::utils::default_records_port_name;
 use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
@@ -30,37 +29,30 @@ pub struct StochasticGate {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct PortsIn {
     job: String,
-    #[serde(default = "default_records_port_name")]
-    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 enum ArrivalPort {
     Job,
-    Records,
     Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct PortsOut {
     job: String,
-    #[serde(default = "default_records_port_name")]
-    records: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct State {
-    phase: Phase,
     until_next_event: f64,
     jobs: Vec<Job>,
-    records: Vec<Job>,
+    records: Vec<ModelRecord>,
 }
 
 impl Default for State {
     fn default() -> Self {
         State {
-            phase: Phase::Passive,
             until_next_event: INFINITY,
             jobs: Vec::new(),
             records: Vec::new(),
@@ -68,17 +60,10 @@ impl Default for State {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-enum Phase {
-    Passive,
-    RecordsFetch,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Job {
     pub content: String,
-    pub time: f64,
     pub pass: bool,
 }
 
@@ -91,14 +76,8 @@ impl StochasticGate {
     ) -> Self {
         Self {
             pass_distribution,
-            ports_in: PortsIn {
-                job: job_in_port,
-                records: default_records_port_name(),
-            },
-            ports_out: PortsOut {
-                job: job_out_port,
-                records: default_records_port_name(),
-            },
+            ports_in: PortsIn { job: job_in_port },
+            ports_out: PortsOut { job: job_out_port },
             store_records,
             state: State::default(),
         }
@@ -107,32 +86,12 @@ impl StochasticGate {
     fn arrival_port(&self, message_port: &str) -> ArrivalPort {
         if message_port == self.ports_in.job {
             ArrivalPort::Job
-        } else if message_port == self.ports_in.records {
-            ArrivalPort::Records
         } else {
             ArrivalPort::Unknown
         }
     }
 
-    fn request_records(
-        &mut self,
-        _incoming_message: &ModelMessage,
-        _services: &mut Services,
-    ) -> Result<(), SimulationError> {
-        self.state.phase = Phase::RecordsFetch;
-        self.state.until_next_event = 0.0;
-        Ok(())
-    }
-
-    fn ignore_request(
-        &mut self,
-        _incoming_message: &ModelMessage,
-        _services: &mut Services,
-    ) -> Result<(), SimulationError> {
-        Ok(())
-    }
-
-    fn accept_job(
+    fn receive_job(
         &mut self,
         incoming_message: &ModelMessage,
         services: &mut Services,
@@ -140,65 +99,52 @@ impl StochasticGate {
         self.state.until_next_event = 0.0;
         self.state.jobs.push(Job {
             content: incoming_message.content.clone(),
-            time: services.global_time(),
             pass: self
                 .pass_distribution
                 .random_variate(services.uniform_rng())?,
         });
+        self.record(
+            services.global_time(),
+            String::from("Arrival"),
+            incoming_message.content.clone(),
+        );
         Ok(())
-    }
-
-    fn save_job(
-        &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
-        self.state.until_next_event = 0.0;
-        let pass = self
-            .pass_distribution
-            .random_variate(services.uniform_rng())?;
-        self.state.jobs.push(Job {
-            content: incoming_message.content.clone(),
-            time: services.global_time(),
-            pass,
-        });
-        self.state.jobs.push(Job {
-            content: incoming_message.content.clone(),
-            time: services.global_time(),
-            pass,
-        });
-        Ok(())
-    }
-
-    fn release_records(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.state.phase = Phase::Passive;
-        self.state.until_next_event = 0.0;
-        Ok(vec![ModelMessage {
-            port_name: self.ports_out.records.clone(),
-            content: serde_json::to_string(&self.state.records).unwrap(),
-        }])
     }
 
     fn passivate(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.state.phase = Phase::Passive;
         self.state.until_next_event = INFINITY;
         Ok(Vec::new())
     }
 
-    fn release_job(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.state.phase = Phase::Passive;
+    fn pass_job(&mut self, services: &mut Services) -> Result<Vec<ModelMessage>, SimulationError> {
         self.state.until_next_event = 0.0;
+        let job = self.state.jobs.remove(0);
+        self.record(
+            services.global_time(),
+            String::from("Pass"),
+            job.content.clone(),
+        );
         Ok(vec![ModelMessage {
-            content: self.state.jobs.remove(0).content,
+            content: job.content,
             port_name: self.ports_out.job.clone(),
         }])
     }
 
-    fn block_job(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.state.phase = Phase::Passive;
+    fn block_job(&mut self, services: &mut Services) -> Result<Vec<ModelMessage>, SimulationError> {
         self.state.until_next_event = 0.0;
-        self.state.jobs.remove(0);
+        let job = self.state.jobs.remove(0);
+        self.record(services.global_time(), String::from("Block"), job.content);
         Ok(Vec::new())
+    }
+
+    fn record(&mut self, time: f64, action: String, subject: String) {
+        if self.store_records {
+            self.state.records.push(ModelRecord {
+                time,
+                action,
+                subject,
+            })
+        }
     }
 }
 
@@ -208,27 +154,20 @@ impl DevsModel for StochasticGate {
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        match (
-            self.arrival_port(&incoming_message.port_name),
-            self.store_records,
-        ) {
-            (ArrivalPort::Records, true) => self.request_records(incoming_message, services),
-            (ArrivalPort::Records, false) => self.ignore_request(incoming_message, services),
-            (ArrivalPort::Job, true) => self.save_job(incoming_message, services),
-            (ArrivalPort::Job, false) => self.accept_job(incoming_message, services),
-            (ArrivalPort::Unknown, _) => Err(SimulationError::InvalidMessage),
+        match self.arrival_port(&incoming_message.port_name) {
+            ArrivalPort::Job => self.receive_job(incoming_message, services),
+            ArrivalPort::Unknown => Err(SimulationError::InvalidMessage),
         }
     }
 
     fn events_int(
         &mut self,
-        _services: &mut Services,
+        services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        match (&self.state.phase, self.state.jobs.get(0)) {
-            (Phase::RecordsFetch, _) => self.release_records(),
-            (Phase::Passive, None) => self.passivate(),
-            (Phase::Passive, Some(Job { pass: true, .. })) => self.release_job(),
-            (Phase::Passive, Some(Job { pass: false, .. })) => self.block_job(),
+        match self.state.jobs.get(0) {
+            None => self.passivate(),
+            Some(Job { pass: true, .. }) => self.pass_job(services),
+            Some(Job { pass: false, .. }) => self.block_job(services),
         }
     }
 
@@ -243,10 +182,11 @@ impl DevsModel for StochasticGate {
 
 impl Reportable for StochasticGate {
     fn status(&self) -> String {
-        match self.state.phase {
-            Phase::Passive => String::from("Gating"),
-            Phase::RecordsFetch => String::from("Fetching Records"),
-        }
+        String::from("Gating")
+    }
+
+    fn records(&self) -> &Vec<ModelRecord> {
+        &self.state.records
     }
 }
 

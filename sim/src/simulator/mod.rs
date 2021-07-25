@@ -18,7 +18,7 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use crate::models::{DevsModel, Model, ModelMessage, Reportable};
+use crate::models::{DevsModel, Model, ModelMessage, ModelRecord, Reportable};
 use crate::utils::errors::SimulationError;
 use crate::utils::set_panic_hook;
 
@@ -80,13 +80,25 @@ impl Simulation {
     /// This method provides a mechanism for getting the status of any model
     /// in a simulation.  The method takes the model ID as an argument, and
     /// returns the current status string for that model.
-    pub fn status(&self, model_id: &str) -> Result<String, SimulationError> {
+    pub fn get_status(&self, model_id: &str) -> Result<String, SimulationError> {
         Ok(self
             .models
             .iter()
             .find(|model| model.id() == model_id)
             .ok_or(SimulationError::ModelNotFound)?
             .status())
+    }
+
+    /// This method provides a mechanism for getting the records of any model
+    /// in a simulation.  The method takes the model ID as an argument, and
+    /// returns the records for that model.
+    pub fn get_records(&self, model_id: &str) -> Result<&Vec<ModelRecord>, SimulationError> {
+        Ok(self
+            .models
+            .iter()
+            .find(|model| model.id() == model_id)
+            .ok_or(SimulationError::ModelNotFound)?
+            .records())
     }
 
     /// To enable simulation replications, the reset method resets the state
