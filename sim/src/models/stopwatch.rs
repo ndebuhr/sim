@@ -130,12 +130,11 @@ impl Stopwatch {
     }
 
     fn matching_or_new_job(&mut self, incoming_message: &ModelMessage) -> &mut Job {
-        if self
+        if !self
             .state
             .jobs
             .iter()
-            .find(|job| job.name == incoming_message.content)
-            .is_none()
+            .any(|job| job.name == incoming_message.content)
         {
             self.state.jobs.push(Job {
                 name: incoming_message.content.clone(),
