@@ -194,7 +194,7 @@ impl Simulation {
                 model_messages
                     .iter()
                     .try_for_each(|model_message| -> Result<(), SimulationError> {
-                        self.models[model_index].events_ext(&model_message, &mut self.services)
+                        self.models[model_index].events_ext(model_message, &mut self.services)
                     })
             })?;
         }
@@ -220,12 +220,12 @@ impl Simulation {
                         .iter()
                         .for_each(|outgoing_message| {
                             let target_ids = self.get_message_target_ids(
-                                &self.models[model_index].id(), // Outgoing message source model ID
-                                &outgoing_message.port_name, // Outgoing message source model port
+                                self.models[model_index].id(), // Outgoing message source model ID
+                                &outgoing_message.port_name,   // Outgoing message source model port
                             );
                             let target_ports = self.get_message_target_ports(
-                                &self.models[model_index].id(), // Outgoing message source model ID
-                                &outgoing_message.port_name, // Outgoing message source model port
+                                self.models[model_index].id(), // Outgoing message source model ID
+                                &outgoing_message.port_name,   // Outgoing message source model port
                             );
                             target_ids.iter().zip(target_ports.iter()).for_each(
                                 |(target_id, target_port)| {

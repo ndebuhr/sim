@@ -27,7 +27,7 @@ impl Thinning {
     pub fn evaluate(self, point: f64) -> Result<f64, SimulationError> {
         match &self.function {
             ThinningFunction::Polynomial { coefficients } => {
-                evaluate_polynomial(&coefficients, point)
+                evaluate_polynomial(coefficients, point)
             }
         }
     }
