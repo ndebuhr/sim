@@ -17,9 +17,6 @@ wasm-opt = ["-Oz", "--enable-mutable-globals"]
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[features]
-default = ["console_error_panic_hook"]
-
 [dependencies]
 getrandom = { version = "0.2", features = ["js"] }
 js-sys = "0.3"
