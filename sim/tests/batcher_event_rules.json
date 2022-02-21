@@ -1,1 +1,273 @@
-[{"event_expression":"new","event_parameters":["job_in_port","job_out_port","max_batch_time","max_batch_size","store_records"],"event_routine":{"state_transitions":[],"scheduling":[{"event_expression_target":"events_int","parameters":[],"condition":null,"delay":"\\sigma"}],"cancelling":[]}},{"event_expression":"add_to_batch","event_parameters":["incoming_message","services"],"event_routine":{"state_transitions":[["self.state.phase","Phase :: Batching"]],"scheduling":[{"event_expression_target":"events_int","parameters":[],"condition":null,"delay":"\\sigma"}],"cancelling":[]}},{"event_expression":"start_batch","event_parameters":["incoming_message","services"],"event_routine":{"state_transitions":[["self.state.phase","Phase :: Batching"],["self.state.until_next_event","self.max_batch_time"]],"scheduling":[{"event_expression_target":"events_int","parameters":[],"condition":null,"delay":"\\sigma"}],"cancelling":[]}},{"event_expression":"fill_batch","event_parameters":["incoming_message","services"],"event_routine":{"state_transitions":[["self.state.phase","Phase :: Release"],["self.state.until_next_event","0.0"]],"scheduling":[{"event_expression_target":"events_int","parameters":[],"condition":null,"delay":"\\sigma"}],"cancelling":[]}},{"event_expression":"release_full_queue","event_parameters":["services"],"event_routine":{"state_transitions":[["self.state.phase","Phase :: Passive"],["self.state.until_next_event","INFINITY"]],"scheduling":[{"event_expression_target":"events_int","parameters":[],"condition":null,"delay":"\\sigma"}],"cancelling":[]}},{"event_expression":"release_partial_queue","event_parameters":["services"],"event_routine":{"state_transitions":[["self.state.phase","Phase :: Batching"],["self.state.until_next_event","self.max_batch_time"]],"scheduling":[{"event_expression_target":"events_int","parameters":[],"condition":null,"delay":"\\sigma"}],"cancelling":[]}},{"event_expression":"release_multiple","event_parameters":["services"],"event_routine":{"state_transitions":[["self.state.phase","Phase :: Release"],["self.state.until_next_event","0.0"]],"scheduling":[{"event_expression_target":"events_int","parameters":[],"condition":null,"delay":"\\sigma"}],"cancelling":[]}},{"event_expression":"record","event_parameters":["time","action","subject"],"event_routine":{"state_transitions":[],"scheduling":[{"event_expression_target":"events_int","parameters":[],"condition":null,"delay":"\\sigma"}],"cancelling":[]}},{"event_expression":"events_ext","event_parameters":["incoming_message","services"],"event_routine":{"state_transitions":[],"scheduling":[{"event_expression_target":"add_to_batch","parameters":[],"condition":"(& self.state.phase, self.state.jobs.len() + 1 < self.max_batch_size,) = (Phase :: Batching, true)","delay":null},{"event_expression_target":"start_batch","parameters":[],"condition":"(& self.state.phase, self.state.jobs.len() + 1 < self.max_batch_size,) = (Phase :: Passive, true)","delay":null},{"event_expression_target":"fill_batch","parameters":[],"condition":"(& self.state.phase, self.state.jobs.len() + 1 < self.max_batch_size,) = (_, false)","delay":null}],"cancelling":[{"event_expression_target":"events_int","parameters":[],"condition":null,"delay":null}]}},{"event_expression":"events_int","event_parameters":["services"],"event_routine":{"state_transitions":[],"scheduling":[{"event_expression_target":"release_full_queue","parameters":[],"condition":"(self.state.jobs.len() <= self.max_batch_size, self.state.jobs.len() >= 2 *\n self.max_batch_size,) = (true, false)","delay":null},{"event_expression_target":"release_multiple","parameters":[],"condition":"(self.state.jobs.len() <= self.max_batch_size, self.state.jobs.len() >= 2 *\n self.max_batch_size,) = (false, true)","delay":null},{"event_expression_target":"release_partial_queue","parameters":[],"condition":"(self.state.jobs.len() <= self.max_batch_size, self.state.jobs.len() >= 2 *\n self.max_batch_size,) = (false, false)","delay":null}],"cancelling":[]}}]
+[
+    {
+        "event_expression": "new",
+        "event_parameters": [
+            "job_in_port",
+            "job_out_port",
+            "max_batch_time",
+            "max_batch_size",
+            "store_records"
+        ],
+        "event_routine": {
+            "state_transitions": [],
+            "scheduling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": "\\sigma"
+                }
+            ],
+            "cancelling": []
+        }
+    },
+    {
+        "event_expression": "add_to_batch",
+        "event_parameters": [
+            "incoming_message",
+            "services"
+        ],
+        "event_routine": {
+            "state_transitions": [
+                [
+                    "self.state.phase",
+                    "Phase :: Batching"
+                ]
+            ],
+            "scheduling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": "\\sigma"
+                }
+            ],
+            "cancelling": []
+        }
+    },
+    {
+        "event_expression": "start_batch",
+        "event_parameters": [
+            "incoming_message",
+            "services"
+        ],
+        "event_routine": {
+            "state_transitions": [
+                [
+                    "self.state.phase",
+                    "Phase :: Batching"
+                ],
+                [
+                    "self.state.until_next_event",
+                    "self.max_batch_time"
+                ]
+            ],
+            "scheduling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": "\\sigma"
+                }
+            ],
+            "cancelling": []
+        }
+    },
+    {
+        "event_expression": "fill_batch",
+        "event_parameters": [
+            "incoming_message",
+            "services"
+        ],
+        "event_routine": {
+            "state_transitions": [
+                [
+                    "self.state.phase",
+                    "Phase :: Release"
+                ],
+                [
+                    "self.state.until_next_event",
+                    "0.0"
+                ]
+            ],
+            "scheduling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": "\\sigma"
+                }
+            ],
+            "cancelling": []
+        }
+    },
+    {
+        "event_expression": "release_full_queue",
+        "event_parameters": [
+            "services"
+        ],
+        "event_routine": {
+            "state_transitions": [
+                [
+                    "self.state.phase",
+                    "Phase :: Passive"
+                ],
+                [
+                    "self.state.until_next_event",
+                    "INFINITY"
+                ]
+            ],
+            "scheduling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": "\\sigma"
+                }
+            ],
+            "cancelling": []
+        }
+    },
+    {
+        "event_expression": "release_partial_queue",
+        "event_parameters": [
+            "services"
+        ],
+        "event_routine": {
+            "state_transitions": [
+                [
+                    "self.state.phase",
+                    "Phase :: Batching"
+                ],
+                [
+                    "self.state.until_next_event",
+                    "self.max_batch_time"
+                ]
+            ],
+            "scheduling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": "\\sigma"
+                }
+            ],
+            "cancelling": []
+        }
+    },
+    {
+        "event_expression": "release_multiple",
+        "event_parameters": [
+            "services"
+        ],
+        "event_routine": {
+            "state_transitions": [
+                [
+                    "self.state.phase",
+                    "Phase :: Release"
+                ],
+                [
+                    "self.state.until_next_event",
+                    "0.0"
+                ]
+            ],
+            "scheduling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": "\\sigma"
+                }
+            ],
+            "cancelling": []
+        }
+    },
+    {
+        "event_expression": "record",
+        "event_parameters": [
+            "time",
+            "action",
+            "subject"
+        ],
+        "event_routine": {
+            "state_transitions": [],
+            "scheduling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": "\\sigma"
+                }
+            ],
+            "cancelling": []
+        }
+    },
+    {
+        "event_expression": "events_ext",
+        "event_parameters": [
+            "incoming_message",
+            "services"
+        ],
+        "event_routine": {
+            "state_transitions": [],
+            "scheduling": [
+                {
+                    "event_expression_target": "add_to_batch",
+                    "parameters": [],
+                    "condition": "(& self.state.phase, self.state.jobs.len() + 1 < self.max_batch_size,) = (Phase :: Batching, true)",
+                    "delay": null
+                },
+                {
+                    "event_expression_target": "start_batch",
+                    "parameters": [],
+                    "condition": "(& self.state.phase, self.state.jobs.len() + 1 < self.max_batch_size,) = (Phase :: Passive, true)",
+                    "delay": null
+                },
+                {
+                    "event_expression_target": "fill_batch",
+                    "parameters": [],
+                    "condition": "(& self.state.phase, self.state.jobs.len() + 1 < self.max_batch_size,) = (_, false)",
+                    "delay": null
+                }
+            ],
+            "cancelling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": null
+                }
+            ]
+        }
+    },
+    {
+        "event_expression": "events_int",
+        "event_parameters": [
+            "services"
+        ],
+        "event_routine": {
+            "state_transitions": [],
+            "scheduling": [
+                {
+                    "event_expression_target": "release_full_queue",
+                    "parameters": [],
+                    "condition": "(self.state.jobs.len() <= self.max_batch_size, self.state.jobs.len() >= 2 *\n self.max_batch_size,) = (true, false)",
+                    "delay": null
+                },
+                {
+                    "event_expression_target": "release_multiple",
+                    "parameters": [],
+                    "condition": "(self.state.jobs.len() <= self.max_batch_size, self.state.jobs.len() >= 2 *\n self.max_batch_size,) = (false, true)",
+                    "delay": null
+                },
+                {
+                    "event_expression_target": "release_partial_queue",
+                    "parameters": [],
+                    "condition": "(self.state.jobs.len() <= self.max_batch_size, self.state.jobs.len() >= 2 *\n self.max_batch_size,) = (false, false)",
+                    "delay": null
+                }
+            ],
+            "cancelling": []
+        }
+    }
+]

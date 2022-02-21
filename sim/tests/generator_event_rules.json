@@ -1,1 +1,129 @@
-[{"event_expression":"new","event_parameters":["message_interdeparture_time","thinning","job_port","store_records"],"event_routine":{"state_transitions":[],"scheduling":[{"event_expression_target":"events_int","parameters":[],"condition":null,"delay":"\\sigma"}],"cancelling":[]}},{"event_expression":"release_job","event_parameters":["services"],"event_routine":{"state_transitions":[["self.state.phase","Phase :: Generating"],["self.state.until_next_event","interdeparture"],["self.state.until_job","interdeparture"]],"scheduling":[{"event_expression_target":"events_int","parameters":[],"condition":null,"delay":"\\sigma"}],"cancelling":[]}},{"event_expression":"initialize_generation","event_parameters":["services"],"event_routine":{"state_transitions":[["self.state.phase","Phase :: Generating"],["self.state.until_next_event","interdeparture"],["self.state.until_job","interdeparture"]],"scheduling":[{"event_expression_target":"events_int","parameters":[],"condition":null,"delay":"\\sigma"}],"cancelling":[]}},{"event_expression":"record","event_parameters":["time","action","subject"],"event_routine":{"state_transitions":[],"scheduling":[{"event_expression_target":"events_int","parameters":[],"condition":null,"delay":"\\sigma"}],"cancelling":[]}},{"event_expression":"events_int","event_parameters":["services"],"event_routine":{"state_transitions":[],"scheduling":[{"event_expression_target":"release_job","parameters":[],"condition":"& self.state.phase = Phase :: Generating","delay":null},{"event_expression_target":"initialize_generation","parameters":[],"condition":"& self.state.phase = Phase :: Initializing","delay":null}],"cancelling":[]}}]
+[
+    {
+        "event_expression": "new",
+        "event_parameters": [
+            "message_interdeparture_time",
+            "thinning",
+            "job_port",
+            "store_records"
+        ],
+        "event_routine": {
+            "state_transitions": [],
+            "scheduling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": "\\sigma"
+                }
+            ],
+            "cancelling": []
+        }
+    },
+    {
+        "event_expression": "release_job",
+        "event_parameters": [
+            "services"
+        ],
+        "event_routine": {
+            "state_transitions": [
+                [
+                    "self.state.phase",
+                    "Phase :: Generating"
+                ],
+                [
+                    "self.state.until_next_event",
+                    "interdeparture"
+                ],
+                [
+                    "self.state.until_job",
+                    "interdeparture"
+                ]
+            ],
+            "scheduling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": "\\sigma"
+                }
+            ],
+            "cancelling": []
+        }
+    },
+    {
+        "event_expression": "initialize_generation",
+        "event_parameters": [
+            "services"
+        ],
+        "event_routine": {
+            "state_transitions": [
+                [
+                    "self.state.phase",
+                    "Phase :: Generating"
+                ],
+                [
+                    "self.state.until_next_event",
+                    "interdeparture"
+                ],
+                [
+                    "self.state.until_job",
+                    "interdeparture"
+                ]
+            ],
+            "scheduling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": "\\sigma"
+                }
+            ],
+            "cancelling": []
+        }
+    },
+    {
+        "event_expression": "record",
+        "event_parameters": [
+            "time",
+            "action",
+            "subject"
+        ],
+        "event_routine": {
+            "state_transitions": [],
+            "scheduling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": "\\sigma"
+                }
+            ],
+            "cancelling": []
+        }
+    },
+    {
+        "event_expression": "events_int",
+        "event_parameters": [
+            "services"
+        ],
+        "event_routine": {
+            "state_transitions": [],
+            "scheduling": [
+                {
+                    "event_expression_target": "release_job",
+                    "parameters": [],
+                    "condition": "& self.state.phase = Phase :: Generating",
+                    "delay": null
+                },
+                {
+                    "event_expression_target": "initialize_generation",
+                    "parameters": [],
+                    "condition": "& self.state.phase = Phase :: Initializing",
+                    "delay": null
+                }
+            ],
+            "cancelling": []
+        }
+    }
+]
