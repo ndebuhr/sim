@@ -124,8 +124,8 @@ fn get_schedulings(method: &ImplItemMethod) -> Option<Vec<EventEdge>> {
                             parameters: match_parameters,
                             condition: Some(format![
                                 "{} = {}",
-                                quote!(#match_expr).to_string(),
-                                quote!(#match_case).to_string(),
+                                quote!(#match_expr),
+                                quote!(#match_case),
                             ]),
                             delay: None,
                         })
