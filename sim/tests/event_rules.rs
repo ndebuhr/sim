@@ -6,6 +6,10 @@ use sim::input_modeling::ContinuousRandomVariable;
 #[cfg(feature = "simx")]
 use sim::models::{Batcher, DevsModel, Generator};
 
+fn strip_whitespace(string: String) -> String {
+    string.chars().filter(|c| !c.is_whitespace()).collect()
+}
+
 #[test]
 #[cfg(feature = "simx")]
 fn batcher_event_rules() {
@@ -14,7 +18,10 @@ fn batcher_event_rules() {
     let batcher_event_rules = fs::read_to_string("tests/batcher_event_rules.json")
         .expect("Unable to read tests/batcher_event_rules.json");
 
-    assert_eq!(batcher.event_rules(), batcher_event_rules);
+    assert_eq!(
+        strip_whitespace(batcher.event_rules()),
+        strip_whitespace(batcher_event_rules)
+    );
 }
 
 #[test]
@@ -30,5 +37,8 @@ fn generator_event_rules() {
     let generator_event_rules = fs::read_to_string("tests/generator_event_rules.json")
         .expect("Unable to read tests/generator_event_rules.json");
 
-    assert_eq!(generator.event_rules(), generator_event_rules);
+    assert_eq!(
+        strip_whitespace(generator.event_rules()),
+        strip_whitespace(generator_event_rules)
+    );
 }
