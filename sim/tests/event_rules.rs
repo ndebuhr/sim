@@ -6,6 +6,7 @@ use sim::input_modeling::ContinuousRandomVariable;
 #[cfg(feature = "simx")]
 use sim::models::{Batcher, DevsModel, Generator};
 
+#[cfg(feature = "simx")]
 fn strip_whitespace(string: String) -> String {
     string.chars().filter(|c| !c.is_whitespace()).collect()
 }
