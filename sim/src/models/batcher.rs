@@ -9,6 +9,9 @@ use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
 
+#[cfg(feature = "simx")]
+use simx::event_rules;
+
 /// The batching process begins when the batcher receives a job.  It will
 /// then accept additional jobs, adding them to a batch with the first job,
 /// until a max batching time or max batch size is reached - whichever comes
@@ -70,6 +73,7 @@ enum Phase {
     Release,  // Releasing a batch
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl Batcher {
     pub fn new(
         job_in_port: String,
@@ -209,6 +213,7 @@ impl Batcher {
     }
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl DevsModel for Batcher {
     fn events_ext(
         &mut self,

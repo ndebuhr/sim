@@ -9,6 +9,9 @@ use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
 
+#[cfg(feature = "simx")]
+use simx::event_rules;
+
 /// The storage model stores a value, and responds with it upon request.
 /// Values are stored and value requests are handled instantantaneously.
 #[derive(Debug, Clone, Serialize, Deserialize, SerializableModel)]
@@ -66,6 +69,7 @@ enum Phase {
     JobFetch,
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl Storage {
     pub fn new(
         put_port: String,
@@ -153,6 +157,7 @@ impl Storage {
     }
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl DevsModel for Storage {
     fn events_ext(
         &mut self,

@@ -2,6 +2,7 @@
 /target
 /sim/target
 /sim_derive/target
+/simx/target
 
 **/*.rs.bk
 

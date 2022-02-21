@@ -10,6 +10,9 @@ use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
 
+#[cfg(feature = "simx")]
+use simx::event_rules;
+
 /// The parallel gateway splits a job across multiple processing paths. The
 /// job is duplicated across every one of the processing paths. In addition
 /// to splitting the process, a second parallel gateway can be used to join
@@ -61,6 +64,7 @@ impl Default for State {
     }
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl ParallelGateway {
     pub fn new(
         flow_paths_in: Vec<String>,
@@ -160,6 +164,7 @@ impl ParallelGateway {
     }
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl DevsModel for ParallelGateway {
     fn events_ext(
         &mut self,
@@ -176,10 +181,9 @@ impl DevsModel for ParallelGateway {
         &mut self,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        if self.full_collection().is_some() {
-            self.send_job(services)
-        } else {
-            self.passivate()
+        match self.full_collection() {
+            Some(_) => self.send_job(services),
+            None => self.passivate(),
         }
     }
 

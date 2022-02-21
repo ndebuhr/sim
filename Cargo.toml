@@ -2,4 +2,5 @@
 members = [
     "sim",
     "sim_derive",
+    "simx",
 ]

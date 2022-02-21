@@ -74,6 +74,16 @@ impl DevsModel for Model {
     fn until_next_event(&self) -> f64 {
         self.inner.until_next_event()
     }
+
+    #[cfg(feature = "simx")]
+    fn event_rules_scheduling(&self) -> &str {
+        self.inner.event_rules_scheduling()
+    }
+
+    #[cfg(feature = "simx")]
+    fn event_rules(&self) -> String {
+        self.inner.event_rules()
+    }
 }
 
 impl Reportable for Model {

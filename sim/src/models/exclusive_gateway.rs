@@ -10,6 +10,9 @@ use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
 
+#[cfg(feature = "simx")]
+use simx::event_rules;
+
 /// The exclusive gateway splits a process flow into a set of possible paths.
 /// The process will only follow one of the possible paths. Path selection is
 /// determined by Weighted Index distribution random variates, so this atomic
@@ -65,6 +68,7 @@ enum Phase {
     Pass,    // Passing a job from input to output
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl ExclusiveGateway {
     pub fn new(
         flow_paths_in: Vec<String>,
@@ -145,6 +149,7 @@ impl ExclusiveGateway {
     }
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl DevsModel for ExclusiveGateway {
     fn events_ext(
         &mut self,

@@ -10,6 +10,9 @@ use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
 
+#[cfg(feature = "simx")]
+use simx::event_rules;
+
 /// The stopwatch calculates durations by matching messages on the start and
 /// stop ports.  For example, a "job 1" message arrives at the start port at
 /// time 0.1, and then a "job 1" message arrives at the stop port at time
@@ -95,6 +98,7 @@ pub struct Job {
     stop: Option<f64>,
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl Stopwatch {
     pub fn new(
         start_port: String,
@@ -279,6 +283,7 @@ impl Stopwatch {
     }
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl DevsModel for Stopwatch {
     fn events_ext(
         &mut self,

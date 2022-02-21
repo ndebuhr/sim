@@ -1,54 +1,45 @@
 [package]
-name = "sim"
+name = "simx"
 version = "0.10.0"
 edition = "2018"
 license = "MIT OR Apache-2.0"
 authors = ["Neal DeBuhr <ndebuhr@gmail.com>"]
-description = "Sim is a discrete event simulation package that facilitates Rust- and npm-based simulation products and projects"
-homepage = "https://github.com/ndebuhr/sim"
-repository = "https://github.com/ndebuhr/sim"
+description = "SimX provides Sim package extensions, for research and experimentation"
+homepage = "https://github.com/ndebuhr/simx"
+repository = "https://github.com/ndebuhr/simx"
 readme = "README.md"
-keywords = ["simulation", "discrete", "event", "stochastic", "modeling"]
+keywords = ["simulation", "experimentation", "research", "extension", "modeling"]
 categories = ["simulation"]
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-Oz", "--enable-mutable-globals"]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+proc-macro = true
 
 [dependencies]
-getrandom = { version = "0.2", features = ["js"] }
-js-sys = "0.3"
-lazy_static = "1.4"
-num-traits = "0.2"
-rand = { version = "0.8", features = ["serde1"] }
-rand_distr = { version = "0.4" }
-rand_pcg = { version = "0.3", features = ["serde1"] }
+proc-macro2 = "1.0"
+quote = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-serde_yaml = "0.8"
-sim_derive = { version = "0.10", path = "../sim_derive" }
-simx = { version = "0.10", path = "../simx", optional = true }
-thiserror = "1.0"
-wasm-bindgen = "0.2"
-web-sys = { version = "0.3", features = [ "console" ] }
+syn = { version="1.0", features = ["extra-traits", "full", "parsing", "printing"] }
+
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
 # all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
 # code size when deploying.
-console_error_panic_hook = { version = "0.1", optional = true }
+console_error_panic_hook = { version = "0.1.6", optional = true }
 
 # `wee_alloc` is a tiny allocator for wasm that is only ~1K in code size
 # compared to the default allocator's ~10K. It is slower than the default
 # allocator, however.
 #
 # Unfortunately, `wee_alloc` requires nightly Rust when targeting wasm for now.
-wee_alloc = { version = "0.4", optional = true }
+wee_alloc = { version = "0.4.5", optional = true }
 
 [dev-dependencies]
-wasm-bindgen-test = "0.3"
+wasm-bindgen-test = "0.3.13"
 
 [profile.release]
 # Tell `rustc` to optimize for small code size.

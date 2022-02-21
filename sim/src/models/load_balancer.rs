@@ -9,6 +9,9 @@ use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
 
+#[cfg(feature = "simx")]
+use simx::event_rules;
+
 /// The load balancer routes jobs to a set of possible process paths, using a
 /// round robin strategy. There is no stochastic behavior in this model.
 #[derive(Debug, Clone, Serialize, Deserialize, SerializableModel)]
@@ -61,6 +64,7 @@ enum Phase {
     LoadBalancing,
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl LoadBalancer {
     pub fn new(job_port: String, flow_path_ports: Vec<String>, store_records: bool) -> Self {
         Self {
@@ -124,6 +128,7 @@ impl LoadBalancer {
     }
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl DevsModel for LoadBalancer {
     fn events_ext(
         &mut self,
@@ -137,10 +142,9 @@ impl DevsModel for LoadBalancer {
         &mut self,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        if self.state.jobs.is_empty() {
-            self.passivate()
-        } else {
-            self.send_job(services)
+        match self.state.jobs.len() {
+            0 => self.passivate(),
+            _ => self.send_job(services),
         }
     }
 

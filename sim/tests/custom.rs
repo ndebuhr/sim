@@ -9,6 +9,9 @@ use sim::utils::errors::SimulationError;
 use sim_derive::{register, SerializableModel};
 use wasm_bindgen_test::*;
 
+#[cfg(feature = "simx")]
+use simx::event_rules;
+
 wasm_bindgen_test_configure!(run_in_browser);
 
 /// The passive model does nothing
@@ -30,6 +33,7 @@ struct State {
     records: Vec<ModelRecord>,
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl Passive {
     pub fn new(job_port: String) -> Self {
         Self {
@@ -41,6 +45,7 @@ impl Passive {
     }
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl DevsModel for Passive {
     fn events_ext(
         &mut self,

@@ -44,6 +44,10 @@ pub trait DevsModel: ModelClone + SerializableModel {
         -> Result<Vec<ModelMessage>, SimulationError>;
     fn time_advance(&mut self, time_delta: f64);
     fn until_next_event(&self) -> f64;
+    #[cfg(feature = "simx")]
+    fn event_rules_scheduling(&self) -> &str;
+    #[cfg(feature = "simx")]
+    fn event_rules(&self) -> String;
 }
 
 /// The additional status and record-keeping methods of `Reportable` provide

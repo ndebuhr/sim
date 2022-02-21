@@ -10,6 +10,9 @@ use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
 
+#[cfg(feature = "simx")]
+use simx::event_rules;
+
 /// The stochastic gate blocks (drops) or passes jobs, based on a specified
 /// Bernoulli distribution. If the Bernoulli random variate is a 0, the job
 /// will be dropped. If the Bernoulli random variate is a 1, the job will be
@@ -67,6 +70,7 @@ pub struct Job {
     pub pass: bool,
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl StochasticGate {
     pub fn new(
         pass_distribution: BooleanRandomVariable,
@@ -148,6 +152,7 @@ impl StochasticGate {
     }
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl DevsModel for StochasticGate {
     fn events_ext(
         &mut self,

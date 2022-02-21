@@ -10,6 +10,9 @@ use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
 
+#[cfg(feature = "simx")]
+use simx::event_rules;
+
 /// The processor accepts jobs, processes them for a period of time, and then
 /// outputs a processed job. The processor can have a configurable queue, of
 /// size 0 to infinity, inclusive. The default queue size is infinite. The
@@ -81,6 +84,7 @@ enum Phase {
     Passive,
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl Processor {
     pub fn new(
         service_time: ContinuousRandomVariable,
@@ -206,6 +210,7 @@ impl Processor {
     }
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl DevsModel for Processor {
     fn events_ext(
         &mut self,

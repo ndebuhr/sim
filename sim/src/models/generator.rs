@@ -9,6 +9,9 @@ use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
 
+#[cfg(feature = "simx")]
+use simx::event_rules;
+
 /// The generator produces jobs based on a configured interarrival
 /// distribution. A normalized thinning function is used to enable
 /// non-stationary job generation. For non-stochastic generation of jobs, a
@@ -69,6 +72,7 @@ enum Phase {
     Generating,
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl Generator {
     pub fn new(
         message_interdeparture_time: ContinuousRandomVariable,
@@ -137,6 +141,7 @@ impl Generator {
     }
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl DevsModel for Generator {
     fn events_ext(
         &mut self,

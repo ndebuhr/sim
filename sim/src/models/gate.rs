@@ -9,6 +9,9 @@ use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
 
+#[cfg(feature = "simx")]
+use simx::event_rules;
+
 /// The gate model passes or blocks jobs, when it is in the open or closed
 /// state, respectively. The gate can be opened and closed throughout the
 /// course of a simulation. This model contains no stochastic behavior - job
@@ -73,6 +76,7 @@ enum Phase {
     Pass,
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl Gate {
     pub fn new(
         job_in_port: String,
@@ -193,6 +197,7 @@ impl Gate {
     }
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl DevsModel for Gate {
     fn events_ext(
         &mut self,
