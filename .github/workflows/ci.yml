@@ -31,7 +31,7 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('./sim/Cargo.lock') }}
     - name: Run Tests
       working-directory: ./sim
-      run: cargo test --all-features -- --nocapture
+      run: cargo test --features simx,console_error_panic_hook -- --nocapture
 
   wasm-pack:
     name: Test (wasm)
