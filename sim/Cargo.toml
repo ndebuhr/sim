@@ -1,6 +1,6 @@
 [package]
 name = "sim"
-version = "0.10.0"
+version = "0.11.0"
 edition = "2018"
 license = "MIT OR Apache-2.0"
 authors = ["Neal DeBuhr <ndebuhr@gmail.com>"]
@@ -28,8 +28,8 @@ rand_pcg = { version = "0.3", features = ["serde1"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.8"
-sim_derive = { version = "0.10", path = "../sim_derive" }
-simx = { version = "0.10", path = "../simx", optional = true }
+sim_derive = { version = "0.11", path = "../sim_derive" }
+simx = { version = "0.11", path = "../simx", optional = true }
 thiserror = "1.0"
 wasm-bindgen = "0.2"
 web-sys = { version = "0.3", features = [ "console" ] }
