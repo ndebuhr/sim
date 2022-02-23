@@ -35,5 +35,5 @@ jobs:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       run: |
         cargo install cargo-tarpaulin &&
-        cargo tarpaulin --out Xml &&
+        cargo tarpaulin --all-features --out xml &&
         bash <(curl -s https://codecov.io/bash)
