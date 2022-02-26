@@ -29,9 +29,12 @@ jobs:
           ~/.cargo/git
           ./sim/target
         key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('./sim/Cargo.lock') }}
-    - name: Run Tests
+    - name: Run Tests (No Optional Features)
       working-directory: ./sim
-      run: cargo test --features simx,console_error_panic_hook -- --nocapture
+      run: cargo test -- --nocapture
+    - name: Run Tests (All Optional Features)
+      working-directory: ./sim
+      run: cargo test --all-features -- --nocapture
 
   wasm-pack:
     name: Test (wasm)
