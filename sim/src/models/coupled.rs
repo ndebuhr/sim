@@ -103,7 +103,34 @@ impl Coupled {
         }
     }
 
-    fn external_targets(&self, source_id: &str, source_port: &str) -> Vec<String> {
+    fn park_incoming_messages(
+        &self,
+        incoming_message: &ModelMessage,
+    ) -> Option<Vec<ParkedMessage>> {
+        let parked_messages: Vec<ParkedMessage> = self
+            .external_input_couplings
+            .iter()
+            .filter_map(|coupling| {
+                if coupling.source_port == incoming_message.port_name {
+                    Some(ParkedMessage {
+                        component_id: coupling.target_id.to_string(),
+                        port: coupling.target_port.to_string(),
+                        content: incoming_message.content.to_string(),
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        if parked_messages.is_empty() {
+            None
+        } else {
+            Some(parked_messages)
+        }
+    }
+
+    fn external_output_targets(&self, source_id: &str, source_port: &str) -> Vec<String> {
         // Vec<target_port>
 
         self.external_output_couplings
@@ -135,6 +162,26 @@ impl Coupled {
             })
             .collect()
     }
+
+    fn distribute_events_ext(
+        &mut self,
+        parked_messages: Vec<ParkedMessage>,
+        services: &mut Services,
+    ) -> Result<(), SimulationError> {
+        parked_messages.iter().try_for_each(|parked_message| {
+            self.components
+                .iter_mut()
+                .find(|component| component.id() == parked_message.component_id)
+                .unwrap()
+                .events_ext(
+                    &ModelMessage {
+                        port_name: parked_message.port.to_string(),
+                        content: parked_message.content.to_string(),
+                    },
+                    services,
+                )
+        })
+    }
 }
 
 impl DevsModel for Coupled {
@@ -143,29 +190,10 @@ impl DevsModel for Coupled {
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        let external_input_couplings = self.external_input_couplings.clone();
-        self.components
-            .iter_mut()
-            .filter_map(|component| {
-                external_input_couplings
-                    .iter()
-                    .filter(|coupling| coupling.source_port == incoming_message.port_name)
-                    .map(|coupling| (&coupling.target_id, &coupling.target_port))
-                    .find_map(|(target_id, target_port)| {
-                        if target_id == component.id() {
-                            Some(component.events_ext(
-                                &ModelMessage {
-                                    port_name: target_port.to_string(),
-                                    content: incoming_message.content.clone(),
-                                },
-                                services,
-                            ))
-                        } else {
-                            None
-                        }
-                    })
-            })
-            .collect()
+        match self.park_incoming_messages(incoming_message) {
+            None => Ok(()),
+            Some(parked_messages) => self.distribute_events_ext(parked_messages, services),
+        }
     }
 
     fn events_int(
@@ -240,7 +268,7 @@ impl DevsModel for Coupled {
                             });
                             // For external messages (those transmitted on external output couplings), prepare the
                             // output as standard events_int output
-                            self.external_targets(
+                            self.external_output_targets(
                                 self.components[*component_index].id(),
                                 &outgoing_message.port_name,
                             )
