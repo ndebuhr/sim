@@ -83,7 +83,7 @@ fn get_state_transitions(method: &ImplItemMethod) -> Vec<(String, String)> {
                     quote!(#assign_left).to_string(),
                     quote!(#assign_right).to_string(),
                 ))
-            },
+            }
             _ => None,
         })
         .collect()
@@ -92,15 +92,13 @@ fn get_state_transitions(method: &ImplItemMethod) -> Vec<(String, String)> {
 fn get_schedulings(method: &ImplItemMethod) -> Option<Vec<EventEdge>> {
     method.block.stmts.iter().find_map(|stmt| {
         if let Stmt::Expr(Expr::MethodCall(method_call)) = stmt {
-            Some(
-                vec![EventEdge {
-                    event_expression_target: method_call.method.to_string(),
-                    // TODO parameters
-                    parameters: Vec::new(),
-                    condition: None,
-                    delay: None,
-                }]
-            )
+            Some(vec![EventEdge {
+                event_expression_target: method_call.method.to_string(),
+                // TODO parameters
+                parameters: Vec::new(),
+                condition: None,
+                delay: None,
+            }])
         } else if let Stmt::Expr(Expr::Match(match_)) = stmt {
             Some(
                 match_
@@ -113,10 +111,10 @@ fn get_schedulings(method: &ImplItemMethod) -> Option<Vec<EventEdge>> {
                             Expr::MethodCall(method_call) => {
                                 // TODO - Extract function parameters
                                 (method_call.method.to_string(), Vec::new())
-                            },
+                            }
                             _ => {
                                 // ("Ok()", "Err(SimulationError::InvalidModelState)",...)
-                                return None
+                                return None;
                             }
                         };
                         Some(EventEdge {
@@ -130,7 +128,7 @@ fn get_schedulings(method: &ImplItemMethod) -> Option<Vec<EventEdge>> {
                             delay: None,
                         })
                     })
-                    .collect()
+                    .collect(),
             )
         } else {
             None
@@ -184,9 +182,7 @@ fn add_event_rules_transition_method(mut input: ItemImpl) -> TokenStream {
         }
         Err(err) => {
             let err_string = err.to_string();
-            TokenStream::from(
-                quote!(compile_error!(#err_string))
-            )
+            TokenStream::from(quote!(compile_error!(#err_string)))
         }
     }
 }
@@ -264,9 +260,7 @@ fn add_event_rules_scheduling_method(mut input: ItemImpl) -> TokenStream {
         }
         Err(err) => {
             let err_string = err.to_string();
-            TokenStream::from(
-                quote!(compile_error!(#err_string))
-            )
+            TokenStream::from(quote!(compile_error!(#err_string)))
         }
     }
 }
@@ -283,6 +277,6 @@ pub fn event_rules(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 // (Add nothing if other trait implementations)
                 ModelImplementation::Other => TokenStream::from(quote!(#input)),
             }
-        },
+        }
     }
 }
