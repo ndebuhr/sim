@@ -10,6 +10,9 @@ use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
 
+#[cfg(feature = "simx")]
+use simx::event_rules;
+
 #[derive(Clone, Deserialize, Serialize, SerializableModel)]
 #[serde(rename_all = "camelCase")]
 pub struct Coupled {
@@ -79,6 +82,7 @@ struct ParkedMessage {
     content: String,
 }
 
+#[cfg_attr(feature = "simx", event_rules)]
 impl Coupled {
     pub fn new(
         ports_in: Vec<String>,
@@ -182,21 +186,8 @@ impl Coupled {
                 )
         })
     }
-}
 
-impl DevsModel for Coupled {
-    fn events_ext(
-        &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
-        match self.park_incoming_messages(incoming_message) {
-            None => Ok(()),
-            Some(parked_messages) => self.distribute_events_ext(parked_messages, services),
-        }
-    }
-
-    fn events_int(
+    fn distribute_events_int(
         &mut self,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
@@ -286,6 +277,27 @@ impl DevsModel for Coupled {
             .flatten()
             .flatten()
             .collect())
+    }
+}
+
+#[cfg_attr(feature = "simx", event_rules)]
+impl DevsModel for Coupled {
+    fn events_ext(
+        &mut self,
+        incoming_message: &ModelMessage,
+        services: &mut Services,
+    ) -> Result<(), SimulationError> {
+        match self.park_incoming_messages(incoming_message) {
+            None => Ok(()),
+            Some(parked_messages) => self.distribute_events_ext(parked_messages, services),
+        }
+    }
+
+    fn events_int(
+        &mut self,
+        services: &mut Services,
+    ) -> Result<Vec<ModelMessage>, SimulationError> {
+        self.distribute_events_int(services)
     }
 
     fn time_advance(&mut self, time_delta: f64) {

@@ -1,15 +1,14 @@
-#[cfg(not(feature = "simx"))]
+use sim::input_modeling::ContinuousRandomVariable;
+use sim::models::*;
+use sim::output_analysis::*;
+use sim::simulator::*;
+
+fn get_message_number(message: &str) -> &str {
+    message.split_whitespace().last().unwrap()
+}
+
 #[test]
 fn closure_under_coupling() {
-    use sim::input_modeling::ContinuousRandomVariable;
-    use sim::models::*;
-    use sim::output_analysis::*;
-    use sim::simulator::*;
-
-    fn get_message_number(message: &str) -> &str {
-        message.split_whitespace().last().unwrap()
-    }
-
     let atomic_models = vec![
         Model::new(
             String::from("generator-01"),

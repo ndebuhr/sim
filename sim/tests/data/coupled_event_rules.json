@@ -1,0 +1,167 @@
+[
+    {
+        "event_expression": "new",
+        "event_parameters": [
+            "ports_in",
+            "ports_out",
+            "components",
+            "external_input_couplings",
+            "external_output_couplings",
+            "internal_couplings"
+        ],
+        "event_routine": {
+            "state_transitions": [],
+            "scheduling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": "\\sigma"
+                }
+            ],
+            "cancelling": []
+        }
+    },
+    {
+        "event_expression": "park_incoming_messages",
+        "event_parameters": [
+            "incoming_message"
+        ],
+        "event_routine": {
+            "state_transitions": [],
+            "scheduling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": "\\sigma"
+                }
+            ],
+            "cancelling": []
+        }
+    },
+    {
+        "event_expression": "external_output_targets",
+        "event_parameters": [
+            "source_id",
+            "source_port"
+        ],
+        "event_routine": {
+            "state_transitions": [],
+            "scheduling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": "\\sigma"
+                }
+            ],
+            "cancelling": []
+        }
+    },
+    {
+        "event_expression": "internal_targets",
+        "event_parameters": [
+            "source_id",
+            "source_port"
+        ],
+        "event_routine": {
+            "state_transitions": [],
+            "scheduling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": "\\sigma"
+                }
+            ],
+            "cancelling": []
+        }
+    },
+    {
+        "event_expression": "distribute_events_ext",
+        "event_parameters": [
+            "parked_messages",
+            "services"
+        ],
+        "event_routine": {
+            "state_transitions": [],
+            "scheduling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": "\\sigma"
+                }
+            ],
+            "cancelling": []
+        }
+    },
+    {
+        "event_expression": "distribute_events_int",
+        "event_parameters": [
+            "services"
+        ],
+        "event_routine": {
+            "state_transitions": [
+                [
+                    "self.state.parked_messages",
+                    "Vec :: new()"
+                ]
+            ],
+            "scheduling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": "\\sigma"
+                }
+            ],
+            "cancelling": []
+        }
+    },
+    {
+        "event_expression": "events_ext",
+        "event_parameters": [
+            "incoming_message",
+            "services"
+        ],
+        "event_routine": {
+            "state_transitions": [],
+            "scheduling": [
+                {
+                    "event_expression_target": "distribute_events_ext",
+                    "parameters": [],
+                    "condition": "self.park_incoming_messages(incoming_message) = Some(parked_messages)",
+                    "delay": null
+                }
+            ],
+            "cancelling": [
+                {
+                    "event_expression_target": "events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": null
+                }
+            ]
+        }
+    },
+    {
+        "event_expression": "events_int",
+        "event_parameters": [
+            "services"
+        ],
+        "event_routine": {
+            "state_transitions": [],
+            "scheduling": [
+                {
+                    "event_expression_target": "distribute_events_int",
+                    "parameters": [],
+                    "condition": null,
+                    "delay": null
+                }
+            ],
+            "cancelling": []
+        }
+    }
+]

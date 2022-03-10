@@ -6,7 +6,6 @@
 use serde::{Deserialize, Serialize};
 
 pub mod batcher;
-#[cfg(not(feature = "simx"))]
 pub mod coupled;
 pub mod exclusive_gateway;
 pub mod gate;
@@ -24,7 +23,6 @@ pub mod model_repr;
 pub mod model_trait;
 
 pub use self::batcher::Batcher;
-#[cfg(not(feature = "simx"))]
 pub use self::coupled::{Coupled, ExternalInputCoupling, ExternalOutputCoupling, InternalCoupling};
 pub use self::exclusive_gateway::ExclusiveGateway;
 pub use self::gate::Gate;
