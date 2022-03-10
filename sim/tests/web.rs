@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::f64::INFINITY;
 
-use sim::models::*;
-use sim::output_analysis::*;
-use sim::simulator::*;
-use wasm_bindgen_test::*;
+use sim::models::{Model, ModelRecord};
+use sim::output_analysis::IndependentSample;
+use sim::simulator::{Connector, Message, WebSimulation};
+use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
 
 wasm_bindgen_test_configure!(run_in_browser);
 

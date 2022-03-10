@@ -1,7 +1,11 @@
 use sim::input_modeling::{BooleanRandomVariable, ContinuousRandomVariable, IndexRandomVariable};
-use sim::models::*;
-use sim::output_analysis::*;
-use sim::simulator::*;
+use sim::models::stopwatch::Metric as StopwatchMetric;
+use sim::models::{
+    Batcher, ExclusiveGateway, Gate, Generator, LoadBalancer, Model, ParallelGateway, Processor,
+    StochasticGate, Stopwatch, Storage,
+};
+use sim::output_analysis::{IndependentSample, SteadyStateOutput};
+use sim::simulator::{Connector, Message, Simulation};
 
 fn epsilon() -> f64 {
     0.34
@@ -974,7 +978,7 @@ fn min_and_max_stopwatch() {
                 String::from("stop"),
                 String::from("min"),
                 String::from("min"),
-                stopwatch::Metric::Minimum,
+                StopwatchMetric::Minimum,
                 false,
             )),
         ),
@@ -985,7 +989,7 @@ fn min_and_max_stopwatch() {
                 String::from("stop"),
                 String::from("max"),
                 String::from("max"),
-                stopwatch::Metric::Maximum,
+                StopwatchMetric::Maximum,
                 false,
             )),
         ),

@@ -1,7 +1,9 @@
 use sim::input_modeling::ContinuousRandomVariable;
-use sim::models::*;
-use sim::output_analysis::*;
-use sim::simulator::*;
+use sim::models::{
+    Coupled, ExternalOutputCoupling, Generator, InternalCoupling, Model, Processor, Storage,
+};
+use sim::output_analysis::{ConfidenceInterval, SteadyStateOutput};
+use sim::simulator::{Connector, Message, Simulation};
 
 fn get_message_number(message: &str) -> &str {
     message.split_whitespace().last().unwrap()

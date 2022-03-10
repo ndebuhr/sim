@@ -7,7 +7,7 @@ use sim::models::{Generator, Model, ModelMessage, ModelRecord};
 use sim::simulator::{Connector, Message, Services, Simulation, WebSimulation};
 use sim::utils::errors::SimulationError;
 use sim_derive::{register, SerializableModel};
-use wasm_bindgen_test::*;
+use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
 
 #[cfg(feature = "simx")]
 use simx::event_rules;
