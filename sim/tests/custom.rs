@@ -86,7 +86,7 @@ impl Reportable for Passive {
 impl ReportableModel for Passive {}
 
 #[test]
-fn step_n_with_custom_passive_model() {
+fn step_n_with_custom_passive_model() -> Result<(), SimulationError> {
     let models = [
         Model::new(
             String::from("generator-01"),
@@ -111,10 +111,11 @@ fn step_n_with_custom_passive_model() {
     )];
     let mut simulation = Simulation::post(models.to_vec(), connectors.to_vec());
     // 1 initialization event, and 2 events per generation
-    let messages = simulation.step_n(9).unwrap();
+    let messages = simulation.step_n(9)?;
     let generations_count = messages.len();
     let expected = 4; // 4 interarrivals from 9 steps
     assert_eq!(generations_count, expected);
+    Ok(())
 }
 
 #[test]

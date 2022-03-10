@@ -47,6 +47,10 @@ pub enum SimulationError {
     #[error("Failed to convert to a Float value")]
     FloatConvError,
 
+    /// Represents a message unexpectedly lost/dropped/stuck during simulation execution
+    #[error("A message was unexpectedly lost, dropped, or stuck during simulation execution")]
+    DroppedMessageError,
+
     /// Transparent serde_json errors
     #[error(transparent)]
     JSONError(#[from] serde_json::error::Error),
