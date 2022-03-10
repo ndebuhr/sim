@@ -1,12 +1,11 @@
 #[cfg(feature = "simx")]
-use std::fs;
-
-#[cfg(feature = "simx")]
-use sim::input_modeling::ContinuousRandomVariable;
-#[cfg(feature = "simx")]
-use sim::models::{
-    Batcher, Coupled, DevsModel, ExternalOutputCoupling, Generator, InternalCoupling, Model,
-    Processor,
+use {
+    sim::input_modeling::ContinuousRandomVariable,
+    sim::models::{
+        Batcher, Coupled, DevsModel, ExternalOutputCoupling, Generator, InternalCoupling, Model,
+        Processor,
+    },
+    std::fs,
 };
 
 #[cfg(feature = "simx")]
