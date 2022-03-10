@@ -98,11 +98,7 @@ impl ParallelGateway {
             .find(|(_, count)| **count == self.ports_in.flow_paths.len())
     }
 
-    fn increment_collection(
-        &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
+    fn increment_collection(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
         *self
             .state
             .collections
@@ -118,7 +114,6 @@ impl ParallelGateway {
             ],
         );
         self.state.until_next_event = 0.0;
-        Ok(())
     }
 
     fn send_job(&mut self, services: &mut Services) -> Result<Vec<ModelMessage>, SimulationError> {
@@ -148,9 +143,9 @@ impl ParallelGateway {
             }))
     }
 
-    fn passivate(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn passivate(&mut self) -> Vec<ModelMessage> {
         self.state.until_next_event = INFINITY;
-        Ok(Vec::new())
+        Vec::new()
     }
 
     fn record(&mut self, time: f64, action: String, subject: String) {
@@ -159,7 +154,7 @@ impl ParallelGateway {
                 time,
                 action,
                 subject,
-            })
+            });
         }
     }
 }
@@ -172,7 +167,7 @@ impl DevsModel for ParallelGateway {
         services: &mut Services,
     ) -> Result<(), SimulationError> {
         match self.arrival_port(&incoming_message.port_name) {
-            ArrivalPort::FlowPath => self.increment_collection(incoming_message, services),
+            ArrivalPort::FlowPath => Ok(self.increment_collection(incoming_message, services)),
             ArrivalPort::Unknown => Err(SimulationError::InvalidMessage),
         }
     }
@@ -183,7 +178,7 @@ impl DevsModel for ParallelGateway {
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         match self.full_collection() {
             Some(_) => self.send_job(services),
-            None => self.passivate(),
+            None => Ok(self.passivate()),
         }
     }
 

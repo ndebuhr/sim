@@ -108,12 +108,20 @@ fn get_schedulings(method: &ImplItemMethod) -> Option<Vec<EventEdge>> {
                         let match_expr = &match_.expr;
                         let match_case = &arm.pat;
                         let (match_function, match_parameters) = match &*arm.body {
+                            Expr::Call(call) => {
+                                match &call.args[0] {
+                                    Expr::MethodCall(method_call) => {
+                                        // TODO - Extract function parameters
+                                        (method_call.method.to_string(), Vec::new())
+                                    }
+                                    _ => return None,
+                                }
+                            }
                             Expr::MethodCall(method_call) => {
                                 // TODO - Extract function parameters
                                 (method_call.method.to_string(), Vec::new())
                             }
                             _ => {
-                                // ("Ok()", "Err(SimulationError::InvalidModelState)",...)
                                 return None;
                             }
                         };

@@ -115,12 +115,12 @@ impl StochasticGate {
         Ok(())
     }
 
-    fn passivate(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn passivate(&mut self) -> Vec<ModelMessage> {
         self.state.until_next_event = INFINITY;
-        Ok(Vec::new())
+        Vec::new()
     }
 
-    fn pass_job(&mut self, services: &mut Services) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn pass_job(&mut self, services: &mut Services) -> Vec<ModelMessage> {
         self.state.until_next_event = 0.0;
         let job = self.state.jobs.remove(0);
         self.record(
@@ -128,17 +128,17 @@ impl StochasticGate {
             String::from("Pass"),
             job.content.clone(),
         );
-        Ok(vec![ModelMessage {
+        vec![ModelMessage {
             content: job.content,
             port_name: self.ports_out.job.clone(),
-        }])
+        }]
     }
 
-    fn block_job(&mut self, services: &mut Services) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn block_job(&mut self, services: &mut Services) -> Vec<ModelMessage> {
         self.state.until_next_event = 0.0;
         let job = self.state.jobs.remove(0);
         self.record(services.global_time(), String::from("Block"), job.content);
-        Ok(Vec::new())
+        Vec::new()
     }
 
     fn record(&mut self, time: f64, action: String, subject: String) {
@@ -147,7 +147,7 @@ impl StochasticGate {
                 time,
                 action,
                 subject,
-            })
+            });
         }
     }
 }
@@ -170,9 +170,9 @@ impl DevsModel for StochasticGate {
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         match self.state.jobs.get(0) {
-            None => self.passivate(),
-            Some(Job { pass: true, .. }) => self.pass_job(services),
-            Some(Job { pass: false, .. }) => self.block_job(services),
+            None => Ok(self.passivate()),
+            Some(Job { pass: true, .. }) => Ok(self.pass_job(services)),
+            Some(Job { pass: false, .. }) => Ok(self.block_job(services)),
         }
     }
 

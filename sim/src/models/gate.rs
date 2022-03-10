@@ -109,11 +109,7 @@ impl Gate {
         }
     }
 
-    fn activate(
-        &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
+    fn activate(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
         self.state.phase = Phase::Open;
         self.state.until_next_event = INFINITY;
         self.record(
@@ -121,14 +117,9 @@ impl Gate {
             String::from("Activation"),
             incoming_message.content.clone(),
         );
-        Ok(())
     }
 
-    fn deactivate(
-        &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
+    fn deactivate(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
         self.state.phase = Phase::Closed;
         self.state.until_next_event = INFINITY;
         self.record(
@@ -136,14 +127,9 @@ impl Gate {
             String::from("Deactivation"),
             incoming_message.content.clone(),
         );
-        Ok(())
     }
 
-    fn pass_job(
-        &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
+    fn pass_job(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
         self.state.phase = Phase::Pass;
         self.state.until_next_event = 0.0;
         self.state.jobs.push(incoming_message.content.clone());
@@ -152,26 +138,20 @@ impl Gate {
             String::from("Arrival"),
             incoming_message.content.clone(),
         );
-        Ok(())
     }
 
-    fn drop_job(
-        &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
+    fn drop_job(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
         self.record(
             services.global_time(),
             String::from("Arrival"),
             incoming_message.content.clone(),
         );
-        Ok(())
     }
 
-    fn send_jobs(&mut self, services: &mut Services) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn send_jobs(&mut self, services: &mut Services) -> Vec<ModelMessage> {
         self.state.phase = Phase::Open;
         self.state.until_next_event = INFINITY;
-        Ok((0..self.state.jobs.len())
+        (0..self.state.jobs.len())
             .map(|_| {
                 self.record(
                     services.global_time(),
@@ -183,7 +163,7 @@ impl Gate {
                     content: self.state.jobs.remove(0),
                 }
             })
-            .collect())
+            .collect()
     }
 
     fn record(&mut self, time: f64, action: String, subject: String) {
@@ -192,7 +172,7 @@ impl Gate {
                 time,
                 action,
                 subject,
-            })
+            });
         }
     }
 }
@@ -208,10 +188,10 @@ impl DevsModel for Gate {
             self.arrival_port(&incoming_message.port_name),
             self.state.phase == Phase::Closed,
         ) {
-            (ArrivalPort::Activation, _) => self.activate(incoming_message, services),
-            (ArrivalPort::Deactivation, _) => self.deactivate(incoming_message, services),
-            (ArrivalPort::Job, false) => self.pass_job(incoming_message, services),
-            (ArrivalPort::Job, true) => self.drop_job(incoming_message, services),
+            (ArrivalPort::Activation, _) => Ok(self.activate(incoming_message, services)),
+            (ArrivalPort::Deactivation, _) => Ok(self.deactivate(incoming_message, services)),
+            (ArrivalPort::Job, false) => Ok(self.pass_job(incoming_message, services)),
+            (ArrivalPort::Job, true) => Ok(self.drop_job(incoming_message, services)),
             (ArrivalPort::Unknown, _) => Err(SimulationError::InvalidMessage),
         }
     }
@@ -220,7 +200,7 @@ impl DevsModel for Gate {
         &mut self,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        self.send_jobs(services)
+        Ok(self.send_jobs(services))
     }
 
     fn time_advance(&mut self, time_delta: f64) {

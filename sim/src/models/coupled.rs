@@ -169,7 +169,7 @@ impl Coupled {
 
     fn distribute_events_ext(
         &mut self,
-        parked_messages: Vec<ParkedMessage>,
+        parked_messages: &[ParkedMessage],
         services: &mut Services,
     ) -> Result<(), SimulationError> {
         parked_messages.iter().try_for_each(|parked_message| {
@@ -195,7 +195,7 @@ impl Coupled {
         let ext_transitioning_component_triggers: Vec<(usize, String, String)> = (0..self
             .components
             .len())
-            .map(|component_index| -> Vec<(usize, String, String)> {
+            .flat_map(|component_index| -> Vec<(usize, String, String)> {
                 self.state
                     .parked_messages
                     .iter()
@@ -212,7 +212,6 @@ impl Coupled {
                     })
                     .collect()
             })
-            .flatten()
             .collect();
         ext_transitioning_component_triggers
             .iter()
@@ -237,12 +236,12 @@ impl Coupled {
             .collect();
         Ok(int_transitioning_component_indexes
             .iter()
-            .map(
+            .flat_map(
                 |component_index| -> Result<Vec<ModelMessage>, SimulationError> {
                     Ok(self.components[*component_index]
                         .events_int(services)?
                         .iter()
-                        .map(|outgoing_message| -> Vec<ModelMessage> {
+                        .flat_map(|outgoing_message| -> Vec<ModelMessage> {
                             // For internal messages (those transmitted on internal couplings), store the messages
                             // as Parked Messages, to be ingested by the target components on the next simulation step
                             self.internal_targets(
@@ -270,11 +269,9 @@ impl Coupled {
                             })
                             .collect()
                         })
-                        .flatten()
                         .collect())
                 },
             )
-            .flatten()
             .flatten()
             .collect())
     }
@@ -289,7 +286,7 @@ impl DevsModel for Coupled {
     ) -> Result<(), SimulationError> {
         match self.park_incoming_messages(incoming_message) {
             None => Ok(()),
-            Some(parked_messages) => self.distribute_events_ext(parked_messages, services),
+            Some(parked_messages) => self.distribute_events_ext(&parked_messages, services),
         }
     }
 

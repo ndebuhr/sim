@@ -92,11 +92,7 @@ impl Batcher {
         }
     }
 
-    fn add_to_batch(
-        &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
+    fn add_to_batch(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
         self.state.phase = Phase::Batching;
         self.state.jobs.push(incoming_message.content.clone());
         self.record(
@@ -104,14 +100,9 @@ impl Batcher {
             String::from("Arrival"),
             incoming_message.content.clone(),
         );
-        Ok(())
     }
 
-    fn start_batch(
-        &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
+    fn start_batch(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
         self.state.phase = Phase::Batching;
         self.state.until_next_event = self.max_batch_time;
         self.state.jobs.push(incoming_message.content.clone());
@@ -120,14 +111,9 @@ impl Batcher {
             String::from("Arrival"),
             incoming_message.content.clone(),
         );
-        Ok(())
     }
 
-    fn fill_batch(
-        &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
+    fn fill_batch(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
         self.state.phase = Phase::Release;
         self.state.until_next_event = 0.0;
         self.state.jobs.push(incoming_message.content.clone());
@@ -136,16 +122,12 @@ impl Batcher {
             String::from("Arrival"),
             incoming_message.content.clone(),
         );
-        Ok(())
     }
 
-    fn release_full_queue(
-        &mut self,
-        services: &mut Services,
-    ) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn release_full_queue(&mut self, services: &mut Services) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
         self.state.until_next_event = INFINITY;
-        Ok((0..self.state.jobs.len())
+        (0..self.state.jobs.len())
             .map(|_| {
                 self.record(
                     services.global_time(),
@@ -157,16 +139,13 @@ impl Batcher {
                     content: self.state.jobs.remove(0),
                 }
             })
-            .collect())
+            .collect()
     }
 
-    fn release_partial_queue(
-        &mut self,
-        services: &mut Services,
-    ) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn release_partial_queue(&mut self, services: &mut Services) -> Vec<ModelMessage> {
         self.state.phase = Phase::Batching;
         self.state.until_next_event = self.max_batch_time;
-        Ok((0..self.max_batch_size)
+        (0..self.max_batch_size)
             .map(|_| {
                 self.record(
                     services.global_time(),
@@ -178,16 +157,13 @@ impl Batcher {
                     content: self.state.jobs.remove(0),
                 }
             })
-            .collect())
+            .collect()
     }
 
-    fn release_multiple(
-        &mut self,
-        services: &mut Services,
-    ) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn release_multiple(&mut self, services: &mut Services) -> Vec<ModelMessage> {
         self.state.phase = Phase::Release;
         self.state.until_next_event = 0.0;
-        Ok((0..self.max_batch_size)
+        (0..self.max_batch_size)
             .map(|_| {
                 self.record(
                     services.global_time(),
@@ -199,7 +175,7 @@ impl Batcher {
                     content: self.state.jobs.remove(0),
                 }
             })
-            .collect())
+            .collect()
     }
 
     fn record(&mut self, time: f64, action: String, subject: String) {
@@ -208,7 +184,7 @@ impl Batcher {
                 time,
                 action,
                 subject,
-            })
+            });
         }
     }
 }
@@ -224,10 +200,10 @@ impl DevsModel for Batcher {
             &self.state.phase,
             self.state.jobs.len() + 1 < self.max_batch_size,
         ) {
-            (Phase::Batching, true) => self.add_to_batch(incoming_message, services),
-            (Phase::Passive, true) => self.start_batch(incoming_message, services),
+            (Phase::Batching, true) => Ok(self.add_to_batch(incoming_message, services)),
+            (Phase::Passive, true) => Ok(self.start_batch(incoming_message, services)),
             (Phase::Release, true) => Err(SimulationError::InvalidModelState),
-            (_, false) => self.fill_batch(incoming_message, services),
+            (_, false) => Ok(self.fill_batch(incoming_message, services)),
         }
     }
 
@@ -239,9 +215,9 @@ impl DevsModel for Batcher {
             self.state.jobs.len() <= self.max_batch_size,
             self.state.jobs.len() >= 2 * self.max_batch_size,
         ) {
-            (true, false) => self.release_full_queue(services),
-            (false, true) => self.release_multiple(services),
-            (false, false) => self.release_partial_queue(services),
+            (true, false) => Ok(self.release_full_queue(services)),
+            (false, true) => Ok(self.release_multiple(services)),
+            (false, false) => Ok(self.release_partial_queue(services)),
             (true, true) => Err(SimulationError::InvalidModelState),
         }
     }

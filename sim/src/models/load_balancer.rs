@@ -77,11 +77,7 @@ impl LoadBalancer {
         }
     }
 
-    fn pass_job(
-        &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
+    fn pass_job(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
         self.state.phase = Phase::LoadBalancing;
         self.state.until_next_event = 0.0;
         self.state.jobs.push(incoming_message.content.clone());
@@ -90,16 +86,15 @@ impl LoadBalancer {
             String::from("Arrival"),
             incoming_message.content.clone(),
         );
-        Ok(())
     }
 
-    fn passivate(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn passivate(&mut self) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
         self.state.until_next_event = INFINITY;
-        Ok(Vec::new())
+        Vec::new()
     }
 
-    fn send_job(&mut self, services: &mut Services) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn send_job(&mut self, services: &mut Services) -> Vec<ModelMessage> {
         self.state.until_next_event = 0.0;
         self.state.next_port_out = (self.state.next_port_out + 1) % self.ports_out.flow_paths.len();
         self.record(
@@ -111,10 +106,10 @@ impl LoadBalancer {
                 self.ports_out.flow_paths[self.state.next_port_out].clone()
             ],
         );
-        Ok(vec![ModelMessage {
+        vec![ModelMessage {
             port_name: self.ports_out.flow_paths[self.state.next_port_out].clone(),
             content: self.state.jobs.remove(0),
-        }])
+        }]
     }
 
     fn record(&mut self, time: f64, action: String, subject: String) {
@@ -123,7 +118,7 @@ impl LoadBalancer {
                 time,
                 action,
                 subject,
-            })
+            });
         }
     }
 }
@@ -135,7 +130,7 @@ impl DevsModel for LoadBalancer {
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        self.pass_job(incoming_message, services)
+        Ok(self.pass_job(incoming_message, services))
     }
 
     fn events_int(
@@ -143,8 +138,8 @@ impl DevsModel for LoadBalancer {
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         match self.state.jobs.len() {
-            0 => self.passivate(),
-            _ => self.send_job(services),
+            0 => Ok(self.passivate()),
+            _ => Ok(self.send_job(services)),
         }
     }
 

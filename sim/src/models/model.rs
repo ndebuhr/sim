@@ -68,7 +68,7 @@ impl DevsModel for Model {
     }
 
     fn time_advance(&mut self, time_delta: f64) {
-        self.inner.time_advance(time_delta)
+        self.inner.time_advance(time_delta);
     }
 
     fn until_next_event(&self) -> f64 {

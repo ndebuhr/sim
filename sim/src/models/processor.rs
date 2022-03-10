@@ -113,18 +113,13 @@ impl Processor {
         }
     }
 
-    fn add_job(
-        &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
+    fn add_job(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
         self.state.queue.push(incoming_message.content.clone());
         self.record(
             services.global_time(),
             String::from("Arrival"),
             incoming_message.content.clone(),
         );
-        Ok(())
     }
 
     fn activate(
@@ -148,17 +143,12 @@ impl Processor {
         Ok(())
     }
 
-    fn ignore_job(
-        &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
+    fn ignore_job(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
         self.record(
             services.global_time(),
             String::from("Drop"),
             incoming_message.content.clone(),
         );
-        Ok(())
     }
 
     fn process_next(
@@ -175,10 +165,7 @@ impl Processor {
         Ok(Vec::new())
     }
 
-    fn release_job(
-        &mut self,
-        services: &mut Services,
-    ) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn release_job(&mut self, services: &mut Services) -> Vec<ModelMessage> {
         let job = self.state.queue.remove(0);
         self.state.phase = Phase::Passive;
         self.state.until_next_event = 0.0;
@@ -187,16 +174,16 @@ impl Processor {
             String::from("Departure"),
             job.clone(),
         );
-        Ok(vec![ModelMessage {
+        vec![ModelMessage {
             content: job,
             port_name: self.ports_out.job.clone(),
-        }])
+        }]
     }
 
-    fn passivate(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn passivate(&mut self) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
         self.state.until_next_event = INFINITY;
-        Ok(Vec::new())
+        Vec::new()
     }
 
     fn record(&mut self, time: f64, action: String, subject: String) {
@@ -205,7 +192,7 @@ impl Processor {
                 time,
                 action,
                 subject,
-            })
+            });
         }
     }
 }
@@ -223,9 +210,9 @@ impl DevsModel for Processor {
             self.state.queue.len() == self.queue_capacity,
         ) {
             (ArrivalPort::Job, true, true) => Err(SimulationError::InvalidModelState),
-            (ArrivalPort::Job, false, true) => self.ignore_job(incoming_message, services),
+            (ArrivalPort::Job, false, true) => Ok(self.ignore_job(incoming_message, services)),
             (ArrivalPort::Job, true, false) => self.activate(incoming_message, services),
-            (ArrivalPort::Job, false, false) => self.add_job(incoming_message, services),
+            (ArrivalPort::Job, false, false) => Ok(self.add_job(incoming_message, services)),
             (ArrivalPort::Unknown, _, _) => Err(SimulationError::InvalidMessage),
         }
     }
@@ -235,9 +222,9 @@ impl DevsModel for Processor {
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         match (&self.state.phase, self.state.queue.is_empty()) {
-            (Phase::Passive, true) => self.passivate(),
+            (Phase::Passive, true) => Ok(self.passivate()),
             (Phase::Passive, false) => self.process_next(services),
-            (Phase::Active, _) => self.release_job(services),
+            (Phase::Active, _) => Ok(self.release_job(services)),
         }
     }
 

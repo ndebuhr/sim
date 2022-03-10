@@ -89,11 +89,7 @@ impl ExclusiveGateway {
         }
     }
 
-    fn pass_job(
-        &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
+    fn pass_job(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
         self.state.phase = Phase::Pass;
         self.state.until_next_event = 0.0;
         self.state.jobs.push(incoming_message.content.clone());
@@ -106,7 +102,6 @@ impl ExclusiveGateway {
                 incoming_message.port_name
             ],
         );
-        Ok(())
     }
 
     fn send_jobs(&mut self, services: &mut Services) -> Result<Vec<ModelMessage>, SimulationError> {
@@ -132,10 +127,10 @@ impl ExclusiveGateway {
             .collect())
     }
 
-    fn passivate(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn passivate(&mut self) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
         self.state.until_next_event = INFINITY;
-        Ok(Vec::new())
+        Vec::new()
     }
 
     fn record(&mut self, time: f64, action: String, subject: String) {
@@ -144,7 +139,7 @@ impl ExclusiveGateway {
                 time,
                 action,
                 subject,
-            })
+            });
         }
     }
 }
@@ -156,7 +151,7 @@ impl DevsModel for ExclusiveGateway {
         incoming_message: &ModelMessage,
         services: &mut Services,
     ) -> Result<(), SimulationError> {
-        self.pass_job(incoming_message, services)
+        Ok(self.pass_job(incoming_message, services))
     }
 
     fn events_int(
@@ -164,7 +159,7 @@ impl DevsModel for ExclusiveGateway {
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         match &self.state.phase {
-            Phase::Passive => self.passivate(),
+            Phase::Passive => Ok(self.passivate()),
             Phase::Pass => self.send_jobs(services),
         }
     }

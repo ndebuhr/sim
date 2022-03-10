@@ -100,30 +100,21 @@ impl Storage {
         }
     }
 
-    fn get_job(&mut self) -> Result<(), SimulationError> {
+    fn get_job(&mut self) {
         self.state.phase = Phase::JobFetch;
         self.state.until_next_event = 0.0;
-        Ok(())
     }
 
-    fn hold_job(
-        &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
+    fn hold_job(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
         self.state.job = Some(incoming_message.content.clone());
         self.record(
             services.global_time(),
             String::from("Arrival"),
             incoming_message.content.clone(),
         );
-        Ok(())
     }
 
-    fn release_job(
-        &mut self,
-        services: &mut Services,
-    ) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn release_job(&mut self, services: &mut Services) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
         self.state.until_next_event = INFINITY;
         self.record(
@@ -132,18 +123,18 @@ impl Storage {
             self.state.job.clone().unwrap_or_else(|| "None".to_string()),
         );
         match &self.state.job {
-            Some(job) => Ok(vec![ModelMessage {
+            Some(job) => vec![ModelMessage {
                 port_name: self.ports_out.stored.clone(),
                 content: job.clone(),
-            }]),
-            None => Ok(Vec::new()),
+            }],
+            None => Vec::new(),
         }
     }
 
-    fn passivate(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn passivate(&mut self) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
         self.state.until_next_event = INFINITY;
-        Ok(Vec::new())
+        Vec::new()
     }
 
     fn record(&mut self, time: f64, action: String, subject: String) {
@@ -152,7 +143,7 @@ impl Storage {
                 time,
                 action,
                 subject,
-            })
+            });
         }
     }
 }
@@ -165,8 +156,8 @@ impl DevsModel for Storage {
         services: &mut Services,
     ) -> Result<(), SimulationError> {
         match self.arrival_port(&incoming_message.port_name) {
-            ArrivalPort::Put => self.hold_job(incoming_message, services),
-            ArrivalPort::Get => self.get_job(),
+            ArrivalPort::Put => Ok(self.hold_job(incoming_message, services)),
+            ArrivalPort::Get => Ok(self.get_job()),
             ArrivalPort::Unknown => Err(SimulationError::InvalidMessage),
         }
     }
@@ -176,8 +167,8 @@ impl DevsModel for Storage {
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         match &self.state.phase {
-            Phase::Passive => self.passivate(),
-            Phase::JobFetch => self.release_job(services),
+            Phase::Passive => Ok(self.passivate()),
+            Phase::JobFetch => Ok(self.release_job(services)),
         }
     }
 

@@ -98,6 +98,13 @@ pub struct Job {
     stop: Option<f64>,
 }
 
+fn some_duration(job: &Job) -> Option<(String, f64)> {
+    match (job.start, job.stop) {
+        (Some(start), Some(stop)) => Some((job.name.to_string(), stop - start)),
+        _ => None,
+    }
+}
+
 #[cfg_attr(feature = "simx", event_rules)]
 impl Stopwatch {
     pub fn new(
@@ -153,18 +160,11 @@ impl Stopwatch {
             .unwrap()
     }
 
-    fn some_duration(&self, job: &Job) -> Option<(String, f64)> {
-        match (job.start, job.stop) {
-            (Some(start), Some(stop)) => Some((job.name.to_string(), stop - start)),
-            _ => None,
-        }
-    }
-
     fn minimum_duration_job(&self) -> Option<String> {
         self.state
             .jobs
             .iter()
-            .filter_map(|job| self.some_duration(job))
+            .filter_map(some_duration)
             .fold((None, INFINITY), |minimum, (job_name, job_duration)| {
                 if job_duration < minimum.1 {
                     (Some(job_name), job_duration)
@@ -179,7 +179,7 @@ impl Stopwatch {
         self.state
             .jobs
             .iter()
-            .filter_map(|job| self.some_duration(job))
+            .filter_map(some_duration)
             .fold((None, NEG_INFINITY), |maximum, (job_name, job_duration)| {
                 if job_duration > maximum.1 {
                     (Some(job_name), job_duration)
@@ -190,44 +190,30 @@ impl Stopwatch {
             .0
     }
 
-    fn start_job(
-        &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
+    fn start_job(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
         self.record(
             services.global_time(),
             String::from("Start"),
             incoming_message.content.clone(),
         );
         self.matching_or_new_job(incoming_message).start = Some(services.global_time());
-        Ok(())
     }
 
-    fn stop_job(
-        &mut self,
-        incoming_message: &ModelMessage,
-        services: &mut Services,
-    ) -> Result<(), SimulationError> {
+    fn stop_job(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
         self.record(
             services.global_time(),
             String::from("Stop"),
             incoming_message.content.clone(),
         );
         self.matching_or_new_job(incoming_message).stop = Some(services.global_time());
-        Ok(())
     }
 
-    fn get_job(&mut self) -> Result<(), SimulationError> {
+    fn get_job(&mut self) {
         self.state.phase = Phase::JobFetch;
         self.state.until_next_event = 0.0;
-        Ok(())
     }
 
-    fn release_minimum(
-        &mut self,
-        services: &mut Services,
-    ) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn release_minimum(&mut self, services: &mut Services) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
         self.state.until_next_event = INFINITY;
         self.record(
@@ -236,19 +222,16 @@ impl Stopwatch {
             self.minimum_duration_job()
                 .unwrap_or_else(|| "None".to_string()),
         );
-        Ok(once(self.minimum_duration_job())
+        once(self.minimum_duration_job())
             .flatten()
             .map(|job| ModelMessage {
                 content: job,
                 port_name: self.ports_out.job.clone(),
             })
-            .collect())
+            .collect()
     }
 
-    fn release_maximum(
-        &mut self,
-        services: &mut Services,
-    ) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn release_maximum(&mut self, services: &mut Services) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
         self.state.until_next_event = INFINITY;
         self.record(
@@ -257,19 +240,19 @@ impl Stopwatch {
             self.maximum_duration_job()
                 .unwrap_or_else(|| "None".to_string()),
         );
-        Ok(once(self.maximum_duration_job())
+        once(self.maximum_duration_job())
             .flatten()
             .map(|job| ModelMessage {
                 content: job,
                 port_name: self.ports_out.job.clone(),
             })
-            .collect())
+            .collect()
     }
 
-    fn passivate(&mut self) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn passivate(&mut self) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
         self.state.until_next_event = INFINITY;
-        Ok(Vec::new())
+        Vec::new()
     }
 
     fn record(&mut self, time: f64, action: String, subject: String) {
@@ -278,7 +261,7 @@ impl Stopwatch {
                 time,
                 action,
                 subject,
-            })
+            });
         }
     }
 }
@@ -291,9 +274,9 @@ impl DevsModel for Stopwatch {
         services: &mut Services,
     ) -> Result<(), SimulationError> {
         match self.arrival_port(&incoming_message.port_name) {
-            ArrivalPort::Start => self.start_job(incoming_message, services),
-            ArrivalPort::Stop => self.stop_job(incoming_message, services),
-            ArrivalPort::Metric => self.get_job(),
+            ArrivalPort::Start => Ok(self.start_job(incoming_message, services)),
+            ArrivalPort::Stop => Ok(self.stop_job(incoming_message, services)),
+            ArrivalPort::Metric => Ok(self.get_job()),
             ArrivalPort::Unknown => Err(SimulationError::InvalidMessage),
         }
     }
@@ -303,9 +286,9 @@ impl DevsModel for Stopwatch {
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         match (&self.state.phase, &self.metric) {
-            (Phase::JobFetch, Metric::Minimum) => self.release_minimum(services),
-            (Phase::JobFetch, Metric::Maximum) => self.release_maximum(services),
-            (Phase::Passive, _) => self.passivate(),
+            (Phase::JobFetch, Metric::Minimum) => Ok(self.release_minimum(services)),
+            (Phase::JobFetch, Metric::Maximum) => Ok(self.release_maximum(services)),
+            (Phase::Passive, _) => Ok(self.passivate()),
         }
     }
 
@@ -327,10 +310,7 @@ impl Reportable for Stopwatch {
                 .state
                 .jobs
                 .iter()
-                .filter_map(|job| {
-                    self.some_duration(job)
-                        .map(|duration_record| duration_record.1)
-                })
+                .filter_map(|job| some_duration(job).map(|duration_record| duration_record.1))
                 .collect();
             format![
                 "Average {:.3}",

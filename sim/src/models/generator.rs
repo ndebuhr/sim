@@ -136,7 +136,7 @@ impl Generator {
                 time,
                 action,
                 subject,
-            })
+            });
         }
     }
 }
