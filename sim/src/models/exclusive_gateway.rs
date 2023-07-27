@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
 use super::{ModelMessage, ModelRecord};
+use crate::input_modeling::uniform_rng::DynRng;
 use crate::input_modeling::IndexRandomVariable;
 use crate::simulator::Services;
 use crate::utils::errors::SimulationError;
@@ -28,6 +29,8 @@ pub struct ExclusiveGateway {
     store_records: bool,
     #[serde(default)]
     state: State,
+    #[serde(skip)]
+    rng: Option<DynRng>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,6 +78,7 @@ impl ExclusiveGateway {
         flow_paths_out: Vec<String>,
         port_weights: IndexRandomVariable,
         store_records: bool,
+        rng: Option<DynRng>,
     ) -> Self {
         Self {
             ports_in: PortsIn {
@@ -86,6 +90,7 @@ impl ExclusiveGateway {
             port_weights,
             store_records,
             state: State::default(),
+            rng,
         }
     }
 
@@ -107,7 +112,10 @@ impl ExclusiveGateway {
     fn send_jobs(&mut self, services: &mut Services) -> Result<Vec<ModelMessage>, SimulationError> {
         self.state.phase = Phase::Passive;
         self.state.until_next_event = INFINITY;
-        let departure_port_index = self.port_weights.random_variate(services.uniform_rng())?;
+        let departure_port_index = match &self.rng {
+            Some(rng) => self.port_weights.random_variate(rng.clone())?,
+            None => self.port_weights.random_variate(services.global_rng())?,
+        };
         Ok((0..self.state.jobs.len())
             .map(|_| {
                 self.record(

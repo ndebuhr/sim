@@ -14,10 +14,13 @@
 //! return the messages generated during the execution of the simulation
 //! step(s), for use in message analysis.
 
+use std::cell::RefCell;
 use std::f64::INFINITY;
+use std::rc::Rc;
 
 use serde::{Deserialize, Serialize};
 
+use crate::input_modeling::uniform_rng::SimulationRng;
 use crate::models::{DevsModel, Model, ModelMessage, ModelRecord, Reportable};
 use crate::utils::errors::SimulationError;
 use crate::utils::set_panic_hook;
@@ -51,6 +54,25 @@ impl Simulation {
         Self {
             models,
             connectors,
+            ..Self::default()
+        }
+    }
+
+    /// This constructor method creates a simulation from a supplied
+    /// configuration (models and connectors).
+    pub fn post_with_rng(
+        models: Vec<Model>,
+        connectors: Vec<Connector>,
+        global_rng: impl SimulationRng + 'static,
+    ) -> Self {
+        set_panic_hook();
+        Self {
+            models,
+            connectors,
+            services: Services {
+                global_rng: Rc::new(RefCell::new(global_rng)),
+                global_time: 0.0,
+            },
             ..Self::default()
         }
     }

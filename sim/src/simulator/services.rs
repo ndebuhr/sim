@@ -1,20 +1,29 @@
 use serde::{Deserialize, Serialize};
 
-use crate::input_modeling::UniformRNG;
+use crate::input_modeling::uniform_rng::{default_rng, DynRng};
 
 /// The simulator provides a uniform random number generator and simulation
 /// clock to models during the execution of a simulation
-#[derive(Clone, Default, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Services {
-    #[serde(skip_serializing)]
-    uniform_rng: UniformRNG,
-    global_time: f64,
+    #[serde(skip, default = "default_rng")]
+    pub(crate) global_rng: DynRng,
+    pub(crate) global_time: f64,
+}
+
+impl Default for Services {
+    fn default() -> Self {
+        Self {
+            global_rng: default_rng(),
+            global_time: 0.0,
+        }
+    }
 }
 
 impl Services {
-    pub fn uniform_rng(&mut self) -> &mut UniformRNG {
-        &mut self.uniform_rng
+    pub fn global_rng(&self) -> DynRng {
+        self.global_rng.clone()
     }
 
     pub fn global_time(&self) -> f64 {

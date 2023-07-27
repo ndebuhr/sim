@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
 use super::{ModelMessage, ModelRecord};
+use crate::input_modeling::uniform_rng::DynRng;
 use crate::input_modeling::ContinuousRandomVariable;
 use crate::input_modeling::Thinning;
 use crate::simulator::Services;
@@ -34,6 +35,8 @@ pub struct Generator {
     store_records: bool,
     #[serde(default)]
     state: State,
+    #[serde(skip)]
+    rng: Option<DynRng>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,6 +82,7 @@ impl Generator {
         thinning: Option<Thinning>,
         job_port: String,
         store_records: bool,
+        rng: Option<DynRng>,
     ) -> Self {
         Self {
             message_interdeparture_time,
@@ -87,6 +91,7 @@ impl Generator {
             ports_out: PortsOut { job: job_port },
             store_records,
             state: State::default(),
+            rng,
         }
     }
 
@@ -94,9 +99,14 @@ impl Generator {
         &mut self,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        let interdeparture = self
-            .message_interdeparture_time
-            .random_variate(services.uniform_rng())?;
+        let interdeparture = match &self.rng {
+            Some(rng) => self
+                .message_interdeparture_time
+                .random_variate(rng.clone())?,
+            None => self
+                .message_interdeparture_time
+                .random_variate(services.global_rng())?,
+        };
         self.state.phase = Phase::Generating;
         self.state.until_next_event = interdeparture;
         self.state.until_job = interdeparture;
@@ -116,9 +126,14 @@ impl Generator {
         &mut self,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        let interdeparture = self
-            .message_interdeparture_time
-            .random_variate(services.uniform_rng())?;
+        let interdeparture = match &self.rng {
+            Some(rng) => self
+                .message_interdeparture_time
+                .random_variate(rng.clone())?,
+            None => self
+                .message_interdeparture_time
+                .random_variate(services.global_rng())?,
+        };
         self.state.phase = Phase::Generating;
         self.state.until_next_event = interdeparture;
         self.state.until_job = interdeparture;

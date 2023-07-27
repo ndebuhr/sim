@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
 use super::{ModelMessage, ModelRecord};
+use crate::input_modeling::uniform_rng::DynRng;
 use crate::input_modeling::BooleanRandomVariable;
 use crate::simulator::Services;
 use crate::utils::errors::SimulationError;
@@ -27,6 +28,8 @@ pub struct StochasticGate {
     store_records: bool,
     #[serde(default)]
     state: State,
+    #[serde(skip)]
+    rng: Option<DynRng>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -77,6 +80,7 @@ impl StochasticGate {
         job_in_port: String,
         job_out_port: String,
         store_records: bool,
+        rng: Option<DynRng>,
     ) -> Self {
         Self {
             pass_distribution,
@@ -84,6 +88,7 @@ impl StochasticGate {
             ports_out: PortsOut { job: job_out_port },
             store_records,
             state: State::default(),
+            rng,
         }
     }
 
@@ -103,9 +108,12 @@ impl StochasticGate {
         self.state.until_next_event = 0.0;
         self.state.jobs.push(Job {
             content: incoming_message.content.clone(),
-            pass: self
-                .pass_distribution
-                .random_variate(services.uniform_rng())?,
+            pass: match &self.rng {
+                Some(rng) => self.pass_distribution.random_variate(rng.clone())?,
+                None => self
+                    .pass_distribution
+                    .random_variate(services.global_rng())?,
+            },
         });
         self.record(
             services.global_time(),

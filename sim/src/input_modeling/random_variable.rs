@@ -11,7 +11,7 @@ use rand_distr::{Beta, Exp, Gamma, LogNormal, Normal, Triangular, Uniform, Weibu
 // Discrete distributions
 use rand_distr::{Bernoulli, Geometric, Poisson, WeightedIndex};
 
-use super::UniformRNG;
+use super::uniform_rng::DynRng;
 use crate::utils::errors::SimulationError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,29 +66,24 @@ impl Continuous {
     /// The generation of random variates drives stochastic behaviors during
     /// simulation execution.  This function requires the random number
     /// generator of the simulation, and produces a f64 random variate.
-    pub fn random_variate(&mut self, uniform_rng: &mut UniformRNG) -> Result<f64, SimulationError> {
+    pub fn random_variate(&mut self, uniform_rng: DynRng) -> Result<f64, SimulationError> {
+        let mut rng = (*uniform_rng).borrow_mut();
         match self {
-            Continuous::Beta { alpha, beta } => {
-                Ok(Beta::new(*alpha, *beta)?.sample(uniform_rng.rng()))
-            }
-            Continuous::Exp { lambda } => Ok(Exp::new(*lambda)?.sample(uniform_rng.rng())),
-            Continuous::Gamma { shape, scale } => {
-                Ok(Gamma::new(*shape, *scale)?.sample(uniform_rng.rng()))
-            }
+            Continuous::Beta { alpha, beta } => Ok(Beta::new(*alpha, *beta)?.sample(&mut *rng)),
+            Continuous::Exp { lambda } => Ok(Exp::new(*lambda)?.sample(&mut *rng)),
+            Continuous::Gamma { shape, scale } => Ok(Gamma::new(*shape, *scale)?.sample(&mut *rng)),
             Continuous::LogNormal { mu, sigma } => {
-                Ok(LogNormal::new(*mu, *sigma)?.sample(uniform_rng.rng()))
+                Ok(LogNormal::new(*mu, *sigma)?.sample(&mut *rng))
             }
             Continuous::Normal { mean, std_dev } => {
-                Ok(Normal::new(*mean, *std_dev)?.sample(uniform_rng.rng()))
+                Ok(Normal::new(*mean, *std_dev)?.sample(&mut *rng))
             }
             Continuous::Triangular { min, max, mode } => {
-                Ok(Triangular::new(*min, *max, *mode)?.sample(uniform_rng.rng()))
+                Ok(Triangular::new(*min, *max, *mode)?.sample(&mut *rng))
             }
-            Continuous::Uniform { min, max } => {
-                Ok(Uniform::new(*min, *max).sample(uniform_rng.rng()))
-            }
+            Continuous::Uniform { min, max } => Ok(Uniform::new(*min, *max).sample(&mut *rng)),
             Continuous::Weibull { shape, scale } => {
-                Ok(Weibull::new(*shape, *scale)?.sample(uniform_rng.rng()))
+                Ok(Weibull::new(*shape, *scale)?.sample(&mut *rng))
             }
         }
     }
@@ -98,12 +93,10 @@ impl Boolean {
     /// The generation of random variates drives stochastic behaviors during
     /// simulation execution.  This function requires the random number
     /// generator of the simulation, and produces a boolean random variate.
-    pub fn random_variate(
-        &mut self,
-        uniform_rng: &mut UniformRNG,
-    ) -> Result<bool, SimulationError> {
+    pub fn random_variate(&mut self, uniform_rng: DynRng) -> Result<bool, SimulationError> {
+        let mut rng = (*uniform_rng).borrow_mut();
         match self {
-            Boolean::Bernoulli { p } => Ok(Bernoulli::new(*p)?.sample(uniform_rng.rng())),
+            Boolean::Bernoulli { p } => Ok(Bernoulli::new(*p)?.sample(&mut *rng)),
         }
     }
 }
@@ -112,15 +105,12 @@ impl Discrete {
     /// The generation of random variates drives stochastic behaviors during
     /// simulation execution.  This function requires the random number
     /// generator of the simulation, and produces a u64 random variate.
-    pub fn random_variate(&mut self, uniform_rng: &mut UniformRNG) -> Result<u64, SimulationError> {
+    pub fn random_variate(&mut self, uniform_rng: DynRng) -> Result<u64, SimulationError> {
+        let mut rng = (*uniform_rng).borrow_mut();
         match self {
-            Discrete::Geometric { p } => Ok(Geometric::new(*p)?.sample(uniform_rng.rng())),
-            Discrete::Poisson { lambda } => {
-                Ok(Poisson::new(*lambda)?.sample(uniform_rng.rng()) as u64)
-            }
-            Discrete::Uniform { min, max } => {
-                Ok(Uniform::new(*min, *max).sample(uniform_rng.rng()))
-            }
+            Discrete::Geometric { p } => Ok(Geometric::new(*p)?.sample(&mut *rng)),
+            Discrete::Poisson { lambda } => Ok(Poisson::new(*lambda)?.sample(&mut *rng) as u64),
+            Discrete::Uniform { min, max } => Ok(Uniform::new(*min, *max).sample(&mut *rng)),
         }
     }
 }
@@ -129,14 +119,12 @@ impl Index {
     /// The generation of random variates drives stochastic behaviors during
     /// simulation execution.  This function requires the random number
     /// generator of the simulation, and produces a usize random variate.
-    pub fn random_variate(
-        &mut self,
-        uniform_rng: &mut UniformRNG,
-    ) -> Result<usize, SimulationError> {
+    pub fn random_variate(&mut self, uniform_rng: DynRng) -> Result<usize, SimulationError> {
+        let mut rng = (*uniform_rng).borrow_mut();
         match self {
-            Index::Uniform { min, max } => Ok(Uniform::new(*min, *max).sample(uniform_rng.rng())),
+            Index::Uniform { min, max } => Ok(Uniform::new(*min, *max).sample(&mut *rng)),
             Index::WeightedIndex { weights } => {
-                Ok(WeightedIndex::new(weights.clone())?.sample(uniform_rng.rng()))
+                Ok(WeightedIndex::new(weights.clone())?.sample(&mut *rng))
             }
         }
     }
@@ -144,6 +132,8 @@ impl Index {
 
 #[cfg(test)]
 mod tests {
+    use crate::input_modeling::uniform_rng::default_rng;
+
     use super::*;
 
     enum RandomVariable {
@@ -171,14 +161,14 @@ mod tests {
     }
 
     fn empirical_mean(random_variable: &mut RandomVariable, sample_size: usize) -> f64 {
-        let mut uniform_rng = UniformRNG::default();
+        let uniform_rng = default_rng();
         (0..sample_size)
             .map(|_| match random_variable {
                 RandomVariable::Continuous(variable) => {
-                    variable.random_variate(&mut uniform_rng).unwrap()
+                    variable.random_variate(uniform_rng.clone()).unwrap()
                 }
                 RandomVariable::Discrete(variable) => {
-                    variable.random_variate(&mut uniform_rng).unwrap() as f64
+                    variable.random_variate(uniform_rng.clone()).unwrap() as f64
                 }
             })
             .sum::<f64>()
@@ -187,26 +177,26 @@ mod tests {
 
     fn chi_square(test: &mut ChiSquareTest, expected_counts: &[usize]) -> f64 {
         let mut class_counts = vec![0; expected_counts.len()];
-        let mut uniform_rng = UniformRNG::default();
+        let uniform_rng = default_rng();
         let sample_size = expected_counts.iter().sum();
         (0..sample_size).for_each(|_| {
             let index = match test {
                 ChiSquareTest::Continuous {
                     variable,
                     bin_mapping_fn,
-                } => bin_mapping_fn(variable.random_variate(&mut uniform_rng).unwrap()),
+                } => bin_mapping_fn(variable.random_variate(uniform_rng.clone()).unwrap()),
                 ChiSquareTest::Boolean {
                     variable,
                     bin_mapping_fn,
-                } => bin_mapping_fn(variable.random_variate(&mut uniform_rng).unwrap()),
+                } => bin_mapping_fn(variable.random_variate(uniform_rng.clone()).unwrap()),
                 ChiSquareTest::Discrete {
                     variable,
                     bin_mapping_fn,
-                } => bin_mapping_fn(variable.random_variate(&mut uniform_rng).unwrap()),
+                } => bin_mapping_fn(variable.random_variate(uniform_rng.clone()).unwrap()),
                 ChiSquareTest::Index {
                     variable,
                     bin_mapping_fn,
-                } => bin_mapping_fn(variable.random_variate(&mut uniform_rng).unwrap()),
+                } => bin_mapping_fn(variable.random_variate(uniform_rng.clone()).unwrap()),
             };
             class_counts[index] += 1
         });
