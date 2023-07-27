@@ -13,4 +13,4 @@ pub use random_variable::Continuous as ContinuousRandomVariable;
 pub use random_variable::Discrete as DiscreteRandomVariable;
 pub use random_variable::Index as IndexRandomVariable;
 pub use thinning::Thinning;
-pub use uniform_rng::some_dyn_rng;
+pub use uniform_rng::{dyn_rng, some_dyn_rng};

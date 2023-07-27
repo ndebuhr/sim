@@ -21,6 +21,7 @@ use std::rc::Rc;
 use serde::{Deserialize, Serialize};
 
 use crate::input_modeling::uniform_rng::SimulationRng;
+use crate::input_modeling::{dyn_rng, some_dyn_rng};
 use crate::models::{DevsModel, Model, ModelMessage, ModelRecord, Reportable};
 use crate::utils::errors::SimulationError;
 use crate::utils::set_panic_hook;
@@ -70,11 +71,15 @@ impl Simulation {
             models,
             connectors,
             services: Services {
-                global_rng: Rc::new(RefCell::new(global_rng)),
+                global_rng: dyn_rng(global_rng),
                 global_time: 0.0,
             },
             ..Self::default()
         }
+    }
+
+    pub fn set_rng(&mut self, rng: impl SimulationRng + 'static) {
+        self.services.global_rng = dyn_rng(rng)
     }
 
     /// This method sets the models and connectors of an existing simulation.

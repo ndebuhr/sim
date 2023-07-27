@@ -8,6 +8,10 @@ pub(crate) fn default_rng() -> DynRng {
     Rc::new(RefCell::new(rand_pcg::Pcg64Mcg::new(42)))
 }
 
+pub fn dyn_rng<Rng: SimulationRng + 'static>(rng: Rng) -> DynRng {
+    Rc::new(RefCell::new(rng))
+}
+
 pub fn some_dyn_rng<Rng: SimulationRng + 'static>(rng: Rng) -> Option<DynRng> {
-    Some(Rc::new(RefCell::new(rng)))
+    Some(dyn_rng(rng))
 }
