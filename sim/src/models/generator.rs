@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
 use super::{ModelMessage, ModelRecord};
-use crate::input_modeling::uniform_rng::DynRng;
+use crate::input_modeling::dynamic_rng::DynRng;
 use crate::input_modeling::ContinuousRandomVariable;
 use crate::input_modeling::Thinning;
 use crate::simulator::Services;

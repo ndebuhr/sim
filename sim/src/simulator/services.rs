@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::input_modeling::uniform_rng::{default_rng, DynRng};
+use crate::input_modeling::dynamic_rng::{default_rng, DynRng};
 
 /// The simulator provides a uniform random number generator and simulation
 /// clock to models during the execution of a simulation

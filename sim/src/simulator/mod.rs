@@ -14,14 +14,12 @@
 //! return the messages generated during the execution of the simulation
 //! step(s), for use in message analysis.
 
-use std::cell::RefCell;
 use std::f64::INFINITY;
-use std::rc::Rc;
 
 use serde::{Deserialize, Serialize};
 
-use crate::input_modeling::uniform_rng::SimulationRng;
-use crate::input_modeling::{dyn_rng, some_dyn_rng};
+use crate::input_modeling::dynamic_rng::SimulationRng;
+use crate::input_modeling::dyn_rng;
 use crate::models::{DevsModel, Model, ModelMessage, ModelRecord, Reportable};
 use crate::utils::errors::SimulationError;
 use crate::utils::set_panic_hook;

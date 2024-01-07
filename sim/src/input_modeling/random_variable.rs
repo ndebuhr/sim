@@ -11,7 +11,7 @@ use rand_distr::{Beta, Exp, Gamma, LogNormal, Normal, Triangular, Uniform, Weibu
 // Discrete distributions
 use rand_distr::{Bernoulli, Geometric, Poisson, WeightedIndex};
 
-use super::uniform_rng::DynRng;
+use super::dynamic_rng::DynRng;
 use crate::utils::errors::SimulationError;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -132,7 +132,7 @@ impl Index {
 
 #[cfg(test)]
 mod tests {
-    use crate::input_modeling::uniform_rng::default_rng;
+    use crate::input_modeling::dynamic_rng::default_rng;
 
     use super::*;
 
