@@ -18,6 +18,8 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
+use crate::input_modeling::dynamic_rng::SimulationRng;
+use crate::input_modeling::dyn_rng;
 use crate::models::{DevsModel, Model, ModelMessage, ModelRecord, Reportable};
 use crate::utils::errors::SimulationError;
 use crate::utils::set_panic_hook;
@@ -53,6 +55,29 @@ impl Simulation {
             connectors,
             ..Self::default()
         }
+    }
+
+    /// This constructor method creates a simulation from a supplied
+    /// configuration (models and connectors).
+    pub fn post_with_rng(
+        models: Vec<Model>,
+        connectors: Vec<Connector>,
+        global_rng: impl SimulationRng + 'static,
+    ) -> Self {
+        set_panic_hook();
+        Self {
+            models,
+            connectors,
+            services: Services {
+                global_rng: dyn_rng(global_rng),
+                global_time: 0.0,
+            },
+            ..Self::default()
+        }
+    }
+
+    pub fn set_rng(&mut self, rng: impl SimulationRng + 'static) {
+        self.services.global_rng = dyn_rng(rng)
     }
 
     /// This method sets the models and connectors of an existing simulation.
