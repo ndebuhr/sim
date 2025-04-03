@@ -14,6 +14,8 @@ pub fn evaluate_polynomial(coefficients: &[f64], x: f64) -> Result<f64, Simulati
     let highest_order_polynomial_coeff = coefficients
         .first()
         .ok_or(SimulationError::EmptyPolynomial)?;
+    //Problem.  The comment above describes the coefficient order from highest to zero order.  That
+    // is different that what is specified in the horner fold algorithm.  So need to honor the commented requirement.
     Ok(horner_fold(coefficients, x))
 }
 
