@@ -11,12 +11,12 @@ use errors::SimulationError;
 /// defined as a slice, from the highest polynomial order to the zero order.
 /// Horner's method is used for this polynomial evaluation
 pub fn evaluate_polynomial(coefficients: &[f64], x: f64) -> Result<f64, SimulationError> {
-    let highest_order_polynomial_coeff = coefficients
-        .first()
-        .ok_or(SimulationError::EmptyPolynomial)?;
     //Problem.  The comment above describes the coefficient order from highest to zero order.  That
     // is different that what is specified in the horner fold algorithm.  So need to honor the commented requirement.
-    Ok(horner_fold(coefficients, x))
+    // https://users.rust-lang.org/t/reversing-an-array/44975
+    // hopefully this is a small list of coefficients so a copy is acceptable.
+    let h_coeff: Vec<f64> = coefficients.iter().copied().rev().collect();
+    Ok(horner_fold(&h_coeff, x))
 }
 
 
