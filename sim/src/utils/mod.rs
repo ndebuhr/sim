@@ -14,11 +14,19 @@ pub fn evaluate_polynomial(coefficients: &[f64], x: f64) -> Result<f64, Simulati
     let highest_order_polynomial_coeff = coefficients
         .first()
         .ok_or(SimulationError::EmptyPolynomial)?;
-    Ok(coefficients[0..coefficients.len() - 1]
-        .iter()
-        .fold(*highest_order_polynomial_coeff, |acc, coefficient| {
-            coefficient + x * acc
-        }))
+    Ok(horner_fold(coefficients, x))
+}
+
+
+/// Horner Algorithm for polynomial evaluation
+/// It is expected that the coefficents are ordered from least significant to most significnat.
+/// For example for the polynomial:
+/// 2x^4 -3x^3 + x^2 -2x + 3 the coefficients would be presented as
+/// vec![3.0, -2.0, 1.0, -3.0, 2.0]
+///
+/// https://rosettacode.org/wiki/Horner%27s_rule_for_polynomial_evaluation#Rust
+fn horner_fold(coefficients: &[f64], x: f64) -> f64 {
+    coefficients.iter().rev().fold(0.0, |acc, &a| acc * x + a)
 }
 
 /// When the `console_error_panic_hook` feature is enabled, we can call the
