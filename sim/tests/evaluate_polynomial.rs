@@ -1,11 +1,11 @@
-use serde_json;
 use sim::utils::evaluate_polynomial;
+
 #[test]
 fn test_evaluate_polynomial_base() {
     let coefficients = vec![1.0];
     let x: f64 = 1.0;
     let actual_y = evaluate_polynomial(&coefficients, x).ok().unwrap();
-    let expected_y = (1.0 * x.powf(0.0));
+    let expected_y = 1.0 * x.powf(0.0);
     assert_eq!(actual_y, expected_y);
 }
 
