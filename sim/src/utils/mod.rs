@@ -40,7 +40,6 @@ pub fn evaluate_polynomial(coefficients: &[f64], x: f64) -> Result<f64, Simulati
     Ok(horner_fold(&h_coeff, x))
 }
 
-
 /// Horner Algorithm for polynomial evaluation
 /// It is expected that the coefficients are ordered from least significant to most significant.
 /// For example for the polynomial:

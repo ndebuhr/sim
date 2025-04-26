@@ -18,8 +18,8 @@ use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
-use crate::input_modeling::dynamic_rng::SimulationRng;
 use crate::input_modeling::dyn_rng;
+use crate::input_modeling::dynamic_rng::SimulationRng;
 use crate::models::{DevsModel, Model, ModelMessage, ModelRecord, Reportable};
 use crate::utils::errors::SimulationError;
 use crate::utils::set_panic_hook;
