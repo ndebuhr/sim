@@ -35,6 +35,7 @@ fn generator_event_rules() {
         None,
         String::from("job"),
         false,
+        None,
     );
 
     let generator_event_rules = fs::read_to_string("tests/data/generator_event_rules.json")
@@ -62,6 +63,7 @@ fn coupled_event_rules() {
                         None,
                         String::from("job"),
                         false,
+                        None,
                     )),
                 ),
                 Model::new(
@@ -72,6 +74,7 @@ fn coupled_event_rules() {
                         String::from("job"),
                         String::from("processed"),
                         false,
+                        None,
                     )),
                 ),
             ],
