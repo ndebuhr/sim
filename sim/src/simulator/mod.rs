@@ -14,8 +14,6 @@
 //! return the messages generated during the execution of the simulation
 //! step(s), for use in message analysis.
 
-use std::f64::INFINITY;
-
 use serde::{Deserialize, Serialize};
 
 use crate::input_modeling::dyn_rng;
@@ -226,7 +224,7 @@ impl Simulation {
         // Process internal events and gather associated messages
         let until_next_event: f64;
         if self.messages.is_empty() {
-            until_next_event = self.models().iter().fold(INFINITY, |min, model| {
+            until_next_event = self.models().iter().fold(f64::INFINITY, |min, model| {
                 f64::min(min, model.until_next_event())
             });
         } else {

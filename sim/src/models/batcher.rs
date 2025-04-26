@@ -1,5 +1,3 @@
-use std::f64::INFINITY;
-
 use serde::{Deserialize, Serialize};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
@@ -59,7 +57,7 @@ impl Default for State {
     fn default() -> Self {
         State {
             phase: Phase::Passive,
-            until_next_event: INFINITY,
+            until_next_event: f64::INFINITY,
             jobs: Vec::new(),
             records: Vec::new(),
         }
@@ -126,7 +124,7 @@ impl Batcher {
 
     fn release_full_queue(&mut self, services: &mut Services) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
-        self.state.until_next_event = INFINITY;
+        self.state.until_next_event = f64::INFINITY;
         (0..self.state.jobs.len())
             .map(|_| {
                 self.record(

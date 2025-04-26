@@ -1,5 +1,3 @@
-use std::f64::INFINITY;
-
 use serde::{Deserialize, Serialize};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
@@ -304,9 +302,11 @@ impl DevsModel for Coupled {
     }
 
     fn until_next_event(&self) -> f64 {
-        self.components.iter().fold(INFINITY, |min, component| {
-            f64::min(min, component.until_next_event())
-        })
+        self.components
+            .iter()
+            .fold(f64::INFINITY, |min, component| {
+                f64::min(min, component.until_next_event())
+            })
     }
 }
 

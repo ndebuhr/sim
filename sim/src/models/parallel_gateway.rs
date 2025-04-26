@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 
@@ -57,7 +56,7 @@ struct State {
 impl Default for State {
     fn default() -> Self {
         Self {
-            until_next_event: INFINITY,
+            until_next_event: f64::INFINITY,
             collections: HashMap::new(),
             records: Vec::new(),
         }
@@ -144,7 +143,7 @@ impl ParallelGateway {
     }
 
     fn passivate(&mut self) -> Vec<ModelMessage> {
-        self.state.until_next_event = INFINITY;
+        self.state.until_next_event = f64::INFINITY;
         Vec::new()
     }
 

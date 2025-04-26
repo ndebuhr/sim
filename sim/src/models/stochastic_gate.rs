@@ -1,5 +1,3 @@
-use std::f64::INFINITY;
-
 use serde::{Deserialize, Serialize};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
@@ -59,7 +57,7 @@ struct State {
 impl Default for State {
     fn default() -> Self {
         State {
-            until_next_event: INFINITY,
+            until_next_event: f64::INFINITY,
             jobs: Vec::new(),
             records: Vec::new(),
         }
@@ -124,7 +122,7 @@ impl StochasticGate {
     }
 
     fn passivate(&mut self) -> Vec<ModelMessage> {
-        self.state.until_next_event = INFINITY;
+        self.state.until_next_event = f64::INFINITY;
         Vec::new()
     }
 

@@ -1,5 +1,3 @@
-use std::f64::INFINITY;
-
 use serde::{Deserialize, Serialize};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
@@ -58,7 +56,7 @@ impl Default for State {
     fn default() -> Self {
         State {
             phase: Phase::Passive,
-            until_next_event: INFINITY,
+            until_next_event: f64::INFINITY,
             jobs: Vec::new(),
             records: Vec::new(),
         }
@@ -111,7 +109,7 @@ impl ExclusiveGateway {
 
     fn send_jobs(&mut self, services: &mut Services) -> Result<Vec<ModelMessage>, SimulationError> {
         self.state.phase = Phase::Passive;
-        self.state.until_next_event = INFINITY;
+        self.state.until_next_event = f64::INFINITY;
         let departure_port_index = match &self.rng {
             Some(rng) => self.port_weights.random_variate(rng.clone())?,
             None => self.port_weights.random_variate(services.global_rng())?,
@@ -137,7 +135,7 @@ impl ExclusiveGateway {
 
     fn passivate(&mut self) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
-        self.state.until_next_event = INFINITY;
+        self.state.until_next_event = f64::INFINITY;
         Vec::new()
     }
 
