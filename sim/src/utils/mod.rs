@@ -10,15 +10,62 @@ use errors::SimulationError;
 /// The function evaluates a polynomial at a single value, with coefficients
 /// defined as a slice, from the highest polynomial order to the zero order.
 /// Horner's method is used for this polynomial evaluation
+/// For example for the polynomial:
+///
+/// 2x^4 - 3x^3 + x^2 - 2x + 3
+///
+/// the coefficients would be presented as
+/// ```rust,ignore
+/// vec![2.0, -3.0, 1.0, -2.0, 3.0]
+/// ```
+///
+/// ```
+/// use sim::utils::evaluate_polynomial;
+/// let coefficients = vec![2.0, -3.0, 1.0, -2.0, 3.0];
+/// let x: f64 = 44.0;
+/// let actual_y = evaluate_polynomial(&coefficients, x).ok().unwrap();
+/// let expected_y = (2.0 * x.powf(4.0))
+///     + (-3.0 * x.powf(3.0))
+///     + (1.0 * x.powf(2.0))
+///     + (-2.0 * x.powf(1.0))
+///     + (3.0 * x.powf(0.0));
+/// assert_eq!(actual_y, expected_y);
+/// ```
 pub fn evaluate_polynomial(coefficients: &[f64], x: f64) -> Result<f64, SimulationError> {
-    let highest_order_polynomial_coeff = coefficients
-        .first()
-        .ok_or(SimulationError::EmptyPolynomial)?;
-    Ok(coefficients[0..coefficients.len() - 1]
-        .iter()
-        .fold(*highest_order_polynomial_coeff, |acc, coefficient| {
-            coefficient + x * acc
-        }))
+    //Problem.  The comment above describes the coefficient order from highest to zero order.  That
+    // is different that what is specified in the horner fold algorithm.  So need to honor the commented requirement.
+    // https://users.rust-lang.org/t/reversing-an-array/44975
+    // hopefully this is a small list of coefficients so a copy is acceptable.
+    let h_coeff: Vec<f64> = coefficients.iter().copied().rev().collect();
+    Ok(horner_fold(&h_coeff, x))
+}
+
+/// Horner Algorithm for polynomial evaluation
+/// It is expected that the coefficients are ordered from least significant to most significant.
+/// For example for the polynomial:
+///
+/// 2x^4 -3x^3 + x^2 -2x + 3
+///
+/// the coefficients would be presented as
+///
+/// ```rust,ignore
+/// vec![3.0, -2.0, 1.0, -3.0, 2.0]
+/// ```
+///
+/// ```
+/// use sim::utils::horner_fold;
+/// let coefficients = vec![3.0, -2.0, 1.0, -3.0, 2.0];
+/// let x: f64 = 2.0;
+/// let actual_y = horner_fold(&coefficients, x);
+/// let expected_y = (2.0 * x.powf(4.0))
+///     + (-3.0 * x.powf(3.0))
+///     + (1.0 * x.powf(2.0))
+///     + (-2.0 * x.powf(1.0))
+///     + (3.0 * x.powf(0.0));
+/// assert_eq!(actual_y, expected_y);
+/// ```
+pub fn horner_fold(coefficients: &[f64], x: f64) -> f64 {
+    coefficients.iter().rev().fold(0.0, |acc, &a| acc * x + a)
 }
 
 /// When the `console_error_panic_hook` feature is enabled, we can call the

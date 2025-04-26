@@ -26,6 +26,7 @@ fn poisson_generator_processor_with_capacity() -> Result<(), SimulationError> {
                 None,
                 String::from("job"),
                 false,
+                None,
             )),
         ),
         Model::new(
@@ -36,6 +37,7 @@ fn poisson_generator_processor_with_capacity() -> Result<(), SimulationError> {
                 String::from("job"),
                 String::from("processed"),
                 false,
+                None,
             )),
         ),
         Model::new(
@@ -136,6 +138,7 @@ fn step_until_activities() -> Result<(), SimulationError> {
                 None,
                 String::from("job"),
                 false,
+                None,
             )),
         ),
         Model::new(
@@ -184,6 +187,7 @@ fn non_stationary_generation() -> Result<(), SimulationError> {
                 None,
                 String::from("job"),
                 false,
+                None,
             )),
         ),
         Model::new(
@@ -194,6 +198,7 @@ fn non_stationary_generation() -> Result<(), SimulationError> {
                 String::from("job"),
                 String::from("processed"),
                 false,
+                None,
             )),
         ),
         Model::new(
@@ -259,6 +264,7 @@ fn exclusive_gateway_proportions_chi_square() -> Result<(), SimulationError> {
                 None,
                 String::from("job"),
                 false,
+                None,
             )),
         ),
         Model::new(
@@ -274,6 +280,7 @@ fn exclusive_gateway_proportions_chi_square() -> Result<(), SimulationError> {
                     weights: vec![6, 3, 1],
                 },
                 false,
+                None,
             )),
         ),
         Model::new(
@@ -382,6 +389,7 @@ fn gate_blocking_proportions() -> Result<(), SimulationError> {
                 None,
                 String::from("job"),
                 false,
+                None,
             )),
         ),
         Model::new(
@@ -391,6 +399,7 @@ fn gate_blocking_proportions() -> Result<(), SimulationError> {
                 None,
                 String::from("job"),
                 false,
+                None,
             )),
         ),
         Model::new(
@@ -400,6 +409,7 @@ fn gate_blocking_proportions() -> Result<(), SimulationError> {
                 None,
                 String::from("job"),
                 false,
+                None,
             )),
         ),
         Model::new(
@@ -496,6 +506,7 @@ fn load_balancer_round_robin_outputs() -> Result<(), SimulationError> {
                 None,
                 String::from("job"),
                 false,
+                None,
             )),
         ),
         Model::new(
@@ -676,6 +687,7 @@ fn parallel_gateway_splits_and_joins() -> Result<(), SimulationError> {
                 None,
                 String::from("job"),
                 false,
+                None,
             )),
         ),
         Model::new(
@@ -784,6 +796,7 @@ fn match_status_reporting() -> Result<(), SimulationError> {
                 None,
                 String::from("job"),
                 false,
+                None,
             )),
         ),
         Model::new(
@@ -819,6 +832,7 @@ fn stochastic_gate_blocking() -> Result<(), SimulationError> {
                 None,
                 String::from("job"),
                 false,
+                None,
             )),
         ),
         Model::new(
@@ -828,6 +842,7 @@ fn stochastic_gate_blocking() -> Result<(), SimulationError> {
                 String::from("job"),
                 String::from("job"),
                 false,
+                None,
             )),
         ),
         Model::new(
@@ -887,6 +902,7 @@ fn batch_sizing() -> Result<(), SimulationError> {
                 None,
                 String::from("job"),
                 false,
+                None,
             )),
         ),
         Model::new(
@@ -957,6 +973,7 @@ fn min_and_max_stopwatch() -> Result<(), SimulationError> {
                 None,
                 String::from("job"),
                 false,
+                None,
             )),
         ),
         Model::new(
@@ -967,6 +984,7 @@ fn min_and_max_stopwatch() -> Result<(), SimulationError> {
                 String::from("job"),
                 String::from("processed"),
                 false,
+                None,
             )),
         ),
         Model::new(

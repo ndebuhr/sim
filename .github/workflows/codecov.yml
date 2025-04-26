@@ -17,7 +17,7 @@ jobs:
     - name: Generate Cargo.lock
       working-directory: ./sim
       run: cargo generate-lockfile
-    - uses: actions/cache@v2
+    - uses: actions/cache@v4
       with:
         path: |
           ~/.cargo/registry

@@ -1,9 +1,8 @@
-use std::f64::INFINITY;
-
 use serde::{Deserialize, Serialize};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
 use super::{ModelMessage, ModelRecord};
+use crate::input_modeling::dynamic_rng::DynRng;
 use crate::input_modeling::ContinuousRandomVariable;
 use crate::simulator::Services;
 use crate::utils::errors::SimulationError;
@@ -34,6 +33,8 @@ pub struct Processor {
     store_records: bool,
     #[serde(default)]
     state: State,
+    #[serde(skip)]
+    rng: Option<DynRng>,
 }
 
 fn max_usize() -> usize {
@@ -71,7 +72,7 @@ impl Default for State {
     fn default() -> Self {
         State {
             phase: Phase::Passive,
-            until_next_event: INFINITY,
+            until_next_event: f64::INFINITY,
             queue: Vec::new(),
             records: Vec::new(),
         }
@@ -92,6 +93,7 @@ impl Processor {
         job_port: String,
         processed_job_port: String,
         store_records: bool,
+        rng: Option<DynRng>,
     ) -> Self {
         Self {
             service_time,
@@ -102,6 +104,7 @@ impl Processor {
             },
             store_records,
             state: State::default(),
+            rng,
         }
     }
 
@@ -129,7 +132,10 @@ impl Processor {
     ) -> Result<(), SimulationError> {
         self.state.queue.push(incoming_message.content.clone());
         self.state.phase = Phase::Active;
-        self.state.until_next_event = self.service_time.random_variate(services.uniform_rng())?;
+        self.state.until_next_event = match &self.rng {
+            Some(rng) => self.service_time.random_variate(rng.clone())?,
+            None => self.service_time.random_variate(services.global_rng())?,
+        };
         self.record(
             services.global_time(),
             String::from("Arrival"),
@@ -156,7 +162,10 @@ impl Processor {
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         self.state.phase = Phase::Active;
-        self.state.until_next_event = self.service_time.random_variate(services.uniform_rng())?;
+        self.state.until_next_event = match &self.rng {
+            Some(rng) => self.service_time.random_variate(rng.clone())?,
+            None => self.service_time.random_variate(services.global_rng())?,
+        };
         self.record(
             services.global_time(),
             String::from("Processing Start"),
@@ -182,7 +191,7 @@ impl Processor {
 
     fn passivate(&mut self) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
-        self.state.until_next_event = INFINITY;
+        self.state.until_next_event = f64::INFINITY;
         Vec::new()
     }
 

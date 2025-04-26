@@ -20,6 +20,7 @@ fn closure_under_coupling() -> Result<(), SimulationError> {
                 None,
                 String::from("job"),
                 false,
+                None,
             )),
         ),
         Model::new(
@@ -30,6 +31,7 @@ fn closure_under_coupling() -> Result<(), SimulationError> {
                 String::from("job"),
                 String::from("processed"),
                 false,
+                None,
             )),
         ),
         Model::new(
@@ -72,6 +74,7 @@ fn closure_under_coupling() -> Result<(), SimulationError> {
                             None,
                             String::from("job"),
                             false,
+                            None,
                         )),
                     ),
                     Model::new(
@@ -82,6 +85,7 @@ fn closure_under_coupling() -> Result<(), SimulationError> {
                             String::from("job"),
                             String::from("processed"),
                             false,
+                            None,
                         )),
                     ),
                 ],

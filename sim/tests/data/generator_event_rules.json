@@ -5,7 +5,8 @@
             "message_interdeparture_time",
             "thinning",
             "job_port",
-            "store_records"
+            "store_records",
+            "rng"
         ],
         "event_routine": {
             "state_transitions": [],
