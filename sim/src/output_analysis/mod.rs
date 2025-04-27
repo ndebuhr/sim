@@ -4,8 +4,6 @@
 //! (including those with initialization bias and autocorrelation) can be
 //! analyzed with `TerminatingSimulationOutput` or `SteadyStateOutput`.
 
-use std::f64::INFINITY;
-
 use num_traits::{Float, NumAssign};
 use serde::{Deserialize, Serialize};
 
@@ -236,7 +234,7 @@ where
             if d == 0 {
                 // Find the minimum MSER in the first half of the time series
                 let min_mser = (0..(self.time_series.len() - 1) / 2)
-                    .fold(INFINITY.into(), |min_mser, mser_index| {
+                    .fold(f64::INFINITY.into(), |min_mser, mser_index| {
                         min_mser.min(mser[mser_index])
                     });
                 // Use that point for deletion determination

@@ -7,7 +7,8 @@
 </div>
 
 ![stability-experimental](https://img.shields.io/badge/stability-experimental-bd0058.svg?style=flat-square)
-[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ndebuhr/sim/CI?style=flat-square)](https://github.com/ndebuhr/sim/actions)
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/ndebuhr/sim/ci.yml?style=flat-square)
+](https://github.com/ndebuhr/sim/actions)
 [![Crates.io](https://img.shields.io/crates/v/sim?style=flat-square)](https://crates.io/crates/sim)
 ![Crates.io](https://img.shields.io/crates/d/sim?label=crate%20downloads&style=flat-square)
 [![npm](https://img.shields.io/npm/v/sim-rs?style=flat-square)](https://www.npmjs.com/package/sim-rs)
@@ -46,7 +47,7 @@ For use in Rust code bases, leverage the package as a `cargo` dependency
 
 ```toml
 [dependencies]
-sim = "0.12"
+sim = "0.13"
 ```
 
 For use as a WebAssembly module in a JavaScript/TypeScript code base, leverage the package as a `npm` dependency

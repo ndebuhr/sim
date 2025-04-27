@@ -1,4 +1,3 @@
-use std::f64::{INFINITY, NEG_INFINITY};
 use std::iter::once;
 
 use serde::{Deserialize, Serialize};
@@ -52,16 +51,11 @@ struct PortsOut {
     job: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub enum Metric {
+    #[default]
     Minimum,
     Maximum,
-}
-
-impl Default for Metric {
-    fn default() -> Self {
-        Metric::Minimum
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -77,7 +71,7 @@ impl Default for State {
     fn default() -> Self {
         State {
             phase: Phase::Passive,
-            until_next_event: INFINITY,
+            until_next_event: f64::INFINITY,
             jobs: Vec::new(),
             records: Vec::new(),
         }
@@ -165,13 +159,16 @@ impl Stopwatch {
             .jobs
             .iter()
             .filter_map(some_duration)
-            .fold((None, INFINITY), |minimum, (job_name, job_duration)| {
-                if job_duration < minimum.1 {
-                    (Some(job_name), job_duration)
-                } else {
-                    minimum
-                }
-            })
+            .fold(
+                (None, f64::INFINITY),
+                |minimum, (job_name, job_duration)| {
+                    if job_duration < minimum.1 {
+                        (Some(job_name), job_duration)
+                    } else {
+                        minimum
+                    }
+                },
+            )
             .0
     }
 
@@ -180,13 +177,16 @@ impl Stopwatch {
             .jobs
             .iter()
             .filter_map(some_duration)
-            .fold((None, NEG_INFINITY), |maximum, (job_name, job_duration)| {
-                if job_duration > maximum.1 {
-                    (Some(job_name), job_duration)
-                } else {
-                    maximum
-                }
-            })
+            .fold(
+                (None, f64::NEG_INFINITY),
+                |maximum, (job_name, job_duration)| {
+                    if job_duration > maximum.1 {
+                        (Some(job_name), job_duration)
+                    } else {
+                        maximum
+                    }
+                },
+            )
             .0
     }
 
@@ -215,7 +215,7 @@ impl Stopwatch {
 
     fn release_minimum(&mut self, services: &mut Services) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
-        self.state.until_next_event = INFINITY;
+        self.state.until_next_event = f64::INFINITY;
         self.record(
             services.global_time(),
             String::from("Minimum Fetch"),
@@ -233,7 +233,7 @@ impl Stopwatch {
 
     fn release_maximum(&mut self, services: &mut Services) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
-        self.state.until_next_event = INFINITY;
+        self.state.until_next_event = f64::INFINITY;
         self.record(
             services.global_time(),
             String::from("Maximum Fetch"),
@@ -251,7 +251,7 @@ impl Stopwatch {
 
     fn passivate(&mut self) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
-        self.state.until_next_event = INFINITY;
+        self.state.until_next_event = f64::INFINITY;
         Vec::new()
     }
 

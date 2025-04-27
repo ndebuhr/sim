@@ -14,10 +14,10 @@
 //! return the messages generated during the execution of the simulation
 //! step(s), for use in message analysis.
 
-use std::f64::INFINITY;
-
 use serde::{Deserialize, Serialize};
 
+use crate::input_modeling::dyn_rng;
+use crate::input_modeling::dynamic_rng::SimulationRng;
 use crate::models::{DevsModel, Model, ModelMessage, ModelRecord, Reportable};
 use crate::utils::errors::SimulationError;
 use crate::utils::set_panic_hook;
@@ -53,6 +53,29 @@ impl Simulation {
             connectors,
             ..Self::default()
         }
+    }
+
+    /// This constructor method creates a simulation from a supplied
+    /// configuration (models and connectors).
+    pub fn post_with_rng(
+        models: Vec<Model>,
+        connectors: Vec<Connector>,
+        global_rng: impl SimulationRng + 'static,
+    ) -> Self {
+        set_panic_hook();
+        Self {
+            models,
+            connectors,
+            services: Services {
+                global_rng: dyn_rng(global_rng),
+                global_time: 0.0,
+            },
+            ..Self::default()
+        }
+    }
+
+    pub fn set_rng(&mut self, rng: impl SimulationRng + 'static) {
+        self.services.global_rng = dyn_rng(rng)
     }
 
     /// This method sets the models and connectors of an existing simulation.
@@ -199,14 +222,13 @@ impl Simulation {
             })?;
         }
         // Process internal events and gather associated messages
-        let until_next_event: f64;
-        if self.messages.is_empty() {
-            until_next_event = self.models().iter().fold(INFINITY, |min, model| {
+        let until_next_event: f64 = if self.messages.is_empty() {
+            self.models().iter().fold(f64::INFINITY, |min, model| {
                 f64::min(min, model.until_next_event())
-            });
+            })
         } else {
-            until_next_event = 0.0;
-        }
+            0.0
+        };
         self.models().iter_mut().for_each(|model| {
             model.time_advance(until_next_event);
         });

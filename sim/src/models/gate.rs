@@ -1,5 +1,3 @@
-use std::f64::INFINITY;
-
 use serde::{Deserialize, Serialize};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
@@ -62,7 +60,7 @@ impl Default for State {
     fn default() -> Self {
         Self {
             phase: Phase::Open,
-            until_next_event: INFINITY,
+            until_next_event: f64::INFINITY,
             jobs: Vec::new(),
             records: Vec::new(),
         }
@@ -111,7 +109,7 @@ impl Gate {
 
     fn activate(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
         self.state.phase = Phase::Open;
-        self.state.until_next_event = INFINITY;
+        self.state.until_next_event = f64::INFINITY;
         self.record(
             services.global_time(),
             String::from("Activation"),
@@ -121,7 +119,7 @@ impl Gate {
 
     fn deactivate(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
         self.state.phase = Phase::Closed;
-        self.state.until_next_event = INFINITY;
+        self.state.until_next_event = f64::INFINITY;
         self.record(
             services.global_time(),
             String::from("Deactivation"),
@@ -150,7 +148,7 @@ impl Gate {
 
     fn send_jobs(&mut self, services: &mut Services) -> Vec<ModelMessage> {
         self.state.phase = Phase::Open;
-        self.state.until_next_event = INFINITY;
+        self.state.until_next_event = f64::INFINITY;
         (0..self.state.jobs.len())
             .map(|_| {
                 self.record(

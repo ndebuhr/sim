@@ -95,6 +95,7 @@ fn step_n_with_custom_passive_model() -> Result<(), SimulationError> {
                 None,
                 String::from("job"),
                 false,
+                None,
             )),
         ),
         Model::new(

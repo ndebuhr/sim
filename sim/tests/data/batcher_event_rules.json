@@ -114,7 +114,7 @@
                 ],
                 [
                     "self.state.until_next_event",
-                    "INFINITY"
+                    "f64::INFINITY"
                 ]
             ],
             "scheduling": [

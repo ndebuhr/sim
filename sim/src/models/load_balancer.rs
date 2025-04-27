@@ -1,5 +1,3 @@
-use std::f64::INFINITY;
-
 use serde::{Deserialize, Serialize};
 
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
@@ -50,7 +48,7 @@ impl Default for State {
     fn default() -> Self {
         Self {
             phase: Phase::Passive,
-            until_next_event: INFINITY,
+            until_next_event: f64::INFINITY,
             next_port_out: 0,
             jobs: Vec::new(),
             records: Vec::new(),
@@ -90,7 +88,7 @@ impl LoadBalancer {
 
     fn passivate(&mut self) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
-        self.state.until_next_event = INFINITY;
+        self.state.until_next_event = f64::INFINITY;
         Vec::new()
     }
 
