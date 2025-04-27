@@ -4,7 +4,7 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
 use serde::{Deserialize, Serialize};
-use syn::{parse_macro_input, Expr, FnArg, Ident, ImplItem, ImplItemMethod, ItemImpl, Stmt};
+use syn::{parse_macro_input, Expr, FnArg, Ident, ImplItem, ImplItemFn, ItemImpl, Stmt};
 
 const EVENTS_INT_EXPRESSION: &str = "events_int";
 const EVENTS_EXT_EXPRESSION: &str = "events_ext";
@@ -55,7 +55,7 @@ fn model_implementation(item: &ItemImpl) -> Option<ModelImplementation> {
     }
 }
 
-fn get_method_args(method: &ImplItemMethod) -> Vec<String> {
+fn get_method_args(method: &ImplItemFn) -> Vec<String> {
     method
         .sig
         .inputs
@@ -70,13 +70,13 @@ fn get_method_args(method: &ImplItemMethod) -> Vec<String> {
         .collect()
 }
 
-fn get_state_transitions(method: &ImplItemMethod) -> Vec<(String, String)> {
+fn get_state_transitions(method: &ImplItemFn) -> Vec<(String, String)> {
     method
         .block
         .stmts
         .iter()
         .filter_map(|stmt| match stmt {
-            Stmt::Semi(Expr::Assign(assign), _) => {
+            Stmt::Expr(Expr::Assign(assign), _) => {
                 let assign_left = &assign.left;
                 let assign_right = &assign.right;
                 Some((
@@ -89,9 +89,9 @@ fn get_state_transitions(method: &ImplItemMethod) -> Vec<(String, String)> {
         .collect()
 }
 
-fn get_schedulings(method: &ImplItemMethod) -> Option<Vec<EventEdge>> {
+fn get_schedulings(method: &ImplItemFn) -> Option<Vec<EventEdge>> {
     method.block.stmts.iter().find_map(|stmt| {
-        if let Stmt::Expr(Expr::MethodCall(method_call)) = stmt {
+        if let Stmt::Expr(Expr::MethodCall(method_call), _) = stmt {
             Some(vec![EventEdge {
                 event_expression_target: method_call.method.to_string(),
                 // TODO parameters
@@ -99,7 +99,7 @@ fn get_schedulings(method: &ImplItemMethod) -> Option<Vec<EventEdge>> {
                 condition: None,
                 delay: None,
             }])
-        } else if let Stmt::Expr(Expr::Match(match_)) = stmt {
+        } else if let Stmt::Expr(Expr::Match(match_), _) = stmt {
             Some(
                 match_
                     .arms
@@ -151,7 +151,7 @@ fn add_event_rules_transition_method(mut input: ItemImpl) -> TokenStream {
         .items
         .iter()
         .filter_map(|method| {
-            if let ImplItem::Method(method) = method {
+            if let ImplItem::Fn(method) = method {
                 Some(method)
             } else {
                 None
@@ -205,7 +205,7 @@ fn add_event_rules_scheduling_method(mut input: ItemImpl) -> TokenStream {
         .items
         .iter()
         .filter_map(|method| {
-            if let ImplItem::Method(method) = method {
+            if let ImplItem::Fn(method) = method {
                 if method.sig.ident == events_int_ident {
                     Some((DevsTransitions::Internal, method))
                 } else if method.sig.ident == events_ext_ident {
