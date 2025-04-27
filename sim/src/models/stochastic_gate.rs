@@ -175,7 +175,7 @@ impl DevsModel for StochasticGate {
         &mut self,
         services: &mut Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
-        match self.state.jobs.get(0) {
+        match self.state.jobs.first() {
             None => Ok(self.passivate()),
             Some(Job { pass: true, .. }) => Ok(self.pass_job(services)),
             Some(Job { pass: false, .. }) => Ok(self.block_job(services)),

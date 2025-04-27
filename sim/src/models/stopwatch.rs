@@ -51,16 +51,11 @@ struct PortsOut {
     job: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub enum Metric {
+    #[default]
     Minimum,
     Maximum,
-}
-
-impl Default for Metric {
-    fn default() -> Self {
-        Metric::Minimum
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

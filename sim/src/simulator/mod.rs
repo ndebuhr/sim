@@ -222,14 +222,13 @@ impl Simulation {
             })?;
         }
         // Process internal events and gather associated messages
-        let until_next_event: f64;
-        if self.messages.is_empty() {
-            until_next_event = self.models().iter().fold(f64::INFINITY, |min, model| {
+        let until_next_event: f64 = if self.messages.is_empty() {
+            self.models().iter().fold(f64::INFINITY, |min, model| {
                 f64::min(min, model.until_next_event())
-            });
+            })
         } else {
-            until_next_event = 0.0;
-        }
+            0.0
+        };
         self.models().iter_mut().for_each(|model| {
             model.time_advance(until_next_event);
         });
