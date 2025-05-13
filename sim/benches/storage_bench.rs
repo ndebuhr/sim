@@ -7,8 +7,7 @@ mod test_models {
     use sim::models::{DevsModel, Model, ModelMessage, Storage};
     use sim::simulator::Services;
     use test::Bencher;
-    use js_sys::Math::exp;
-
+    
     fn put_message(content: String) -> ModelMessage{
         ModelMessage {
             port_name: "put".to_string(),
@@ -22,7 +21,7 @@ mod test_models {
         }
     }
 
-    fn get_bench_storage() -> Model {
+    fn get_storage() -> Model {
         Model::new(
             "bench_storage".to_string(),
             Box::new(Storage::new(
@@ -37,7 +36,7 @@ mod test_models {
     #[test]
     ///verify that the storage model stores and retrieves a stored value.
     fn storage_test() {
-        let mut model = get_bench_storage();
+        let mut model = get_storage();
         let expected_message = "value001".to_string();
         let put_message = put_message(expected_message.clone());
         let get_message = get_message();
@@ -59,12 +58,14 @@ mod test_models {
             },
             Err(_) => assert!(int_results.is_err())
         }
+        assert_eq!(services.global_time(), 0f64)
+        
     }
 
 
     #[bench]
     fn storage_bench(b: &mut Bencher) {
-        let mut model = get_bench_storage();
+        let mut model = get_storage();
         
         let put_message = put_message("value001".to_string());
         let get_message = get_message(); 
