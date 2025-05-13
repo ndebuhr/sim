@@ -64,4 +64,21 @@ mod test_loadbalancer {
         }
         assert!(expected_port_set.is_empty(),"Not all the ports expected have been used. in round robin.");
     }
+
+    #[bench]
+    fn loadbalancer_bench(b: &mut Bencher) {
+        let (mut model, mut expected_port_set) = get_loadbalancer();
+
+        let expected_message = "value001".to_string();
+        let job_message = job_message(expected_message.clone());
+        let mut services = Services::default();
+
+        b.iter(|| {
+            for i in 0..expected_port_set.len() {
+                let ext_result = &model.events_ext(&job_message, &mut services);
+                let int_result = model.events_int(&mut services);
+            }
+        });
+    }
+    // test test_loadbalancer::loadbalancer_bench ... bench:         549.13 ns/iter (+/- 6.46)
 }
