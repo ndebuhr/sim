@@ -16,7 +16,7 @@ mod testy {
     use sim::report::Report;
     use sim::simulator::{Connector, Message, Simulation};
     use test::Bencher;
-
+    
     #[bench]
     fn ping_pong_bench(b: &mut Bencher) {
         let bench_iterations = 5;
