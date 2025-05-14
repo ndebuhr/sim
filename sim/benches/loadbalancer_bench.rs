@@ -4,13 +4,11 @@ extern crate test;
 
 #[cfg(test)]
 mod test_loadbalancer {
-    use std::collections::HashMap;
     use test::Bencher;
     use sim::models::{DevsModel, LoadBalancer, Model, ModelMessage};
     use sim::simulator::Services;
     use std::collections::HashSet;
     use std::iter::FromIterator;
-    use log::info;
 
     fn job_message(content: String) -> ModelMessage {
         ModelMessage {
@@ -45,8 +43,6 @@ mod test_loadbalancer {
         let mut services = Services::default();
 
         for i in 0..expected_port_set.len(){
-            info!("Checking for each port in round robin {}", i);
-
             let ext_result = &model.events_ext(&job_message, &mut services);
             assert!(ext_result.is_ok());
             //expect an internal message routed to "A" port
@@ -81,4 +77,5 @@ mod test_loadbalancer {
         });
     }
     // test test_loadbalancer::loadbalancer_bench ... bench:         549.13 ns/iter (+/- 6.46)
+    // test test_loadbalancer::loadbalancer_bench ... bench:         583.14 ns/iter (+/- 5.70)
 }

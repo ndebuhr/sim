@@ -80,5 +80,6 @@ mod test_models {
         });
     }
 // test test_models::storage_bench ... bench:         165.55 ns/iter (+/- 2.20)
-// test test_models::storage_bench ... bench:         165.97 ns/iter (+/- 2.58)      
+// test test_models::storage_bench ... bench:         165.97 ns/iter (+/- 2.58)    
+// test test_models::storage_bench ... bench:         166.18 ns/iter (+/- 3.14)    
 }
