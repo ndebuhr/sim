@@ -72,10 +72,10 @@ mod test_models {
 
         b.iter(|| {
             let mut services = Services::default();
-            let ext_result = model.events_ext(&put_message, &mut services);
-            let int_result = model.events_int(&mut services);
-            let ext_result = model.events_ext(&get_message, &mut services);
-            let int_result = model.events_int(&mut services);
+            let _ = model.events_ext(&put_message, &mut services);
+            let _ = model.events_int(&mut services);
+            let _ = model.events_ext(&get_message, &mut services);
+            let _ = model.events_int(&mut services);
             
         });
     }

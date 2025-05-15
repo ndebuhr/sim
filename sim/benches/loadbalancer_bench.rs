@@ -42,7 +42,7 @@ mod test_loadbalancer {
         let job_message = job_message(expected_message.clone());
         let mut services = Services::default();
 
-        for i in 0..expected_port_set.len(){
+        for _ in 0..expected_port_set.len(){
             let ext_result = &model.events_ext(&job_message, &mut services);
             assert!(ext_result.is_ok());
             //expect an internal message routed to "A" port
@@ -63,16 +63,16 @@ mod test_loadbalancer {
 
     #[bench]
     fn loadbalancer_bench(b: &mut Bencher) {
-        let (mut model, mut expected_port_set) = get_loadbalancer();
+        let (mut model, expected_port_set) = get_loadbalancer();
 
         let expected_message = "value001".to_string();
         let job_message = job_message(expected_message.clone());
         let mut services = Services::default();
 
         b.iter(|| {
-            for i in 0..expected_port_set.len() {
-                let ext_result = &model.events_ext(&job_message, &mut services);
-                let int_result = model.events_int(&mut services);
+            for _ in 0..expected_port_set.len() {
+                let _ = &model.events_ext(&job_message, &mut services);
+                let _ = model.events_int(&mut services);
             }
         });
     }
