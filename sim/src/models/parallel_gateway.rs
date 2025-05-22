@@ -97,6 +97,7 @@ impl ParallelGateway {
             .find(|(_, count)| **count == self.ports_in.flow_paths.len())
     }
 
+    /// ModelMessages are stored by content in a bag.
     fn increment_collection(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
         *self
             .state
