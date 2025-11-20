@@ -149,6 +149,20 @@ impl Simulation {
         self.models.iter_mut().collect()
     }
 
+    /// Provide immutable reference to models for analysis.  Can't change.  Just look.
+    pub fn get_models(&self) -> &[Model] {
+        &self.models
+    }
+
+    /// find a specific model by id.
+    pub fn get_model(&self, model_id: &str) -> Option<&Model> {
+        self.models.iter().find(|model| model.id() == model_id)
+    }
+
+    pub fn get_connectors(&self) -> &[Connector] {
+        &self.connectors
+    }
+    
     /// This method constructs a list of target IDs for a given source model
     /// ID and port.  This message target information is derived from the
     /// connectors configuration.

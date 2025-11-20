@@ -33,6 +33,10 @@ impl Connector {
         }
     }
 
+    pub fn id(&self) -> &str {
+	&self.id
+    }
+    
     /// This accessor method returns the model ID of the connector source model.
     pub fn source_id(&self) -> &str {
         &self.source_id

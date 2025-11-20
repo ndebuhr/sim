@@ -95,3 +95,6 @@ pub enum SimulationError {
     #[error(transparent)]
     WeightedError(#[from] rand_distr::WeightedError),
 }
+
+// Define a generic alias for a `Result` with the error type `SimulationError`.
+pub type SimulationResult<T> = Result<T, SimulationError>;
