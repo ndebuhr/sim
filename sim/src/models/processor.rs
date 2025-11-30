@@ -11,6 +11,7 @@ use sim_derive::SerializableModel;
 
 #[cfg(feature = "simx")]
 use simx::event_rules;
+use crate::simulator::time::{SDuration, STime};
 
 /// The processor accepts jobs, processes them for a period of time, and then
 /// outputs a processed job. The processor can have a configurable queue, of
@@ -63,7 +64,7 @@ struct PortsOut {
 #[serde(rename_all = "camelCase")]
 struct State {
     phase: Phase,
-    until_next_event: f64,
+    until_next_event: SDuration,
     queue: Vec<String>,
     records: Vec<ModelRecord>,
 }
@@ -72,7 +73,7 @@ impl Default for State {
     fn default() -> Self {
         State {
             phase: Phase::Passive,
-            until_next_event: f64::INFINITY,
+            until_next_event: SDuration::INFINITY,
             queue: Vec::new(),
             records: Vec::new(),
         }
@@ -116,7 +117,7 @@ impl Processor {
         }
     }
 
-    fn add_job(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
+    fn add_job(&mut self, incoming_message: &ModelMessage, services: &Services) {
         self.state.queue.push(incoming_message.content.clone());
         self.record(
             services.global_time(),
@@ -128,14 +129,14 @@ impl Processor {
     fn activate(
         &mut self,
         incoming_message: &ModelMessage,
-        services: &mut Services,
+        services: &Services,
     ) -> Result<(), SimulationError> {
         self.state.queue.push(incoming_message.content.clone());
         self.state.phase = Phase::Active;
-        self.state.until_next_event = match &self.rng {
+        self.state.until_next_event = SDuration::new(match &self.rng {
             Some(rng) => self.service_time.random_variate(rng.clone())?,
             None => self.service_time.random_variate(services.global_rng())?,
-        };
+        });
         self.record(
             services.global_time(),
             String::from("Arrival"),
@@ -149,7 +150,7 @@ impl Processor {
         Ok(())
     }
 
-    fn ignore_job(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
+    fn ignore_job(&mut self, incoming_message: &ModelMessage, services: &Services) {
         self.record(
             services.global_time(),
             String::from("Drop"),
@@ -159,13 +160,13 @@ impl Processor {
 
     fn process_next(
         &mut self,
-        services: &mut Services,
+        services: &Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         self.state.phase = Phase::Active;
-        self.state.until_next_event = match &self.rng {
+        self.state.until_next_event = SDuration::new(match &self.rng {
             Some(rng) => self.service_time.random_variate(rng.clone())?,
             None => self.service_time.random_variate(services.global_rng())?,
-        };
+        });
         self.record(
             services.global_time(),
             String::from("Processing Start"),
@@ -174,10 +175,10 @@ impl Processor {
         Ok(Vec::new())
     }
 
-    fn release_job(&mut self, services: &mut Services) -> Vec<ModelMessage> {
+    fn release_job(&mut self, services: &Services) -> Vec<ModelMessage> {
         let job = self.state.queue.remove(0);
         self.state.phase = Phase::Passive;
-        self.state.until_next_event = 0.0;
+        self.state.until_next_event = SDuration::NOW;
         self.record(
             services.global_time(),
             String::from("Departure"),
@@ -191,11 +192,11 @@ impl Processor {
 
     fn passivate(&mut self) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
-        self.state.until_next_event = f64::INFINITY;
+        self.state.until_next_event = SDuration::INFINITY;
         Vec::new()
     }
 
-    fn record(&mut self, time: f64, action: String, subject: String) {
+    fn record(&mut self, time: STime, action: String, subject: String) {
         if self.store_records {
             self.state.records.push(ModelRecord {
                 time,
@@ -211,7 +212,7 @@ impl DevsModel for Processor {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
-        services: &mut Services,
+        services: &Services,
     ) -> Result<(), SimulationError> {
         match (
             self.arrival_port(&incoming_message.port_name),
@@ -228,7 +229,7 @@ impl DevsModel for Processor {
 
     fn events_int(
         &mut self,
-        services: &mut Services,
+        services: &Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         match (&self.state.phase, self.state.queue.is_empty()) {
             (Phase::Passive, true) => Ok(self.passivate()),
@@ -237,11 +238,11 @@ impl DevsModel for Processor {
         }
     }
 
-    fn time_advance(&mut self, time_delta: f64) {
+    fn time_advance(&mut self, time_delta: SDuration) {
         self.state.until_next_event -= time_delta;
     }
 
-    fn until_next_event(&self) -> f64 {
+    fn until_next_event(&self) -> SDuration {
         self.state.until_next_event
     }
 }

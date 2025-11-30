@@ -4,6 +4,7 @@
 //! `Model` trait.
 
 use serde::{Deserialize, Serialize};
+use crate::simulator::time::STime;
 
 pub mod batcher;
 pub mod coupled;
@@ -44,9 +45,18 @@ pub struct ModelMessage {
     pub content: String,
 }
 
+impl ModelMessage {
+    pub fn new(port: &str, content: &str) -> Self {
+        ModelMessage {
+            port_name: port.to_string(),
+            content: content.to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelRecord {
-    pub time: f64,
+    pub time: STime,
     pub action: String,
     pub subject: String,
 }

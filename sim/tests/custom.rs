@@ -1,4 +1,3 @@
-use std::f64::INFINITY;
 
 use serde::{Deserialize, Serialize};
 use sim::input_modeling::ContinuousRandomVariable;
@@ -8,7 +7,7 @@ use sim::simulator::{Connector, Message, Services, Simulation, WebSimulation};
 use sim::utils::errors::SimulationError;
 use sim_derive::{register, SerializableModel};
 use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
-
+use sim::simulator::time::SDuration;
 #[cfg(feature = "simx")]
 use simx::event_rules;
 
@@ -50,26 +49,26 @@ impl DevsModel for Passive {
     fn events_ext(
         &mut self,
         _incoming_message: &ModelMessage,
-        _services: &mut Services,
+        _services: &Services,
     ) -> Result<(), SimulationError> {
         Ok(())
     }
 
     fn events_int(
         &mut self,
-        _services: &mut Services,
+        _services: &Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         Ok(Vec::new())
     }
 
-    fn time_advance(&mut self, _time_delta: f64) {
+    fn time_advance(&mut self, _time_delta: SDuration) {
         // No future events list to advance
     }
 
-    fn until_next_event(&self) -> f64 {
+    fn until_next_event(&self) -> SDuration {
         // No future events list, as a source of finite until_next_event
         // values
-        INFINITY
+        SDuration::INFINITY
     }
 }
 

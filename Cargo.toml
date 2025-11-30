@@ -4,3 +4,8 @@ members = [
     "sim_derive",
     "simx",
 ]
+
+
+[profile.release]
+# Tell `rustc` to optimize for small code size.
+opt-level = "s"

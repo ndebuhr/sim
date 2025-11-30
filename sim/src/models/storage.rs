@@ -9,6 +9,7 @@ use sim_derive::SerializableModel;
 
 #[cfg(feature = "simx")]
 use simx::event_rules;
+use crate::simulator::time::{SDuration, STime};
 
 /// The storage model stores a value, and responds with it upon request.
 /// Values are stored and value requests are handled instantantaneously.
@@ -45,7 +46,7 @@ struct PortsOut {
 #[serde(rename_all = "camelCase")]
 struct State {
     phase: Phase,
-    until_next_event: f64,
+    until_next_event: SDuration,
     job: Option<String>,
     records: Vec<ModelRecord>,
 }
@@ -54,7 +55,7 @@ impl Default for State {
     fn default() -> Self {
         State {
             phase: Phase::Passive,
-            until_next_event: f64::INFINITY,
+            until_next_event: SDuration::INFINITY,
             job: None,
             records: Vec::new(),
         }
@@ -100,10 +101,10 @@ impl Storage {
 
     fn get_job(&mut self) {
         self.state.phase = Phase::JobFetch;
-        self.state.until_next_event = 0.0;
+        self.state.until_next_event = SDuration::NOW;
     }
 
-    fn hold_job(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
+    fn hold_job(&mut self, incoming_message: &ModelMessage, services: &Services) {
         self.state.job = Some(incoming_message.content.clone());
         self.record(
             services.global_time(),
@@ -112,9 +113,9 @@ impl Storage {
         );
     }
 
-    fn release_job(&mut self, services: &mut Services) -> Vec<ModelMessage> {
+    fn release_job(&mut self, services: &Services) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
-        self.state.until_next_event = f64::INFINITY;
+        self.state.until_next_event = SDuration::INFINITY;
         self.record(
             services.global_time(),
             String::from("Departure"),
@@ -131,11 +132,11 @@ impl Storage {
 
     fn passivate(&mut self) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
-        self.state.until_next_event = f64::INFINITY;
+        self.state.until_next_event = SDuration::INFINITY;
         Vec::new()
     }
 
-    fn record(&mut self, time: f64, action: String, subject: String) {
+    fn record(&mut self, time: STime, action: String, subject: String) {
         if self.store_records {
             self.state.records.push(ModelRecord {
                 time,
@@ -151,7 +152,7 @@ impl DevsModel for Storage {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
-        services: &mut Services,
+        services: &Services,
     ) -> Result<(), SimulationError> {
         match self.arrival_port(&incoming_message.port_name) {
             ArrivalPort::Put => Ok(self.hold_job(incoming_message, services)),
@@ -162,7 +163,7 @@ impl DevsModel for Storage {
 
     fn events_int(
         &mut self,
-        services: &mut Services,
+        services: &Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         match &self.state.phase {
             Phase::Passive => Ok(self.passivate()),
@@ -170,11 +171,11 @@ impl DevsModel for Storage {
         }
     }
 
-    fn time_advance(&mut self, time_delta: f64) {
+    fn time_advance(&mut self, time_delta: SDuration) {
         self.state.until_next_event -= time_delta;
     }
 
-    fn until_next_event(&self) -> f64 {
+    fn until_next_event(&self) -> SDuration {
         self.state.until_next_event
     }
 }

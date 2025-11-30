@@ -9,6 +9,7 @@ use sim_derive::SerializableModel;
 
 #[cfg(feature = "simx")]
 use simx::event_rules;
+use crate::simulator::time::{SDuration, STime};
 
 /// The batching process begins when the batcher receives a job.  It will
 /// then accept additional jobs, adding them to a batch with the first job,
@@ -24,7 +25,7 @@ use simx::event_rules;
 pub struct Batcher {
     ports_in: PortsIn,
     ports_out: PortsOut,
-    max_batch_time: f64,
+    max_batch_time: SDuration,
     max_batch_size: usize,
     #[serde(default)]
     store_records: bool,
@@ -48,7 +49,7 @@ struct PortsOut {
 #[serde(rename_all = "camelCase")]
 struct State {
     phase: Phase,
-    until_next_event: f64,
+    until_next_event: SDuration,
     jobs: Vec<String>,
     records: Vec<ModelRecord>,
 }
@@ -57,7 +58,7 @@ impl Default for State {
     fn default() -> Self {
         State {
             phase: Phase::Passive,
-            until_next_event: f64::INFINITY,
+            until_next_event: SDuration::INFINITY,
             jobs: Vec::new(),
             records: Vec::new(),
         }
@@ -76,7 +77,7 @@ impl Batcher {
     pub fn new(
         job_in_port: String,
         job_out_port: String,
-        max_batch_time: f64,
+        max_batch_time: SDuration,
         max_batch_size: usize,
         store_records: bool,
     ) -> Self {
@@ -90,7 +91,7 @@ impl Batcher {
         }
     }
 
-    fn add_to_batch(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
+    fn add_to_batch(&mut self, incoming_message: &ModelMessage, services: &Services) {
         self.state.phase = Phase::Batching;
         self.state.jobs.push(incoming_message.content.clone());
         self.record(
@@ -100,7 +101,7 @@ impl Batcher {
         );
     }
 
-    fn start_batch(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
+    fn start_batch(&mut self, incoming_message: &ModelMessage, services: & Services) {
         self.state.phase = Phase::Batching;
         self.state.until_next_event = self.max_batch_time;
         self.state.jobs.push(incoming_message.content.clone());
@@ -111,9 +112,9 @@ impl Batcher {
         );
     }
 
-    fn fill_batch(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
+    fn fill_batch(&mut self, incoming_message: &ModelMessage, services: & Services) {
         self.state.phase = Phase::Release;
-        self.state.until_next_event = 0.0;
+        self.state.until_next_event = SDuration::NOW;
         self.state.jobs.push(incoming_message.content.clone());
         self.record(
             services.global_time(),
@@ -122,9 +123,9 @@ impl Batcher {
         );
     }
 
-    fn release_full_queue(&mut self, services: &mut Services) -> Vec<ModelMessage> {
+    fn release_full_queue(&mut self, services: &Services) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
-        self.state.until_next_event = f64::INFINITY;
+        self.state.until_next_event = SDuration::INFINITY;
         (0..self.state.jobs.len())
             .map(|_| {
                 self.record(
@@ -140,7 +141,7 @@ impl Batcher {
             .collect()
     }
 
-    fn release_partial_queue(&mut self, services: &mut Services) -> Vec<ModelMessage> {
+    fn release_partial_queue(&mut self, services: &Services) -> Vec<ModelMessage> {
         self.state.phase = Phase::Batching;
         self.state.until_next_event = self.max_batch_time;
         (0..self.max_batch_size)
@@ -158,9 +159,9 @@ impl Batcher {
             .collect()
     }
 
-    fn release_multiple(&mut self, services: &mut Services) -> Vec<ModelMessage> {
+    fn release_multiple(&mut self, services: &Services) -> Vec<ModelMessage> {
         self.state.phase = Phase::Release;
-        self.state.until_next_event = 0.0;
+        self.state.until_next_event = SDuration::NOW;
         (0..self.max_batch_size)
             .map(|_| {
                 self.record(
@@ -176,7 +177,7 @@ impl Batcher {
             .collect()
     }
 
-    fn record(&mut self, time: f64, action: String, subject: String) {
+    fn record(&mut self, time: STime, action: String, subject: String) {
         if self.store_records {
             self.state.records.push(ModelRecord {
                 time,
@@ -187,12 +188,13 @@ impl Batcher {
     }
 }
 
+
 #[cfg_attr(feature = "simx", event_rules)]
 impl DevsModel for Batcher {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
-        services: &mut Services,
+        services: &Services,
     ) -> Result<(), SimulationError> {
         match (
             &self.state.phase,
@@ -207,7 +209,7 @@ impl DevsModel for Batcher {
 
     fn events_int(
         &mut self,
-        services: &mut Services,
+        services: &Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         match (
             self.state.jobs.len() <= self.max_batch_size,
@@ -220,11 +222,11 @@ impl DevsModel for Batcher {
         }
     }
 
-    fn time_advance(&mut self, time_delta: f64) {
+    fn time_advance(&mut self, time_delta: SDuration) {
         self.state.until_next_event -= time_delta;
     }
 
-    fn until_next_event(&self) -> f64 {
+    fn until_next_event(&self) -> SDuration {
         self.state.until_next_event
     }
 }

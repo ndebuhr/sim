@@ -11,6 +11,7 @@ use sim_derive::SerializableModel;
 
 #[cfg(feature = "simx")]
 use simx::event_rules;
+use crate::simulator::time::{SDuration, STime};
 
 /// The stochastic gate blocks (drops) or passes jobs, based on a specified
 /// Bernoulli distribution. If the Bernoulli random variate is a 0, the job
@@ -49,7 +50,7 @@ struct PortsOut {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct State {
-    until_next_event: f64,
+    until_next_event: SDuration,
     jobs: Vec<Job>,
     records: Vec<ModelRecord>,
 }
@@ -57,7 +58,7 @@ struct State {
 impl Default for State {
     fn default() -> Self {
         State {
-            until_next_event: f64::INFINITY,
+            until_next_event: SDuration::INFINITY,
             jobs: Vec::new(),
             records: Vec::new(),
         }
@@ -101,9 +102,9 @@ impl StochasticGate {
     fn receive_job(
         &mut self,
         incoming_message: &ModelMessage,
-        services: &mut Services,
+        services: &Services,
     ) -> Result<(), SimulationError> {
-        self.state.until_next_event = 0.0;
+        self.state.until_next_event = SDuration::NOW;
         self.state.jobs.push(Job {
             content: incoming_message.content.clone(),
             pass: match &self.rng {
@@ -122,12 +123,12 @@ impl StochasticGate {
     }
 
     fn passivate(&mut self) -> Vec<ModelMessage> {
-        self.state.until_next_event = f64::INFINITY;
+        self.state.until_next_event = SDuration::INFINITY;
         Vec::new()
     }
 
-    fn pass_job(&mut self, services: &mut Services) -> Vec<ModelMessage> {
-        self.state.until_next_event = 0.0;
+    fn pass_job(&mut self, services: &Services) -> Vec<ModelMessage> {
+        self.state.until_next_event = SDuration::NOW;
         let job = self.state.jobs.remove(0);
         self.record(
             services.global_time(),
@@ -140,14 +141,14 @@ impl StochasticGate {
         }]
     }
 
-    fn block_job(&mut self, services: &mut Services) -> Vec<ModelMessage> {
-        self.state.until_next_event = 0.0;
+    fn block_job(&mut self, services: &Services) -> Vec<ModelMessage> {
+        self.state.until_next_event = SDuration::NOW;
         let job = self.state.jobs.remove(0);
         self.record(services.global_time(), String::from("Block"), job.content);
         Vec::new()
     }
 
-    fn record(&mut self, time: f64, action: String, subject: String) {
+    fn record(&mut self, time: STime, action: String, subject: String) {
         if self.store_records {
             self.state.records.push(ModelRecord {
                 time,
@@ -163,7 +164,7 @@ impl DevsModel for StochasticGate {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
-        services: &mut Services,
+        services: &Services,
     ) -> Result<(), SimulationError> {
         match self.arrival_port(&incoming_message.port_name) {
             ArrivalPort::Job => self.receive_job(incoming_message, services),
@@ -173,7 +174,7 @@ impl DevsModel for StochasticGate {
 
     fn events_int(
         &mut self,
-        services: &mut Services,
+        services: &Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         match self.state.jobs.first() {
             None => Ok(self.passivate()),
@@ -182,11 +183,11 @@ impl DevsModel for StochasticGate {
         }
     }
 
-    fn time_advance(&mut self, time_delta: f64) {
+    fn time_advance(&mut self, time_delta: SDuration) {
         self.state.until_next_event -= time_delta;
     }
 
-    fn until_next_event(&self) -> f64 {
+    fn until_next_event(&self) -> SDuration {
         self.state.until_next_event
     }
 }

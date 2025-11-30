@@ -6,6 +6,7 @@ use sim::models::{
 };
 use sim::output_analysis::{IndependentSample, SteadyStateOutput};
 use sim::simulator::{Connector, Message, Simulation};
+use sim::simulator::time::{SDuration, STime};
 use sim::utils::errors::SimulationError;
 
 fn epsilon() -> f64 {
@@ -72,12 +73,12 @@ fn poisson_generator_processor_with_capacity() -> Result<(), SimulationError> {
     let mut simulation = Simulation::post(models.to_vec(), connectors.to_vec());
     // Sample size will be reduced during output analysis - initialization bias reduction through deletion
     let message_records: Vec<Message> = simulation.step_n(3000)?;
-    let departures: Vec<(&f64, &str)> = message_records
+    let departures: Vec<(&STime, &str)> = message_records
         .iter()
         .filter(|message_record| message_record.target_id() == "storage-01")
         .map(|message_record| (message_record.time(), message_record.content()))
         .collect();
-    let arrivals: Vec<(&f64, &str)> = message_records
+    let arrivals: Vec<(&STime, &str)> = message_records
         .iter()
         .filter(|message_record| message_record.target_id() == "processor-01")
         .map(|message_record| (message_record.time(), message_record.content()))
@@ -86,14 +87,14 @@ fn poisson_generator_processor_with_capacity() -> Result<(), SimulationError> {
     let response_times: Vec<f64> = departures
         .iter()
         .map(|departure| -> Result<f64, SimulationError> {
-            Ok(departure.0
+            Ok(departure.0.0
                 - arrivals
                     .iter()
                     .find(|arrival| {
                         get_message_number(&arrival.1) == get_message_number(&departure.1)
                     })
                     .ok_or(SimulationError::DroppedMessageError)?
-                    .0)
+                    .0.0)
         })
         .collect::<Result<Vec<f64>, SimulationError>>()?;
     // Response times are not independent
@@ -165,7 +166,7 @@ fn step_until_activities() -> Result<(), SimulationError> {
         // Refresh the models, but maintain the Uniform RNG for replication independence
         simulation.reset();
         simulation.put(models.to_vec(), connectors.to_vec());
-        let messages = simulation.step_until(100.0)?;
+        let messages = simulation.step_until(STime::new(100.0))?;
         generations_count.push(messages.len() as f64);
     }
     let generations_per_replication = IndependentSample::post(generations_count)?;
@@ -235,7 +236,7 @@ fn non_stationary_generation() -> Result<(), SimulationError> {
         // Refresh the models, but maintain the Uniform RNG for replication independence
         simulation.reset();
         simulation.put(models.to_vec(), connectors.to_vec());
-        let messages = simulation.step_until(480.0)?;
+        let messages = simulation.step_until(STime::new(480.0))?;
         let arrivals: Vec<&Message> = messages
             .iter()
             .filter(|message| message.target_id() == "processor-01")
@@ -910,7 +911,7 @@ fn batch_sizing() -> Result<(), SimulationError> {
             Box::new(Batcher::new(
                 String::from("job"),
                 String::from("job"),
-                10.0, // 10 seconds max batching time
+                SDuration::new(10.0), // 10 seconds max batching time
                 10,   // 10 jobs max batch size
                 false,
             )),

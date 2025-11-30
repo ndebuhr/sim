@@ -4,6 +4,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableModel};
 use super::{ModelMessage, ModelRecord};
 use crate::simulator::Services;
+use crate::simulator::time::SDuration;
 use crate::utils::errors::SimulationError;
 
 /// `Model` wraps `model_type` and provides common ID functionality (a struct
@@ -55,23 +56,23 @@ impl DevsModel for Model {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
-        services: &mut Services,
+        services: &Services,
     ) -> Result<(), SimulationError> {
         self.inner.events_ext(incoming_message, services)
     }
 
     fn events_int(
         &mut self,
-        services: &mut Services,
+        services: &Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         self.inner.events_int(services)
     }
 
-    fn time_advance(&mut self, time_delta: f64) {
+    fn time_advance(&mut self, time_delta: SDuration) {
         self.inner.time_advance(time_delta);
     }
 
-    fn until_next_event(&self) -> f64 {
+    fn until_next_event(&self) -> SDuration {
         self.inner.until_next_event()
     }
 

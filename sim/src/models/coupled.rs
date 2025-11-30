@@ -4,12 +4,14 @@ use super::model_trait::{DevsModel, Reportable, ReportableModel, SerializableMod
 use super::{Model, ModelMessage, ModelRecord};
 
 use crate::simulator::Services;
+
 use crate::utils::errors::SimulationError;
 
 use sim_derive::SerializableModel;
 
 #[cfg(feature = "simx")]
 use simx::event_rules;
+use crate::simulator::time::SDuration;
 
 #[derive(Clone, Deserialize, Serialize, SerializableModel)]
 #[serde(rename_all = "camelCase")]
@@ -168,7 +170,7 @@ impl Coupled {
     fn distribute_events_ext(
         &mut self,
         parked_messages: &[ParkedMessage],
-        services: &mut Services,
+        services: &Services,
     ) -> Result<(), SimulationError> {
         parked_messages.iter().try_for_each(|parked_message| {
             self.components
@@ -187,7 +189,7 @@ impl Coupled {
 
     fn distribute_events_int(
         &mut self,
-        services: &mut Services,
+        services: &Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         // Find the (internal message) events_ext relevant models (parked message id == component id)
         let ext_transitioning_component_triggers: Vec<(usize, String, String)> = (0..self
@@ -230,7 +232,7 @@ impl Coupled {
         // Run events_int for each model, and compile the internal and external messages
         // Store the internal messages in the Coupled model struct, and output the external messages
         let int_transitioning_component_indexes: Vec<usize> = (0..self.components.len())
-            .filter(|component_index| self.components[*component_index].until_next_event() == 0.0)
+            .filter(|component_index| self.components[*component_index].until_next_event() == SDuration::NOW)
             .collect();
         Ok(int_transitioning_component_indexes
             .iter()
@@ -280,7 +282,7 @@ impl DevsModel for Coupled {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
-        services: &mut Services,
+        services: &Services,
     ) -> Result<(), SimulationError> {
         match self.park_incoming_messages(incoming_message) {
             None => Ok(()),
@@ -290,22 +292,22 @@ impl DevsModel for Coupled {
 
     fn events_int(
         &mut self,
-        services: &mut Services,
+        services: &Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         self.distribute_events_int(services)
     }
 
-    fn time_advance(&mut self, time_delta: f64) {
+    fn time_advance(&mut self, time_delta: SDuration) {
         self.components.iter_mut().for_each(|component| {
             component.time_advance(time_delta);
         });
     }
 
-    fn until_next_event(&self) -> f64 {
+    fn until_next_event(&self) -> SDuration {
         self.components
             .iter()
-            .fold(f64::INFINITY, |min, component| {
-                f64::min(min, component.until_next_event())
+            .fold(SDuration::INFINITY, |min, component| {
+                SDuration::min(min, component.until_next_event())
             })
     }
 }

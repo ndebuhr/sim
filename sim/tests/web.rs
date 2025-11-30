@@ -1,10 +1,10 @@
 use std::collections::HashMap;
-use std::f64::INFINITY;
 
 use sim::models::{Model, ModelRecord};
 use sim::output_analysis::IndependentSample;
 use sim::simulator::{Connector, Message, WebSimulation};
 use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
+use sim::simulator::time::{SDuration, STime};
 
 wasm_bindgen_test_configure!(run_in_browser);
 
@@ -68,7 +68,7 @@ fn processor_from_queue_response_time_is_correct() {
     }
 ]"#;
     let mut web = WebSimulation::post_json(models, connectors);
-    let average_batch_completion_time = (0..200) // 100 jobs, and 2 steps per job
+    let average_batch_completion_time: f64 = (0..200) // 100 jobs, and 2 steps per job
         .map(|simulation_step| {
             // Get expected Option<String> message at each step
             if (simulation_step + 1) % 2 == 0 {
@@ -85,7 +85,7 @@ fn processor_from_queue_response_time_is_correct() {
             match expected_output {
                 None => {
                     assert![messages_set.is_empty()];
-                    INFINITY
+                    STime::INFINITY
                 }
                 Some(output) => {
                     let first_message = messages_set.first().unwrap();
@@ -101,8 +101,9 @@ fn processor_from_queue_response_time_is_correct() {
         })
         .map(|(_, job_completion_time)| job_completion_time)
         .enumerate()
+        // Item: (INDEX, job_completion_time: STime)
         .fold(
-            (Vec::new(), 0.0),
+            (Vec::new(), STime::NOW),
             |mut batch_completion_times, (job_index, job_completion_time)| {
                 // Compile batch completion times - 50 batches of 2 jobs each
                 // batch_completion_times.1 is the global time of the last batch completion
@@ -115,10 +116,11 @@ fn processor_from_queue_response_time_is_correct() {
                 batch_completion_times
             },
         )
+        // Fold yields an accumulation to (Vec<SDuration>, STime)
         .0
         .iter()
         // Take the average completion time across the 20 batches
-        .sum::<f64>()
+        .sum::<SDuration>()
         / 50.0;
     let expectation = 1.0 / 3.0; // Exponential with lambda=3.0
                                  // Epsilon of 0.34
@@ -571,7 +573,7 @@ fn ci_half_width_for_average_waiting_time() {
                 let records: Vec<ModelRecord> =
                     serde_json::from_str(&web.get_records_json(processor)).unwrap();
                 // Times: Arrival, Processing Start, Departure
-                let mut job_timestamps: HashMap<String, (Option<f64>, Option<f64>, Option<f64>)> =
+                let mut job_timestamps: HashMap<String, (Option<STime>, Option<STime>, Option<STime>)> =
                     HashMap::new();
                 records.iter().for_each(|record| {
                     let job = job_timestamps
@@ -593,7 +595,10 @@ fn ci_half_width_for_average_waiting_time() {
                         }
                         (_, _, _) => None,
                     })
+                    //unwrap duration to a float for calculations
+                    .map(|sd| sd.0)
                     .collect();
+
                 let waiting_times_sample = IndependentSample::post(waiting_times).unwrap();
                 if !waiting_times_sample.point_estimate_mean().is_nan() {
                     average_waiting_times[processor_index]

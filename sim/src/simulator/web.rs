@@ -1,7 +1,7 @@
 use js_sys::Array;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
-
+use crate::simulator::time::STime;
 use crate::utils::set_panic_hook;
 
 use super::Simulation as CoreSimulation;
@@ -96,7 +96,7 @@ impl Simulation {
 
     /// An interface to `Simulation.get_global_time`.
     pub fn get_global_time(&self) -> f64 {
-        self.simulation.get_global_time()
+        self.simulation.get_global_time().0
     }
 
     /// An interface to `Simulation.get_status`.
@@ -107,13 +107,13 @@ impl Simulation {
     /// A JS/WASM interface for `Simulation.records`, which converts the
     /// records to a JSON string.
     pub fn get_records_json(&self, model_id: &str) -> String {
-        serde_json::to_string(self.simulation.get_records(model_id).unwrap()).unwrap()
+        serde_json::to_string(&self.simulation.get_records(model_id).unwrap()).unwrap()
     }
 
     /// A JS/WASM interface for `Simulation.records`, which converts the
     /// records to a YAML string.
     pub fn get_records_yaml(&self, model_id: &str) -> String {
-        serde_yaml::to_string(self.simulation.get_records(model_id).unwrap()).unwrap()
+        serde_yaml::to_string(&self.simulation.get_records(model_id).unwrap()).unwrap()
     }
 
     /// An interface to `Simulation.reset`.
@@ -171,6 +171,8 @@ impl Simulation {
     /// A JS/WASM interface for `Simulation.step_until`, which converts the
     /// returned messages to a JavaScript Array.
     pub fn step_until_js(&mut self, until: f64) -> Array {
+        let until: STime = STime::new(until);
+
         self.simulation
             .step_until(until)
             .unwrap()
@@ -182,12 +184,14 @@ impl Simulation {
     /// A JS/WASM interface for `Simulation.step_until`, which converts the
     /// returned messages to a JSON string.
     pub fn step_until_json(&mut self, until: f64) -> String {
+        let until: STime = STime::new(until);
         serde_json::to_string(&self.simulation.step_until(until).unwrap()).unwrap()
     }
 
     /// A JS/WASM interface for `Simulation.step_until`, which converts the
     /// returned messages to a YAML string.
     pub fn step_until_yaml(&mut self, until: f64) -> String {
+        let until: STime = STime::new(until);
         serde_yaml::to_string(&self.simulation.step_until(until).unwrap()).unwrap()
     }
 

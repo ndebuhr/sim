@@ -11,6 +11,7 @@ use sim_derive::SerializableModel;
 
 #[cfg(feature = "simx")]
 use simx::event_rules;
+use crate::simulator::time::{SDuration, STime};
 
 /// The exclusive gateway splits a process flow into a set of possible paths.
 /// The process will only follow one of the possible paths. Path selection is
@@ -47,7 +48,7 @@ struct PortsOut {
 #[serde(rename_all = "camelCase")]
 struct State {
     phase: Phase,
-    until_next_event: f64,
+    until_next_event: SDuration,
     jobs: Vec<String>,         // port, message, time
     records: Vec<ModelRecord>, // port, message, time
 }
@@ -56,7 +57,7 @@ impl Default for State {
     fn default() -> Self {
         State {
             phase: Phase::Passive,
-            until_next_event: f64::INFINITY,
+            until_next_event: SDuration::INFINITY,
             jobs: Vec::new(),
             records: Vec::new(),
         }
@@ -92,9 +93,9 @@ impl ExclusiveGateway {
         }
     }
 
-    fn pass_job(&mut self, incoming_message: &ModelMessage, services: &mut Services) {
+    fn pass_job(&mut self, incoming_message: &ModelMessage, services: &Services) {
         self.state.phase = Phase::Pass;
-        self.state.until_next_event = 0.0;
+        self.state.until_next_event = SDuration::NOW;
         self.state.jobs.push(incoming_message.content.clone());
         self.record(
             services.global_time(),
@@ -107,9 +108,9 @@ impl ExclusiveGateway {
         );
     }
 
-    fn send_jobs(&mut self, services: &mut Services) -> Result<Vec<ModelMessage>, SimulationError> {
+    fn send_jobs(&mut self, services: &Services) -> Result<Vec<ModelMessage>, SimulationError> {
         self.state.phase = Phase::Passive;
-        self.state.until_next_event = f64::INFINITY;
+        self.state.until_next_event = SDuration::INFINITY;
         let departure_port_index = match &self.rng {
             Some(rng) => self.port_weights.random_variate(rng.clone())?,
             None => self.port_weights.random_variate(services.global_rng())?,
@@ -135,11 +136,11 @@ impl ExclusiveGateway {
 
     fn passivate(&mut self) -> Vec<ModelMessage> {
         self.state.phase = Phase::Passive;
-        self.state.until_next_event = f64::INFINITY;
+        self.state.until_next_event = SDuration::INFINITY;
         Vec::new()
     }
 
-    fn record(&mut self, time: f64, action: String, subject: String) {
+    fn record(&mut self, time: STime, action: String, subject: String) {
         if self.store_records {
             self.state.records.push(ModelRecord {
                 time,
@@ -155,14 +156,14 @@ impl DevsModel for ExclusiveGateway {
     fn events_ext(
         &mut self,
         incoming_message: &ModelMessage,
-        services: &mut Services,
+        services: &Services,
     ) -> Result<(), SimulationError> {
         Ok(self.pass_job(incoming_message, services))
     }
 
     fn events_int(
         &mut self,
-        services: &mut Services,
+        services: &Services,
     ) -> Result<Vec<ModelMessage>, SimulationError> {
         match &self.state.phase {
             Phase::Passive => Ok(self.passivate()),
@@ -170,11 +171,11 @@ impl DevsModel for ExclusiveGateway {
         }
     }
 
-    fn time_advance(&mut self, time_delta: f64) {
+    fn time_advance(&mut self, time_delta: SDuration) {
         self.state.until_next_event -= time_delta;
     }
 
-    fn until_next_event(&self) -> f64 {
+    fn until_next_event(&self) -> SDuration {
         self.state.until_next_event
     }
 }

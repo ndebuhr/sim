@@ -4,6 +4,7 @@ use sim::models::{
 };
 use sim::output_analysis::{ConfidenceInterval, SteadyStateOutput};
 use sim::simulator::{Connector, Message, Simulation};
+use sim::simulator::time::STime;
 use sim::utils::errors::SimulationError;
 
 fn get_message_number(message: &str) -> Option<&str> {
@@ -146,8 +147,8 @@ fn closure_under_coupling() -> Result<(), SimulationError> {
         |(index, (models, connectors))| -> Result<ConfidenceInterval<f64>, SimulationError> {
             let mut simulation = Simulation::post(models.to_vec(), connectors.to_vec());
             let message_records: Vec<Message> = simulation.step_n(1000)?;
-            let arrivals: Vec<(&f64, &str)>;
-            let departures: Vec<(&f64, &str)>;
+            let arrivals: Vec<(&STime, &str)>;
+            let departures: Vec<(&STime, &str)>;
             match index {
                 0 => {
                     arrivals = message_records
@@ -179,14 +180,14 @@ fn closure_under_coupling() -> Result<(), SimulationError> {
             let response_times: Vec<f64> = departures
                 .iter()
                 .map(|departure| -> Result<f64, SimulationError> {
-                    Ok(departure.0
+                    Ok(departure.0.0
                         - arrivals
                             .iter()
                             .find(|arrival| {
                                 get_message_number(&arrival.1) == get_message_number(&departure.1)
                             })
                             .ok_or(SimulationError::DroppedMessageError)?
-                            .0)
+                            .0.0)
                 })
                 .collect::<Result<Vec<f64>, SimulationError>>()?;
             let mut response_times_sample = SteadyStateOutput::post(response_times);

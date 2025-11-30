@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
+use crate::simulator::time::STime;
 
 /// Connectors are configured to connect models through their ports.  During
 /// simulation, models exchange messages (as per the Discrete Event System
@@ -52,6 +53,14 @@ impl Connector {
     pub fn target_port(&self) -> &str {
         &self.target_port
     }
+
+    pub fn source(&self) -> (&String, &String) {
+        (&self.source_id, &self.source_port)
+    }
+    pub fn target(&self) -> (&String, &String) {
+        (&self.target_id, &self.target_port)
+    }
+
 }
 
 /// Messages are the mechanism of information exchange for models in a
@@ -66,7 +75,7 @@ pub struct Message {
     source_port: String,
     target_id: String,
     target_port: String,
-    time: f64,
+    time: STime,
     content: String,
 }
 
@@ -78,7 +87,7 @@ impl Message {
         source_port: String,
         target_id: String,
         target_port: String,
-        time: f64,
+        time: STime,
         content: String,
     ) -> Self {
         Self {
@@ -112,7 +121,7 @@ impl Message {
     }
 
     /// This accessor method returns the transmission time of a message.
-    pub fn time(&self) -> &f64 {
+    pub fn time(&self) -> &STime {
         &self.time
     }
 
